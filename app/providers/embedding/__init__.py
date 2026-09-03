@@ -8,7 +8,7 @@ from app.providers.embedding.siglip import SigLIPEmbeddingProvider
 
 def get_embedding_provider() -> BaseEmbeddingProvider:
     provider_name = settings.EMBEDDING_PROVIDER.lower()
-    if provider_name == "siglip":
+    if provider_name in ("siglip", "huggingface"):
         return SigLIPEmbeddingProvider(
             model_name=settings.EMBEDDING_MODEL_NAME,
             model_version=settings.EMBEDDING_MODEL_VERSION,
