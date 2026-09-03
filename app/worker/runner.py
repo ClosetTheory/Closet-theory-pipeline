@@ -14,8 +14,9 @@ async def run_worker():
         logger.info("Starting in-memory worker loop...")
         await _in_memory_worker_loop()
     else:
-        logger.info("Starting Redis worker loop...")
-        await _redis_worker_loop()
+        concurrency = max(1, settings.WORKER_CONCURRENCY)
+        logger.info(f"Starting {concurrency} concurrent Redis worker loops...")
+        await asyncio.gather(*(_redis_worker_loop() for _ in range(concurrency)))
 
 
 if __name__ == "__main__":
