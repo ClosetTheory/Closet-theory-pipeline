@@ -109,6 +109,62 @@ def validate_validation_result(raw_input: Any, model: Optional[str] = None, mode
     return ValidationResult.model_validate(data)
 
 
+class VisualGateResult(BaseModel):
+    """SPEC.md Section 34: the Visual Gate evaluates the actual generated outfit image.
+
+    Output is a 0-10 quality score plus structured feedback across the spec's
+    named evaluation areas — this is a quality score, not the styling decision.
+    """
+
+    score: float = Field(default=5.0, ge=0.0, le=10.0)
+    feedback: Dict[str, str] = Field(default_factory=dict)
+    model: Optional[str] = None
+    model_version: Optional[str] = None
+
+
+class SemanticGateResult(BaseModel):
+    """SPEC.md Section 35: the Semantic Gate validates the generated result against the
+    original request/context/selected garments — binary pass/fail + violations + feedback.
+    """
+
+    status: str = "PASS"  # "PASS" | "FAIL"
+    violations: List[str] = Field(default_factory=list)
+    feedback: str = ""
+    model: Optional[str] = None
+    model_version: Optional[str] = None
+
+
+class GateAggregationResult(BaseModel):
+    """Aggregates the Visual Gate + Semantic Gate (run in parallel on the generated image)
+    into a single pass/feedback decision (SPEC.md Section 36)."""
+
+    passed: bool
+    visual: VisualGateResult
+    semantic: SemanticGateResult
+
+
+def validate_visual_gate_result(raw_input: Any, model: Optional[str] = None, model_version: Optional[str] = None) -> VisualGateResult:
+    data = raw_input
+    if isinstance(raw_input, str):
+        data = json.loads(raw_input)
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected dict for VisualGateResult, got {type(data)}")
+    data.setdefault("model", model)
+    data.setdefault("model_version", model_version)
+    return VisualGateResult.model_validate(data)
+
+
+def validate_semantic_gate_result(raw_input: Any, model: Optional[str] = None, model_version: Optional[str] = None) -> SemanticGateResult:
+    data = raw_input
+    if isinstance(raw_input, str):
+        data = json.loads(raw_input)
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected dict for SemanticGateResult, got {type(data)}")
+    data.setdefault("model", model)
+    data.setdefault("model_version", model_version)
+    return SemanticGateResult.model_validate(data)
+
+
 class StageTrace(BaseModel):
     """One entry in the Styling Pipeline's step-by-step execution trace (for the detail UI)."""
 
