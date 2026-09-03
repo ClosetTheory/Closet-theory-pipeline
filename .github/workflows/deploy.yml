@@ -76,30 +76,34 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      # Base64-encode the (non-secret) compose file so it can travel as a single env var
+      # Base64-encode the (non-secret) compose + nginx config so they can travel as env vars
       # over the same SSH connection as everything else -- scp-action proved flaky against
       # this droplet (transfer succeeds but a follow-up handshake times out), so everything
       # goes through one appleboy/ssh-action step instead.
-      - name: Encode compose file
-        run: echo "COMPOSE_B64=$(base64 -w0 docker-compose.prod.yml)" >> "$GITHUB_ENV"
+      - name: Encode config files
+        run: |
+          echo "COMPOSE_B64=$(base64 -w0 docker-compose.prod.yml)" >> "$GITHUB_ENV"
+          echo "NGINX_CONF_B64=$(base64 -w0 nginx/nginx.conf)" >> "$GITHUB_ENV"
 
       - name: Deploy (write config + docker login + pull + restart)
         uses: appleboy/ssh-action@v1.2.0
         env:
           APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
           COMPOSE_B64: ${{ env.COMPOSE_B64 }}
+          NGINX_CONF_B64: ${{ env.NGINX_CONF_B64 }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.DO_HOST }}
           username: root
           key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
-          envs: APP_ENV_FILE,COMPOSE_B64,GHCR_TOKEN
+          envs: APP_ENV_FILE,COMPOSE_B64,NGINX_CONF_B64,GHCR_TOKEN
           script: |
             set -e
             mkdir -p /opt/closet-theory
             cd /opt/closet-theory
             echo "$APP_ENV_FILE" > .env
             echo "$COMPOSE_B64" | base64 -d > docker-compose.yml
+            echo "$NGINX_CONF_B64" | base64 -d > nginx.conf
             echo "$GHCR_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             export IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}
             docker compose pull

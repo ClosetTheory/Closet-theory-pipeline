@@ -58,7 +58,7 @@ resource "digitalocean_firewall" "app" {
 
   inbound_rule {
     protocol         = "tcp"
-    port_range       = "8000"
+    port_range       = "80"
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
 
