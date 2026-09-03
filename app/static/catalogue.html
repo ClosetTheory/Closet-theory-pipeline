@@ -139,10 +139,11 @@
             ${scoreBar("compatibility", scores.compatibility)}
             ${scoreBar("occasion fit", scores.occasion_fit)}
             ${scoreBar("visual harmony", scores.visual_harmony)}
+            ${outfit.visual_gate ? scoreBar("visual gate", outfit.visual_gate.score / 10) : ""}
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
             ${validationBadge(outfit.semantic_validation, "semantic")}
-            ${validationBadge(outfit.visual_validation, "visual")}
+            ${validationBadge(outfit.generation_semantic_gate, "gen. semantic")}
           </div>
         </div>`;
     }
