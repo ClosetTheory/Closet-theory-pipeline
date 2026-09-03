@@ -37,6 +37,7 @@ class Garment(Base, TimestampMixin):
 
     category: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     subcategory: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    garment_class: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
 
     attributes_json: Mapped[Dict[str, Any]] = mapped_column(
         JSON,
