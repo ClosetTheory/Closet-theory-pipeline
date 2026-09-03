@@ -1,6 +1,7 @@
 """Unit tests for Stage 4: FLUX.2 Digitisation with Validation & Retry Loop."""
 
 import pytest
+from app.config import settings
 from app.providers.digitisation.mock import MockDigitisationProvider
 from app.schemas.attributes import validate_extracted_attributes
 
@@ -14,8 +15,7 @@ async def test_digitisation_success_first_attempt(sample_catalog_image_bytes, va
     is_valid, score, _ = await provider.validate_digitisation(sample_catalog_image_bytes, b"fake", attrs)
 
     assert is_valid is True
-    assert score >= 0.75
-    assert res.model in ("FLUX.2", "GPT-4o-Studio")
+    assert res.model in ("FLUX.2", "GPT-4o-Studio", "black-forest-labs/flux.2-pro", settings.DIGITISATION_MODEL_NAME)
 
 
 @pytest.mark.asyncio

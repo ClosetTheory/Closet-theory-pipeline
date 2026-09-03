@@ -70,9 +70,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 
-    # Stage 4: Image Digitisation (GPT Studio / FLUX.2)
-    DIGITISATION_PROVIDER: str = "gpt"  # "gpt" | "flux" | "mock"
-    DIGITISATION_MODEL_NAME: str = "GPT-4o-Studio"
+    # Stage 4: Image Digitisation (FLUX.2)
+    DIGITISATION_PROVIDER: str = "flux"  # "flux" | "gpt" | "mock"
+    DIGITISATION_MODEL_NAME: str = "black-forest-labs/flux.2-pro"
     DIGITISATION_MODEL_VERSION: str = "v1"
     DIGITISATION_PROMPT_VERSION: str = "prompt_v1"
     DIGITISATION_MAX_RETRIES: int = 3
