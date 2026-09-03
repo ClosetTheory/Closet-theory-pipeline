@@ -76,31 +76,31 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Write production .env locally (for scp)
-        run: printf '%s\n' "${{ secrets.APP_ENV_FILE }}" > prod.env
+      # Base64-encode the (non-secret) compose file so it can travel as a single env var
+      # over the same SSH connection as everything else -- scp-action proved flaky against
+      # this droplet (transfer succeeds but a follow-up handshake times out), so everything
+      # goes through one appleboy/ssh-action step instead.
+      - name: Encode compose file
+        run: echo "COMPOSE_B64=$(base64 -w0 docker-compose.prod.yml)" >> "$GITHUB_ENV"
 
-      - name: Copy compose file + .env to the droplet
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DO_HOST }}
-          username: root
-          key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml,prod.env"
-          target: "/opt/closet-theory"
-          strip_components: 0
-
-      - name: Deploy (docker login + pull + restart)
+      - name: Deploy (write config + docker login + pull + restart)
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+          COMPOSE_B64: ${{ env.COMPOSE_B64 }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.DO_HOST }}
           username: root
           key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          envs: APP_ENV_FILE,COMPOSE_B64,GHCR_TOKEN
           script: |
             set -e
+            mkdir -p /opt/closet-theory
             cd /opt/closet-theory
-            mv prod.env .env
-            mv docker-compose.prod.yml docker-compose.yml
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "$APP_ENV_FILE" > .env
+            echo "$COMPOSE_B64" | base64 -d > docker-compose.yml
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             export IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}
             docker compose pull
             docker compose up -d --remove-orphans
