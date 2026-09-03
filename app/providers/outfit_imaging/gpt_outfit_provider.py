@@ -35,12 +35,13 @@ class GPTOutfitImageProvider(BaseOutfitImageProvider):
 
         items_desc = "; ".join(pieces)
         return f"""Commercial e-commerce outfit photograph combining these exact garments, displayed together as a \
-single coordinated outfit on a matte black full-body mannequin, on a solid dark charcoal studio backdrop: {items_desc}.
+single coordinated outfit on a full matte black mannequin (including a complete, featureless head), standing in a \
+neutral, straight-on front-facing posture, on a solid dark charcoal studio backdrop: {items_desc}.
 
 Requirements:
 - Use each reference image's exact garment (color, pattern, silhouette) unchanged — do not substitute or invent a different garment.
-- Display the full outfit layered correctly (top-to-bottom outfit order) on a single solid matte black mannequin form (faceless, headless or featureless head, smooth matte black finish) — not a flat-lay, not a ghost/invisible mannequin, not a real person.
-- Studio lighting with subtle rim light outlining the mannequin and garments, no people, no faces, no text overlays, no watermark, 8k sharp product photography quality."""
+- Display the full outfit layered correctly (top-to-bottom outfit order) on a single solid matte black mannequin with a full head and body (smooth, blank, featureless head — no facial features — but NOT headless) in a neutral standing posture — not a flat-lay, not a ghost/invisible mannequin, not a real person.
+- Studio lighting with subtle rim light outlining the mannequin's head, body, and garments, no people, no real faces, no text overlays, no watermark, 8k sharp product photography quality."""
 
     async def generate(self, garments: List[GarmentSummary], canonical_images: List[bytes]) -> Optional[bytes]:
         if not self.api_key or not canonical_images:
