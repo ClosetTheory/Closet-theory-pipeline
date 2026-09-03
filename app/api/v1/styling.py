@@ -9,11 +9,13 @@ from app.models.styling import Outfit, OutfitGarment, StylingRequest
 from app.schemas.styling import (
     OutfitResult,
     ScoreBreakdown,
+    SemanticGateResult,
     StageTrace,
     StylingIntent,
     StylingRecommendationRequest,
     StylingRecommendationResponse,
     ValidationResult,
+    VisualGateResult,
 )
 from app.storage.base import StorageClient
 from app.styling.orchestrator import StylingOrchestrator, garment_to_summary
@@ -86,7 +88,8 @@ async def get_styling_request(
                 compatibility_reason=outfit.compatibility_reason,
                 semantic_validation=ValidationResult.model_validate(outfit.semantic_validation) if outfit.semantic_validation else None,
                 generated_image_url=generated_image_url,
-                visual_validation=ValidationResult.model_validate(outfit.visual_validation) if outfit.visual_validation else None,
+                visual_gate=VisualGateResult.model_validate(outfit.visual_validation) if outfit.visual_validation else None,
+                generation_semantic_gate=SemanticGateResult.model_validate(outfit.generated_image_semantic_validation) if outfit.generated_image_semantic_validation else None,
             )
         )
 
