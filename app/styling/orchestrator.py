@@ -11,6 +11,7 @@ so the frontend can render a step-by-step pipeline detail view, mirroring the
 Image Ingestion Pipeline's live stage cards.
 """
 
+import asyncio
 import hashlib
 import io
 import time
@@ -279,20 +280,25 @@ class StylingOrchestrator:
         candidates_skipped = 0
 
         t8 = time.perf_counter()
+
+        # Stage 9: Outfit Image Generation. Stage 10: Visual Gate + Semantic Gate, in
+        # parallel, on the generated result (SPEC.md Section 36). Every candidate in the
+        # fallback pool is generated/gated CONCURRENTLY (asyncio.gather) rather than one
+        # at a time — each candidate is independent, so there's no reason to pay the
+        # latency of a failed candidate's retries before even starting the next one.
+        gate_results = await asyncio.gather(
+            *(
+                generate_and_run_gates(context, outfit_candidate, [garments_by_id[gid] for gid in outfit_candidate.garment_ids], self.storage)
+                for outfit_candidate, _semantic_result in validated
+            )
+        )
+
         rank = 0
-        for outfit_candidate, semantic_result in validated:
+        for (outfit_candidate, semantic_result), (image_bytes, visual_gate, semantic_gate, passed) in zip(validated, gate_results):
             if len(outfit_results) >= request.top_k:
                 break  # already have enough passing outfits; remaining pool is unused fallback headroom
 
             garments = [garments_by_id[gid] for gid in outfit_candidate.garment_ids]
-
-            # Stage 9: Outfit Image Generation. Stage 10: Visual Gate + Semantic Gate, in
-            # parallel, on the generated result (SPEC.md Section 36). On gate failure this
-            # candidate is skipped in favor of the next one in the pool, rather than
-            # returning a failed result (bounded fallback depth set at Stage 8).
-            image_bytes, visual_gate, semantic_gate, passed = await generate_and_run_gates(
-                context, outfit_candidate, garments, self.storage
-            )
 
             gate_summaries.append(
                 {
