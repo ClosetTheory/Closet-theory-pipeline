@@ -66,8 +66,12 @@ def build_outfit_combinations(
             raw_combos.append((garments, score_sum))
 
             if outerwear_options:
-                best_outer = max(outerwear_options, key=lambda pair: pair[1])
-                raw_combos.append((garments + [best_outer[0]], score_sum + best_outer[1]))
+                # Vary the outerwear layer across the top few options (not just the single
+                # best match every time) so different base combos end up wearing different
+                # jackets/coats instead of the wardrobe's one "best" outer layer everywhere.
+                top_outers = sorted(outerwear_options, key=lambda pair: pair[1], reverse=True)[:3]
+                for outer_garment, outer_score in top_outers:
+                    raw_combos.append((garments + [outer_garment], score_sum + outer_score))
 
     # Dedup by garment-id set (anchors + limited options can otherwise repeat)
     seen = set()

@@ -6,6 +6,7 @@ PortableVector TypeDecorator/comparator complications and works identically on
 Postgres and SQLite (tests), at the cost of not scaling to huge wardrobes.
 """
 
+import random
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 from sqlalchemy import select
@@ -70,12 +71,40 @@ async def retrieve_by_role(
         if vec and anchor_vectors:
             score = max(_cosine(vec, av) for av in anchor_vectors)
         else:
-            score = float((garment.attributes_json or {}).get("versatility", 0.5))
+            # No anchor to compare against (the common free-text-request case): fall back to
+            # the garment's static versatility attribute, but jitter it so that repeated
+            # requests don't always retrieve the exact same handful of "highest versatility"
+            # garments out of a now much larger wardrobe — real users see the same few outfits
+            # every time otherwise.
+            score = float((garment.attributes_json or {}).get("versatility", 0.5)) + random.uniform(0.0, 0.35)
 
         role_map.setdefault(role, []).append((garment, score))
 
     for role, scored in role_map.items():
         scored.sort(key=lambda pair: pair[1], reverse=True)
-        role_map[role] = scored[:max_per_role]
+        role_map[role] = _sample_top_pool(scored, max_per_role)
 
     return role_map
+
+
+def _sample_top_pool(scored: List[Tuple[Garment, float]], max_per_role: int) -> List[Tuple[Garment, float]]:
+    """Picks max_per_role candidates, weighted-random from a wider top pool instead of a
+    strict top-N cut, so the retrieved set (and therefore every downstream combination)
+    varies across requests instead of collapsing onto the same static best-scored items."""
+    pool_size = min(len(scored), max_per_role * 3)
+    pool = scored[:pool_size]
+    if len(pool) <= max_per_role:
+        return pool
+
+    weights = [max(score, 0.001) for _garment, score in pool]
+    chosen_indices = set()
+    remaining_indices = list(range(len(pool)))
+    remaining_weights = list(weights)
+    while len(chosen_indices) < max_per_role and remaining_indices:
+        pick = random.choices(remaining_indices, weights=remaining_weights, k=1)[0]
+        chosen_indices.add(pick)
+        pos = remaining_indices.index(pick)
+        remaining_indices.pop(pos)
+        remaining_weights.pop(pos)
+
+    return [pool[i] for i in sorted(chosen_indices, key=lambda i: pool[i][1], reverse=True)]
