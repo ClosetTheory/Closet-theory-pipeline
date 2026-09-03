@@ -70,10 +70,11 @@ async def _visual_harmony(garments: List[Garment]) -> float:
 class RankingTrace:
     """Bundles ranking-stage telemetry alongside the diversified outfits, for the pipeline detail view."""
 
-    def __init__(self, outfits: List[OutfitCandidate], total_evaluated: int, total_compatible: int):
+    def __init__(self, outfits: List[OutfitCandidate], total_evaluated: int, total_compatible: int, pairing_rejected: int = 0):
         self.outfits = outfits
         self.total_evaluated = total_evaluated
         self.total_compatible = total_compatible
+        self.pairing_rejected = pairing_rejected
 
 
 async def rank_combinations(
@@ -83,10 +84,13 @@ async def rank_combinations(
 ) -> RankingTrace:
     """Evaluates compatibility + scores every combination, drops INCOMPATIBLE ones, returns diversified top_k."""
     scored: List[OutfitCandidate] = []
+    pairing_rejected = 0
 
     for garments, _retrieval_sum in combinations_with_retrieval:
-        decision, compatibility_score, reason = await evaluate_outfit_compatibility(garments)
+        decision, compatibility_score, reason, hard_reject_source = await evaluate_outfit_compatibility(garments)
         if decision == "INCOMPATIBLE":
+            if hard_reject_source == "pairing":
+                pairing_rejected += 1
             continue
 
         components = {
@@ -115,4 +119,5 @@ async def rank_combinations(
         outfits=diversified[:top_k],
         total_evaluated=len(combinations_with_retrieval),
         total_compatible=len(scored),
+        pairing_rejected=pairing_rejected,
     )
