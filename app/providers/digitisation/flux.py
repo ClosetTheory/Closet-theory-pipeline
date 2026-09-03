@@ -37,7 +37,7 @@ class FluxDigitisationProvider(BaseDigitisationProvider):
         self._active_model: str = "black-forest-labs/flux.2-pro"
 
     def build_prompt(self, attributes: GarmentAttributes) -> Tuple[str, str]:
-        """Builds hyper-specific 1:1 e-commerce catalogue black-mannequin prompt for FLUX.2."""
+        """Builds hyper-specific 1:1 e-commerce catalogue product-shot prompt for FLUX.2, with no visible body or support form."""
         colors_list = attributes.colour if attributes.colour else ["yellow", "salmon pink", "navy blue", "white"]
         colors_str = ", ".join(colors_list)
         pattern_str = getattr(attributes.pattern, "value", str(attributes.pattern or "plaid"))
@@ -54,7 +54,8 @@ class FluxDigitisationProvider(BaseDigitisationProvider):
         brand_label = getattr(attributes, "brand_label", None) or "BLOVIATE"
         visual_desc = getattr(attributes, "visual_description", None)
 
-        positive_prompt = f"""Commercial e-commerce ghost mannequin product photograph of a {subcategory_str}, centered on a solid dark charcoal studio background (#161922).
+        positive_prompt = f"""Commercial e-commerce product photograph of a {subcategory_str}, centered on a solid dark charcoal studio background (#161922). \
+The garment floats with natural three-dimensional volume and shape, exactly as if being worn, but with no visible body, support structure, or object holding it up.
 
 ### Exact Garment Identity (1:1 Preservation — Highest Priority):
 - Garment Type: {fit_str} fit, {silhouette_str} silhouette {subcategory_str} with {sleeve_str} sleeves
@@ -63,11 +64,11 @@ class FluxDigitisationProvider(BaseDigitisationProvider):
 - Pattern Structure: {pattern_detail}
 - Chest Pocket: {pocket_detail}
 - Buttons & Placket: {button_detail}
-- Collar & Neckline: {collar_detail}. Inside the hollow ghost mannequin neck opening, the inside back collar clearly displays a dark rectangular woven brand label reading '{brand_label}' with size tag 'M'
+- Collar & Neckline: {collar_detail}. Inside the hollow neck opening, the inside back collar clearly displays a dark rectangular woven brand label reading '{brand_label}' with size tag 'M'
 - Sleeves & Hem: Symmetrical long sleeves positioned neatly alongside the torso with crisp matching cuffs and button closure. Clean, symmetrically curved shirt-tail bottom hem
 
 ### Presentation & Photography Style:
-- Ghost mannequin / invisible mannequin 3D form: The garment has natural 3D torso volume as if worn by an invisible body, with the hollow neck opening displaying the inner back label
+- Invisible-body 3D form: The garment has natural 3D torso volume with no body, form, or object visible inside it, with the hollow neck opening displaying the inner back label
 - Symmetrical straight-on front-facing view, eye-level camera angle, perfectly centered composition
 - Pristine e-commerce catalogue quality: perfectly ironed, wrinkle-free, sharp tailored seams, true-to-life colors
 - Background: Solid dark charcoal studio backdrop (#161922) with seamless contrast
@@ -78,8 +79,8 @@ class FluxDigitisationProvider(BaseDigitisationProvider):
 
         negative_prompt = (
             "different garment, wrong garment, dress, gown, kurta, skirt, t-shirt, polo, hoodie, jacket, "
-            "human, person, face, skin, hands, arms, body, visible mannequin head, visible mannequin neck, "
-            "plastic mannequin, mannequin dummy, hanger, rack, closet, cluttered background, white wall, "
+            "human, person, face, skin, hands, arms, body, visible head, visible neck, visible support structure, "
+            "dress form, dummy, hanger, rack, closet, cluttered background, white wall, "
             "slats, wrinkles, creases, asymmetrical, tilted, floating fabric, distorted pattern, "
             "misaligned buttons, missing pocket, blurry, low resolution, artifacts, dark shadows, watermark, text overlays"
         )
