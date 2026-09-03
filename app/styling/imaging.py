@@ -56,6 +56,12 @@ async def generate_and_run_gates(
     Generates a composite outfit image, then runs the Visual Gate and (generated-image-aware)
     Semantic Gate in parallel on the result. Retries generation on gate failure up to
     STYLING_IMAGE_MAX_RETRIES times. Returns (image_bytes, visual_gate, semantic_gate, passed).
+
+    image_bytes is returned even when passed=False (the last attempt's generated image) so
+    the caller can persist and surface rejected candidates for inspection/debugging rather
+    than silently discarding what was actually generated (SPEC.md Section 27 only requires
+    that a FAILED candidate not be presented as the chosen outfit — it doesn't require
+    throwing away the evidence of why it failed).
     """
     canonical_images = []
     for garment in garments:
@@ -94,6 +100,7 @@ async def generate_and_run_gates(
         if gates_passed(visual_result, semantic_result):
             return generated, visual_result, semantic_result, True
 
-    # Retries exhausted without both gates passing — SPEC.md Section 27: return the
-    # structured outfit without imagery rather than silently accepting a failed result.
-    return None, last_visual, last_semantic, False
+    # Retries exhausted without both gates passing — SPEC.md Section 27: the outfit is not
+    # accepted as the chosen result, but the last generated attempt is still returned so it
+    # can be shown as a rejected candidate rather than discarded.
+    return last_image, last_visual, last_semantic, False
