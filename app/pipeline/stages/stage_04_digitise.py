@@ -103,6 +103,9 @@ class Stage04Digitise(BaseStage):
         # Link canonical image to garment without touching source image
         ctx.garment.canonical_image_id = canonical_asset.id
 
+        prompt = getattr(provider, "_last_prompt", "")
+        negative_prompt = getattr(provider, "_last_negative_prompt", "")
+
         return StageExecutionResult(
             status="SUCCEEDED",
             input_refs={"crop_uri": crop_uri},
@@ -111,6 +114,8 @@ class Stage04Digitise(BaseStage):
                 "canonical_image_uri": canonical_uri,
                 "quality_score": last_result.quality_score,
                 "attempts": last_result.attempts,
+                "prompt": prompt,
+                "negative_prompt": negative_prompt,
             },
             input_hash=input_hash,
             model=last_result.model,

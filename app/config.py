@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
 
     # Stage 4: Image Digitisation (FLUX.2)
-    DIGITISATION_PROVIDER: str = "mock"  # "flux" | "mock"
+    DIGITISATION_PROVIDER: str = "flux"  # "flux" | "mock"
     DIGITISATION_MODEL_NAME: str = "FLUX.2"
     DIGITISATION_MODEL_VERSION: str = "v1"
     DIGITISATION_PROMPT_VERSION: str = "prompt_v1"

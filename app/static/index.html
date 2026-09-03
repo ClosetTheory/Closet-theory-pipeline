@@ -199,6 +199,14 @@
               <div>Quality Score: <span class="text-slate-200">-</span></div>
               <div>Retry Attempts: <span class="text-slate-200">-</span></div>
             </div>
+            <!-- Prompt Display Box -->
+            <div id="stage4-prompt-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">FLUX.2 Studio Prompt</span>
+                <button type="button" onclick="copyFluxPrompt()" class="text-[10px] text-blue-400 hover:text-blue-300 font-mono">📋 Copy</button>
+              </div>
+              <div id="stage4-prompt-text" class="text-[10px] text-slate-300 bg-slate-950 p-2 rounded border border-slate-800 max-h-20 overflow-y-auto font-sans leading-relaxed"></div>
+            </div>
           </div>
 
           <!-- Card 5: Embedding (MODA SigLIP 768d) -->
@@ -637,8 +645,13 @@
 
         document.getElementById('stage4-data').innerHTML = `
           <div>Quality Score: <span class="text-emerald-400 font-bold">${(data.output_data.quality_score * 100).toFixed(0)}%</span></div>
-          <div>Attempts: <span class="text-blue-400 font-bold">${data.output_data.attempts}</span> (Validated)</div>
+          <div>Renderer: <span class="text-blue-400 font-bold">${data.model || 'FLUX.2'}</span> (${data.output_data.attempts} attempt)</div>
         `;
+
+        if (data.output_data.prompt) {
+          document.getElementById('stage4-prompt-container').classList.remove('hidden');
+          document.getElementById('stage4-prompt-text').innerText = data.output_data.prompt;
+        }
       }
       else if (stageKey === "STAGE_05_EMBED") {
         const heatmap = document.getElementById('embedding-heatmap');
@@ -689,6 +702,13 @@
           <div class="text-slate-300">Complementary outfit pairing verified by decision trees.</div>
         `;
       }
+    }
+
+    function copyFluxPrompt() {
+      const el = document.getElementById('stage4-prompt-text');
+      if (!el) return;
+      navigator.clipboard.writeText(el.innerText);
+      alert("FLUX.2 prompt copied to clipboard!");
     }
   </script>
 </body>
