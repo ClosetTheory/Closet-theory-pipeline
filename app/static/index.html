@@ -52,6 +52,7 @@
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1.5 transition font-semibold" title="Open Interactive Swagger UI">
           ⚡ Interactive API (/docs) ↗
         </a>
+        <button onclick="ctLogout()" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
       </nav>
     </div>
   </header>
@@ -506,6 +507,16 @@
     let selectedFile = null;
     let createdGarmentId = null;
 
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    async function ctFetch(url, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const headers = Object.assign({}, opts.headers || {}, token ? {Authorization: `Bearer ${token}`} : {});
+      const res = await fetch(url, Object.assign({}, opts, {headers}));
+      if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      return res;
+    }
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.tab-btn').forEach(el => {
@@ -596,10 +607,8 @@
         // 1. Upload Raw Image
         const formData = new FormData();
         formData.append('file', selectedFile);
-        formData.append('tenant_id', 'live_demo');
-        formData.append('member_id', 'operator_1');
 
-        const uploadResp = await fetch('/api/v1/wardrobe/images', {
+        const uploadResp = await ctFetch('/api/v1/wardrobe/images', {
           method: 'POST',
           body: formData,
         });
@@ -612,13 +621,11 @@
         const imageId = uploadData.image_id;
 
         // 2. Create Garment entity
-        const garmentResp = await fetch('/api/v1/wardrobe/garments', {
+        const garmentResp = await ctFetch('/api/v1/wardrobe/garments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             source_image_id: imageId,
-            tenant_id: 'live_demo',
-            member_id: 'operator_1',
           }),
         });
 
@@ -646,7 +653,7 @@
           document.getElementById(st.badge).innerText = "RUNNING";
           document.getElementById(st.badge).className = "text-[10px] font-mono bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded animate-pulse";
 
-          const stepResp = await fetch(`/api/v1/wardrobe/garments/${createdGarmentId}/step`, {
+          const stepResp = await ctFetch(`/api/v1/wardrobe/garments/${createdGarmentId}/step`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -667,7 +674,7 @@
         }
 
         // 4. Fetch final canonical garment
-        const finalResp = await fetch(`/api/v1/wardrobe/garments/${createdGarmentId}`);
+        const finalResp = await ctFetch(`/api/v1/wardrobe/garments/${createdGarmentId}`);
         const finalData = await finalResp.json();
 
         document.getElementById('live-spinner').classList.add('hidden');
