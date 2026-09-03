@@ -1,5 +1,6 @@
 """MODA SigLIP Distilled Embedding Provider."""
 
+import base64
 from typing import List
 import httpx
 import numpy as np
@@ -10,9 +11,8 @@ from app.providers.embedding.mock import MockEmbeddingProvider
 
 
 class SigLIPEmbeddingProvider(BaseEmbeddingProvider):
-    """MODA SigLIP Distilled vision transformer embedding model, backed by the
-    Hugging Face Inference API (keeps the Docker image light by avoiding a
-    local model download)."""
+    """MODA SigLIP Distilled (HopitAI/moda-fashion-distilled) vision transformer
+    embedding model, served from a Runpod Serverless endpoint (see runpod/moda_embed.py)."""
 
     def __init__(
         self,
@@ -30,31 +30,29 @@ class SigLIPEmbeddingProvider(BaseEmbeddingProvider):
         )
 
     async def embed(self, image_bytes: bytes) -> List[float]:
-        if not settings.HF_API_KEY:
+        if not settings.RUNPOD_API_KEY or not settings.RUNPOD_EMBEDDING_ENDPOINT_ID:
             return await self._fallback.embed(image_bytes)
 
         try:
             headers = {
-                "Authorization": f"Bearer {settings.HF_API_KEY}",
-                "Content-Type": "image/jpeg",
+                "Authorization": f"Bearer {settings.RUNPOD_API_KEY}",
+                "Content-Type": "application/json",
             }
-            url = f"{settings.HF_INFERENCE_BASE_URL}/{settings.HF_EMBEDDING_MODEL}"
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(url, headers=headers, content=image_bytes)
+            url = f"{settings.RUNPOD_BASE_URL}/{settings.RUNPOD_EMBEDDING_ENDPOINT_ID}/runsync"
+            payload = {"input": {"image_b64": base64.b64encode(image_bytes).decode("utf-8")}}
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
                 resp.raise_for_status()
                 result = resp.json()
 
-            arr = np.array(result, dtype=np.float64)
+            if result.get("status") != "COMPLETED":
+                raise ValueError(f"Runpod job did not complete: {result.get('status')}")
 
-            # HF vision feature-extraction models may return a single pooled
-            # vector, or a 2D array of per-token embeddings that needs pooling.
-            if arr.ndim > 1:
-                arr = arr.reshape(-1, arr.shape[-1]).mean(axis=0)
-            arr = arr.flatten()
+            arr = np.array(result["output"]["embedding"], dtype=np.float64)
 
             norm = np.linalg.norm(arr)
             if norm == 0:
-                raise ValueError("HF inference API returned a zero vector")
+                raise ValueError("Runpod embedding endpoint returned a zero vector")
             arr = arr / norm
 
             if arr.shape[0] != self.dimension:
@@ -70,6 +68,6 @@ class SigLIPEmbeddingProvider(BaseEmbeddingProvider):
             return arr.tolist()
         except Exception as e:
             logger.warning(
-                f"Hugging Face SigLIP embedding call failed: {e}. Falling back to mock embedding."
+                f"Runpod SigLIP embedding call failed: {e}. Falling back to mock embedding."
             )
             return await self._fallback.embed(image_bytes)

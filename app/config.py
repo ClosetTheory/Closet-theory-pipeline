@@ -84,9 +84,12 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL_NAME: str = "MODA SigLIP Distilled"
     EMBEDDING_MODEL_VERSION: str = "v1"
     EMBEDDING_DIMENSION: int = 768
-    HF_API_KEY: Optional[str] = None
-    HF_EMBEDDING_MODEL: str = "google/siglip-base-patch16-224"
-    HF_INFERENCE_BASE_URL: str = "https://api-inference.huggingface.co/models"
+
+    # Runpod (MODA models: SigLIP embedding + MODA_NER attribute extraction)
+    RUNPOD_API_KEY: Optional[str] = None
+    RUNPOD_BASE_URL: str = "https://api.runpod.ai/v2"
+    RUNPOD_EMBEDDING_ENDPOINT_ID: Optional[str] = None
+    RUNPOD_ATTRIBUTE_ENDPOINT_ID: Optional[str] = None
 
     # Stage 6: Category Bundling (Lookup Table)
     TAXONOMY_VERSION: str = "taxonomy_v1"
