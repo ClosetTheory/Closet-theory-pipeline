@@ -98,7 +98,7 @@ async def list_garments(
     member_id: Optional[str] = Query(default=None),
     category: Optional[str] = Query(default=None),
     status_filter: str = Query(default="COMPLETED", alias="status"),
-    limit: int = Query(default=24, ge=1, le=500),
+    limit: int = Query(default=24, ge=1, le=3000),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_db_session),
 ):
