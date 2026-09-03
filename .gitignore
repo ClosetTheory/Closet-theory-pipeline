@@ -48,3 +48,9 @@ htmlcov/
 # Claude Code worktrees/session state
 .claude/
 backups/
+
+# Terraform (terraform/)
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/.secrets/
+terraform/tfplan*
