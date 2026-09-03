@@ -186,7 +186,8 @@ class OutfitResult(BaseModel):
     compatibility_reason: Optional[str] = None
     semantic_validation: Optional[ValidationResult] = None
     generated_image_url: Optional[str] = None
-    visual_validation: Optional[ValidationResult] = None
+    visual_gate: Optional[VisualGateResult] = None
+    generation_semantic_gate: Optional[SemanticGateResult] = None
 
 
 class StylingRecommendationRequest(BaseModel):
