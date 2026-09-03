@@ -37,8 +37,15 @@ class BaseAttributeExtractorProvider(ABC):
     """Stage 3: Visual evidence to canonical structured garment attributes provider interface."""
 
     @abstractmethod
-    async def extract_attributes(self, image_bytes: bytes) -> GarmentAttributes:
-        """Extract structured attributes conforming to the 7-step validation pipeline."""
+    async def extract_attributes(
+        self, image_bytes: bytes, image_type: Optional[str] = None
+    ) -> GarmentAttributes:
+        """Extract structured attributes conforming to the 7-step validation pipeline.
+
+        image_type: one of "CATALOG" | "CROP" | "FULL_BODY" (from Stage 1 classification),
+        when available. VLM-based providers infer framing from the image itself and may
+        ignore it; MODA_NER uses it to select the matching track.
+        """
         pass
 
 

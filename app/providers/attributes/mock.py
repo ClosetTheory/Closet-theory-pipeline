@@ -29,7 +29,9 @@ class MockAttributeExtractorProvider(BaseAttributeExtractorProvider):
         self.model_version = model_version
         self.preset_attributes = preset_attributes
 
-    async def extract_attributes(self, image_bytes: bytes) -> GarmentAttributes:
+    async def extract_attributes(
+        self, image_bytes: bytes, image_type: Optional[str] = None
+    ) -> GarmentAttributes:
         if self.preset_attributes is not None:
             return validate_extracted_attributes(self.preset_attributes)
 

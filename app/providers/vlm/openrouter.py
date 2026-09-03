@@ -56,7 +56,9 @@ class OpenRouterGPTProvider(
         self.base_url = base_url.rstrip("/")
         self.model_version = "v1"
 
-    async def extract_attributes(self, image_bytes: bytes) -> GarmentAttributes:
+    async def extract_attributes(
+        self, image_bytes: bytes, image_type: Optional[str] = None
+    ) -> GarmentAttributes:
         """Extracts structured garment attributes from image using OpenRouter GPT model."""
         if not self.api_key:
             # Fallback to local heuristic if no key in env
@@ -402,3 +404,50 @@ Selected garments (must be faithfully rendered, not substituted): {expected_desc
             model=self.model_name,
             model_version=self.model_version,
         )
+
+    # Field -> prompt line, for whichever GarmentAttributes fields a MODA_NER track
+    # didn't supply (varies by track: fullbody has no category/subcategory at all;
+    # crop has no colour/fit; catalog has no silhouette). Order matters for readability.
+    _SOFT_FIELD_PROMPTS: Dict[str, str] = {
+        "category": '"category": "high-level category, e.g. shirt | pants | dress | jacket | shoes"',
+        "subcategory": '"subcategory": "normalized fine-grained type, e.g. oxford_shirt | jeans | blazer | dress"',
+        "colour": '"colour": ["list", "of", "colors", "e.g.", "white", "navy blue"]',
+        "pattern": '"pattern": "solid | striped | plaid | checkered | floral | graphic | polka_dot | geometric | abstract | animal_print | textured | other"',
+        "material": '"material": "primary fabric, e.g. cotton | wool | silk | denim | polyester"',
+        "fit": '"fit": "slim | regular | oversized | relaxed | tailored | loose | tight"',
+        "silhouette": '"silhouette": "straight | a_line | fitted | boxy | hourglass | tapered | flared | asymmetrical | draped"',
+        "occasion": '"occasion": ["casual | smart_casual | business_casual | formal | work | lounge | activewear | evening | party"]',
+        "season": '"season": ["spring | summer | fall | winter | all_season"]',
+        "layering_role": '"layering_role": "base | mid | outer | standalone | accessory | footwear"',
+        "warmth": '"warmth": 0.0 to 1.0',
+        "versatility": '"versatility": 0.0 to 1.0',
+    }
+
+    async def extract_soft_attributes(self, image_bytes: bytes, known: Dict[str, Any]) -> Dict[str, Any]:
+        """Cheap VLM top-up for whatever GarmentAttributes fields the MODA_NER track
+        didn't supply (varies by track — e.g. fullbody has no category/subcategory at
+        all; crop has no colour/fit; catalog has no silhouette). Grounded on already-known
+        attributes so the model doesn't have to re-derive fields the classifier already
+        got right. Returns a partial dict (only the missing keys); empty dict on failure."""
+        missing = [f for f in self._SOFT_FIELD_PROMPTS if not known.get(f)]
+        if not missing:
+            return {}
+
+        schema_lines = ",\n  ".join(self._SOFT_FIELD_PROMPTS[f] for f in missing)
+        prompt_text = f"""You are given a garment image and attributes already extracted by a \
+classifier. Fill in ONLY the following fields as raw JSON, grounded on the known attributes \
+below (do not contradict them):
+{{
+  {schema_lines}
+}}
+
+Known attributes already extracted (do not repeat, do not contradict): {json.dumps(known)}"""
+
+        content = await self._vision_chat_json(prompt_text, image_bytes, max_tokens=400)
+        if not content:
+            return {}
+        try:
+            return json.loads(content)
+        except Exception as e:
+            logger.warning(f"Soft-attribute top-up parse failed: {e}")
+            return {}

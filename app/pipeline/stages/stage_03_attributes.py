@@ -26,7 +26,7 @@ class Stage03Attributes(BaseStage):
         provider = get_attribute_provider()
 
         try:
-            attributes = await provider.extract_attributes(image_bytes)
+            attributes = await provider.extract_attributes(image_bytes, image_type=ctx.garment.image_type)
             # Persist canonical attributes to garment entity
             ctx.garment.attributes_json = attributes.model_dump(mode="json")
             ctx.garment.subcategory = attributes.subcategory

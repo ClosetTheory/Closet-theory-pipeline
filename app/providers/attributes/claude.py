@@ -24,7 +24,9 @@ class ClaudeAttributeExtractorProvider(BaseAttributeExtractorProvider):
         self.model_version = model_version
         self._fallback = MockAttributeExtractorProvider(model_name=model_name, model_version=model_version)
 
-    async def extract_attributes(self, image_bytes: bytes) -> GarmentAttributes:
+    async def extract_attributes(
+        self, image_bytes: bytes, image_type: Optional[str] = None
+    ) -> GarmentAttributes:
         if not self.api_key:
             return await self._fallback.extract_attributes(image_bytes)
 
