@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = "openai/gpt-4o"
     OPENROUTER_GENAI_MODEL: str = "openai/dall-e-3"
+    OPENROUTER_IMAGE_MODEL: str = "bytedance-seed/seedream-5-0-lite"
 
     # NVIDIA NIM API Configuration
     NVIDIA_API_KEY: Optional[str] = None
