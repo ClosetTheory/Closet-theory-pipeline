@@ -1,6 +1,6 @@
 """Style-preference learning from outfit up/downvotes: one numeric scalar (boldness) plus
-per-value affinities for categorical attributes (colour, pattern) — both updated by the same
-vote signal, just with different math.
+per-value affinities for categorical attributes (colour, pattern, material, fit, silhouette,
+sleeve_length, garment_class) — both updated by the same vote signal, just with different math.
 
 An outfit's "boldness" is derived from its visual_harmony score (already computed in
 app/styling/ranking.py and persisted on Outfit.score_breakdown) — a highly conventional,
@@ -34,10 +34,14 @@ ATTRIBUTE_LEARNING_RATE = 0.2
 # asymptotically approaching full trust as votes accumulate.
 CONFIDENCE_PRIOR = 5.0
 
-# Which categorical GarmentAttributes fields get a learned per-value affinity. Kept small and
-# high-signal on purpose: stacking many learned traits onto one undifferentiated vote makes
-# each vote's cause increasingly ambiguous (a downvote could be about color, pattern, fit...).
-TRACKED_CATEGORICAL_ATTRIBUTES = ["colour", "pattern"]
+# Which categorical GarmentAttributes fields get a learned per-value affinity. Every value here
+# is a genuine style-preference signal (how something looks/feels), independent of the request
+# itself — deliberately excludes fields that describe *fit-for-purpose* rather than preference:
+# occasion/season (already driven by the request's formality/weather, see _occasion_fit and
+# _weather_fit), layering_role (governed by the deterministic layering-compatibility rules, not
+# taste), and brand_label/subcategory (too sparse or too fine-grained — would fragment votes
+# across near-duplicate values instead of accumulating confidence on a shared one).
+TRACKED_CATEGORICAL_ATTRIBUTES = ["colour", "pattern", "material", "fit", "silhouette", "sleeve_length", "garment_class"]
 
 
 def outfit_boldness(visual_harmony_score: float) -> float:
