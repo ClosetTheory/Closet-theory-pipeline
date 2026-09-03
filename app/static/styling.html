@@ -124,16 +124,26 @@
     }
 
     const STAGE_DEFS = [
-      { key: "STAGE_01_NORMALISATION", title: "Stage 1: Request Normalisation", color: "purple", tech: "LLM" },
-      { key: "STAGE_02_CONTEXT", title: "Stage 2: Contextual Analysis", color: "purple", tech: "LLM + App Context" },
-      { key: "STAGE_03_WARDROBE_BEHAVIOUR", title: "Stage 3: Wardrobe Behaviour", color: "blue", tech: "Weighted Scorer" },
-      { key: "STAGE_04_FILTERING", title: "Stage 4: Attribute Filtering", color: "blue", tech: "PostgreSQL" },
-      { key: "STAGE_05_RETRIEVAL", title: "Stage 5: Candidate Retrieval", color: "blue", tech: "Embedding Similarity" },
-      { key: "STAGE_06_COMPATIBILITY", title: "Stage 6: Candidate Compatibility", color: "amber", tech: "Decision Tree + VLM" },
-      { key: "STAGE_07_RANKING", title: "Stage 7: Outfit Ranking", color: "amber", tech: "Weighted Scorer" },
-      { key: "STAGE_08_SEMANTIC_VALIDATION", title: "Stage 8: Semantic Validation", color: "emerald", tech: "LLM" },
-      { key: "STAGE_09_IMAGE_GENERATION", title: "Stage 9: Outfit Image Generation", color: "emerald", tech: "gpt-image-2" },
-      { key: "STAGE_10_GATES", title: "Stage 10: Visual Gate + Semantic Gate", color: "emerald", tech: "VLM (parallel)" },
+      { key: "STAGE_01_NORMALISATION", title: "Stage 1: Request Normalisation", color: "purple", tech: "LLM",
+        blurb: "Reads your free-text request (and any preselected garments) and turns it into structured facts — occasion, formality, colors — that the rest of the pipeline can act on. Never invents garments." },
+      { key: "STAGE_02_CONTEXT", title: "Stage 2: Contextual Analysis", color: "purple", tech: "LLM + App Context",
+        blurb: "Combines the normalised request with app context (user preferences, environment). No behavioral history exists yet, so this mostly passes the intent through." },
+      { key: "STAGE_03_WARDROBE_BEHAVIOUR", title: "Stage 3: Wardrobe Behaviour", color: "blue", tech: "Weighted Scorer",
+        blurb: "Would score garments by how often you actually wear/like them. No wear-history data exists yet, so every garment currently gets a neutral placeholder score." },
+      { key: "STAGE_04_FILTERING", title: "Stage 4: Attribute Filtering", color: "blue", tech: "PostgreSQL",
+        blurb: "A cheap database query narrows your whole wardrobe down to garments that are fully processed, approved, and roughly match any color preference — before any expensive AI calls happen." },
+      { key: "STAGE_05_RETRIEVAL", title: "Stage 5: Candidate Retrieval", color: "blue", tech: "Embedding Similarity",
+        blurb: "Groups the filtered garments by role (top, bottom, footwear, ...) and ranks each group by visual similarity to any anchor garment, keeping only the top few per role." },
+      { key: "STAGE_06_COMPATIBILITY", title: "Stage 6: Candidate Compatibility", color: "amber", tech: "Decision Tree + VLM",
+        blurb: "Builds candidate outfit combinations and checks each pair of garments for hard conflicts (can't wear two bottoms, clashing formality). Visual style clashes only lower the score — they don't reject an outfit." },
+      { key: "STAGE_07_RANKING", title: "Stage 7: Outfit Ranking", color: "amber", tech: "Weighted Scorer",
+        blurb: "Scores every surviving combination on how well it matches your request, how compatible the pieces are, and visual harmony — then picks a diverse shortlist rather than near-duplicates." },
+      { key: "STAGE_08_SEMANTIC_VALIDATION", title: "Stage 8: Semantic Validation", color: "emerald", tech: "LLM",
+        blurb: "Before spending money generating an image, an LLM sanity-checks whether each shortlisted outfit actually makes sense for your request. Nonsense combinations are dropped here." },
+      { key: "STAGE_09_IMAGE_GENERATION", title: "Stage 9: Outfit Image Generation", color: "emerald", tech: "gpt-image-2",
+        blurb: "Generates a real photo of the selected outfit using each garment's actual catalogue image as a reference, so the picture reflects your real wardrobe items." },
+      { key: "STAGE_10_GATES", title: "Stage 10: Visual Gate + Semantic Gate", color: "emerald", tech: "VLM (parallel)",
+        blurb: "Two AI checks run at once on the generated photo: does it look good (0-10 score), and does it actually match the garments that were selected? Failing outfits are retried or swapped for the next-best candidate." },
     ];
 
     function stageCard(def) {
@@ -146,7 +156,8 @@
             </div>
             <span id="badge-${def.key}" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
           </div>
-          <div id="body-${def.key}" class="text-[11px] font-mono text-slate-400 space-y-1 max-h-56 overflow-y-auto">
+          <div class="text-[11px] text-slate-400 leading-snug">${def.blurb}</div>
+          <div id="body-${def.key}" class="text-[11px] font-mono text-slate-300 space-y-1.5 max-h-72 overflow-y-auto border-t border-slate-800/60 pt-2">
             Waiting to run…
           </div>
           <div id="duration-${def.key}" class="text-[10px] text-slate-600 font-mono pt-1 border-t border-slate-800/60"></div>
@@ -157,54 +168,91 @@
       document.getElementById("stage-grid").innerHTML = STAGE_DEFS.map(stageCard).join("");
     }
 
+    function fmtPct(v) { return `${Math.round((v || 0) * 100)}%`; }
+    function row(label, value, valueClass = "text-slate-200") {
+      return `<div class="flex justify-between gap-3"><span class="text-slate-500">${label}</span><span class="${valueClass} text-right">${value}</span></div>`;
+    }
+    function note(text) {
+      return `<div class="text-amber-400/90 italic">${text}</div>`;
+    }
+
     function summaryToHtml(stageKey, summary) {
       switch (stageKey) {
-        case "STAGE_01_NORMALISATION":
-          return `<div>Provider: <span class="text-slate-200">${summary.provider}</span></div>
-                  <div>Occasion: <span class="text-slate-200">${summary.intent.occasion || '—'}</span></div>
-                  <div>Formality: <span class="text-slate-200">${summary.intent.formality || '—'}</span></div>
-                  <div>Colors: <span class="text-slate-200">${(summary.intent.colors || []).join(', ') || '—'}</span></div>
-                  <div>Time: <span class="text-slate-200">${summary.intent.time_context || '—'}</span></div>`;
+        case "STAGE_01_NORMALISATION": {
+          const i = summary.intent || {};
+          const usedLLM = summary.request_text && summary.provider !== "none (no request_text supplied)";
+          return (usedLLM ? note(`Interpreted "${summary.request_text}" using ${summary.provider}.`) : note("No text request given — styling purely from preselected garment(s)."))
+            + row("Occasion", i.occasion || "not specified")
+            + row("Formality", i.formality || "not specified")
+            + row("Requested colors", (i.colors || []).join(", ") || "none")
+            + row("Timing", i.time_context || "not specified")
+            + row("Preselected garments", (summary.anchor_garment_ids || []).length);
+        }
         case "STAGE_02_CONTEXT":
-          return `<div class="text-amber-400/90">${summary.note}</div>`;
+          return note(summary.note) + row("Occasion carried forward", summary.context?.intent?.occasion || "not specified");
         case "STAGE_03_WARDROBE_BEHAVIOUR":
-          return `<div class="text-amber-400/90">${summary.note}</div><div>Neutral score: <span class="text-slate-200">${summary.neutral_score}</span></div>`;
+          return note(summary.note) + row("Score every garment gets", `${summary.neutral_score} (neutral)`);
         case "STAGE_04_FILTERING":
-          return `<div>Candidates after filter: <span class="text-slate-200 font-bold">${summary.candidates_after_filter}</span></div>
-                  <div>Anchors locked in: <span class="text-slate-200">${(summary.anchors_locked_in || []).length}</span></div>
-                  <div>Filters: <span class="text-slate-200">${(summary.filters_applied || []).join(', ')}</span></div>`;
+          return row("Wardrobe items that qualified", summary.candidates_after_filter, "text-slate-200 font-bold")
+            + row("Preselected garments kept as-is", (summary.anchors_locked_in || []).length)
+            + row("Filters applied", (summary.filters_applied || []).join(", "))
+            + note("Only fully-processed, approved garments make it past this cheap database check.");
         case "STAGE_05_RETRIEVAL": {
-          const roles = Object.entries(summary.candidates_per_role || {}).map(([r, n]) => `${r}: ${n}`).join(' · ');
-          return `<div>Per-role candidates: <span class="text-slate-200">${roles || 'none'}</span></div>
-                  <div>Cap per role: <span class="text-slate-200">${summary.max_candidates_per_role}</span></div>
-                  <div class="text-slate-500">${summary.method}</div>`;
+          const roles = Object.entries(summary.candidates_per_role || {});
+          const roleRows = roles.length
+            ? roles.map(([r, n]) => row(r, `${n} candidate${n === 1 ? "" : "s"}`)).join("")
+            : note("No garments matched any outfit role — try ingesting more variety.");
+          return roleRows + row("Max kept per role", summary.max_candidates_per_role)
+            + note(`Ranking method: ${summary.method}`);
         }
         case "STAGE_06_COMPATIBILITY":
-          return `<div>Combinations built: <span class="text-slate-200">${summary.combinations_built}</span></div>
-                  <div>Evaluated: <span class="text-slate-200">${summary.combinations_evaluated}</span></div>
-                  <div>Rejected (incompatible): <span class="text-red-400">${summary.rejected_incompatible}</span></div>
-                  <div>Surviving: <span class="text-emerald-400 font-bold">${summary.surviving_combinations}</span></div>`;
-        case "STAGE_07_RANKING":
-          return (summary.shortlist_before_validation || []).map(o =>
-            `<div class="border-b border-slate-800/50 pb-1 mb-1">Score ${o.final_score} · ${o.garment_ids.length} items</div>`
-          ).join('') || `<div class="text-slate-500">No combinations survived compatibility.</div>`;
-        case "STAGE_08_SEMANTIC_VALIDATION":
-          return `<div>Validated: <span class="text-slate-200">${summary.outfits_validated}</span></div>
-                  <div>Dropped (FAIL): <span class="text-red-400">${summary.dropped_for_fail}</span></div>
-                  <div>Accepted: <span class="text-emerald-400 font-bold">${summary.accepted}</span></div>` +
-                  (summary.results || []).map(r => `<div class="text-[10px]">→ ${r.status} (${(r.confidence*100).toFixed(0)}%)</div>`).join('');
-        case "STAGE_09_IMAGE_GENERATION":
-          return `<div>Provider: <span class="text-slate-200">${summary.provider}</span></div>` +
-                  (summary.results || []).map(r => `<div>Outfit ${r.rank}: ${r.image_generated ? '✅ generated' : '⚠️ skipped'}</div>`).join('') +
-                  (summary.candidates_skipped_after_gate_failure > 0 ? `<div class="text-amber-400/90">${summary.candidates_skipped_after_gate_failure} candidate(s) skipped after gate failure</div>` : '');
-        case "STAGE_10_GATES":
-          return `<div>Visual provider: <span class="text-slate-200">${summary.visual_provider}</span></div>
-                  <div>Semantic provider: <span class="text-slate-200">${summary.semantic_provider}</span></div>
-                  <div>Pass threshold: <span class="text-slate-200">${summary.visual_pass_threshold}</span></div>` +
-                  (summary.results || []).map(r => {
-                    const color = r.passed === true ? 'emerald' : r.passed === false ? 'red' : 'amber';
-                    return `<div>Garments ${(r.garment_ids || []).length}: <span class="text-slate-200">${r.visual_score}/10</span> · <span class="text-slate-200">${r.semantic_status}</span> · <span class="text-${color}-400">${r.passed === true ? 'PASSED' : r.passed === false ? 'FAILED' : 'UNKNOWN'}</span></div>`;
-                  }).join('');
+          return row("Outfit combinations assembled", summary.combinations_built)
+            + row("Combinations checked", summary.combinations_evaluated)
+            + row("Rejected — hard conflict", summary.rejected_incompatible, "text-red-400")
+            + (summary.pairing_rejected ? row("↳ of which, pairing conflicts", summary.pairing_rejected, "text-red-400/80") : "")
+            + row("Passed compatibility", summary.surviving_combinations, "text-emerald-400 font-bold")
+            + note(summary.method);
+        case "STAGE_07_RANKING": {
+          const list = summary.shortlist_before_validation || [];
+          if (!list.length) return note("No combinations survived compatibility checks — nothing to rank.");
+          return note(`Scorer version: ${summary.scorer_version}. Ranked ${summary.candidates_ranked} combination(s), shown best-first:`)
+            + list.map((o, idx) =>
+              `<div class="flex justify-between border-b border-slate-800/50 py-1"><span class="text-slate-500">#${idx + 1} (${o.garment_ids.length} items)</span><span class="text-slate-200 font-bold">${fmtPct(o.final_score)} match</span></div>`
+            ).join("");
+        }
+        case "STAGE_08_SEMANTIC_VALIDATION": {
+          const results = summary.results || [];
+          return row("Candidates checked", summary.outfits_validated)
+            + row("Rejected as nonsensical", summary.dropped_for_fail, "text-red-400")
+            + row("Passed, moving to image generation", summary.accepted, "text-emerald-400 font-bold")
+            + results.map((r, idx) => {
+                const color = r.status === "PASS" ? "emerald" : r.status === "FAIL" ? "red" : "amber";
+                return `<div class="text-[10px] pl-2">#${idx + 1}: <span class="text-${color}-400">${r.status}</span> <span class="text-slate-500">(${(r.confidence * 100).toFixed(0)}% confidence)</span></div>`;
+              }).join("");
+        }
+        case "STAGE_09_IMAGE_GENERATION": {
+          const results = summary.results || [];
+          return row("Image generation model", summary.provider)
+            + row("Retries allowed per outfit", summary.max_retries)
+            + results.map(r => row(`Outfit #${r.rank}`, r.image_generated ? "✅ image generated" : "⚠️ generation skipped")).join("")
+            + (summary.candidates_skipped_after_gate_failure > 0
+                ? note(`${summary.candidates_skipped_after_gate_failure} candidate(s) failed their post-generation checks and were swapped out for the next-best outfit instead.`)
+                : note("Every attempted outfit passed on the first try."));
+        }
+        case "STAGE_10_GATES": {
+          const results = summary.results || [];
+          return row("Visual quality checker", summary.visual_provider)
+            + row("Outfit-match checker", summary.semantic_provider)
+            + row("Minimum visual score to pass", `${summary.visual_pass_threshold}/10`)
+            + results.map((r, idx) => {
+                const color = r.passed === true ? "emerald" : r.passed === false ? "red" : "amber";
+                const verdict = r.passed === true ? "PASSED both checks" : r.passed === false ? "FAILED — dropped" : "unknown";
+                return `<div class="border-b border-slate-800/50 py-1">
+                          <div class="flex justify-between"><span class="text-slate-500">Candidate #${idx + 1} (${(r.garment_ids || []).length} items)</span><span class="text-${color}-400 font-bold">${verdict}</span></div>
+                          <div class="text-[10px] text-slate-500">Visual quality: ${r.visual_score}/10 · Matches selection: ${r.semantic_status}</div>
+                        </div>`;
+              }).join("");
+        }
         default:
           return `<pre class="trace-json">${JSON.stringify(summary, null, 1)}</pre>`;
       }
