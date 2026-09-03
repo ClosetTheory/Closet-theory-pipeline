@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Garment Detail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-16">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/25">CT</div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-white tracking-tight">ClosetTheory Wardrobe</h1>
+          <p class="text-xs text-slate-400">← Back to catalogue</p>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div id="content" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="text-slate-500 text-sm">Loading…</div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = "/api/v1/wardrobe";
+    const params = new URLSearchParams(window.location.search);
+    const garmentId = params.get("id");
+
+    function attrRow(label, value) {
+      if (value === undefined || value === null || value === "") return "";
+      const display = Array.isArray(value) ? value.join(", ") : value;
+      return `<div class="flex justify-between py-1.5 border-b border-slate-800/60 text-sm">
+                <span class="text-slate-500">${label}</span>
+                <span class="text-slate-200 font-medium text-right">${display}</span>
+              </div>`;
+    }
+
+    async function load() {
+      const content = document.getElementById("content");
+      const pipelineLink = document.getElementById("style-pipeline-link");
+      if (pipelineLink && garmentId) pipelineLink.href = `/styling?anchor=${encodeURIComponent(garmentId)}`;
+      if (!garmentId) {
+        content.innerHTML = `<p class="text-red-400 col-span-full">No garment id provided.</p>`;
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/garments/${encodeURIComponent(garmentId)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const g = await res.json();
+        const attrs = g.attributes || {};
+        const imgUrl = g.canonical_image_ref ? `/api/v1/wardrobe/images/media/${g.canonical_image_ref.replace(/^object:\/\/[^/]+\//, "")}` : null;
+
+        content.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden aspect-[3/4]">
+            ${imgUrl ? `<img src="${imgUrl}" class="w-full h-full object-cover" alt="Garment">` : `<div class="w-full h-full flex items-center justify-center text-slate-600 text-sm">No canonical image yet</div>`}
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold text-white capitalize mb-1">${(attrs.subcategory || g.category || "Garment").replace(/_/g, " ")}</h2>
+            <p class="text-sm text-slate-500 mb-5">${g.quality_status} · ${g.category || "—"}</p>
+
+            <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 mb-5">
+              ${attrRow("Colour", attrs.colour)}
+              ${attrRow("Pattern", attrs.pattern)}
+              ${attrRow("Material", attrs.material)}
+              ${attrRow("Fit", attrs.fit)}
+              ${attrRow("Silhouette", attrs.silhouette)}
+              ${attrRow("Sleeve length", attrs.sleeve_length)}
+              ${attrRow("Occasion", attrs.occasion)}
+              ${attrRow("Season", attrs.season)}
+              ${attrRow("Layering role", attrs.layering_role)}
+            </div>
+
+            <div class="flex gap-2">
+              <button id="style-btn" onclick="styleThis()" class="flex-1 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
+                ✨ Style this garment
+              </button>
+              <a id="style-pipeline-link" href="#" class="px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition whitespace-nowrap">
+                View pipeline →
+              </a>
+            </div>
+            <div id="style-results" class="mt-5 space-y-4"></div>
+          </div>`;
+      } catch (e) {
+        content.innerHTML = `<p class="text-red-400 col-span-full">Failed to load garment: ${e}</p>`;
+      }
+    }
+
+    function scoreBar(label, value) {
+      const pct = Math.round((value || 0) * 100);
+      return `<div class="flex items-center gap-2 text-[10px] text-slate-400">
+                <span class="w-24 truncate">${label}</span>
+                <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-blue-500" style="width:${pct}%"></div></div>
+                <span class="w-8 text-right">${pct}</span>
+              </div>`;
+    }
+
+    function outfitCard(outfit) {
+      const scores = outfit.scores || {};
+      return `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white">Outfit ${outfit.rank}</span>
+            <span class="text-xs font-mono text-blue-400">${Math.round((scores.final_score || 0) * 100)}%</span>
+          </div>
+          ${outfit.generated_image_url ? `<img src="${outfit.generated_image_url}" class="w-full rounded-lg border border-slate-800" alt="Generated outfit">` : ""}
+          <div class="flex flex-wrap gap-1.5">
+            ${outfit.garments.map(g => `<a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full transition">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</a>`).join("")}
+          </div>
+          <div class="space-y-1">
+            ${scoreBar("compatibility", scores.compatibility)}
+            ${scoreBar("occasion fit", scores.occasion_fit)}
+          </div>
+        </div>`;
+    }
+
+    async function styleThis() {
+      const btn = document.getElementById("style-btn");
+      const results = document.getElementById("style-results");
+      btn.disabled = true;
+      btn.textContent = "Styling…";
+      results.innerHTML = `<p class="text-sm text-slate-500">Finding compatible pieces in your wardrobe…</p>`;
+      try {
+        const res = await fetch(`${API_BASE}/styling/recommendations`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({anchor_garment_ids: [garmentId], top_k: 3}),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        results.innerHTML = (data.outfits && data.outfits.length)
+          ? data.outfits.map(outfitCard).join("")
+          : `<p class="text-sm text-slate-500">No compatible outfits found for this garment yet.</p>`;
+      } catch (e) {
+        results.innerHTML = `<p class="text-sm text-red-400">Styling request failed: ${e}</p>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "✨ Style this garment";
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

@@ -54,16 +54,41 @@ app.include_router(api_router, prefix=settings.API_PREFIX)
 from pathlib import Path
 from fastapi.responses import HTMLResponse
 
-STATIC_INDEX = Path(__file__).parent / "static" / "index.html"
+STATIC_DIR = Path(__file__).parent / "static"
+STATIC_INDEX = STATIC_DIR / "index.html"
+STATIC_CATALOGUE = STATIC_DIR / "catalogue.html"
+STATIC_GARMENT = STATIC_DIR / "garment.html"
+STATIC_STYLING = STATIC_DIR / "styling.html"
 
 
-@app.get("/", response_class=HTMLResponse, tags=["Visualizer"])
+def _serve_static(path: Path, label: str) -> HTMLResponse:
+    if path.exists():
+        return HTMLResponse(content=path.read_text(encoding="utf-8"))
+    return HTMLResponse(f"<h1>{label} not found</h1>", status_code=404)
+
+
+@app.get("/", response_class=HTMLResponse, tags=["Catalogue"])
+async def get_catalogue():
+    """Wardrobe catalogue homepage: browse ingested garments and get styling recommendations."""
+    return _serve_static(STATIC_CATALOGUE, "Catalogue")
+
+
+@app.get("/garment", response_class=HTMLResponse, tags=["Catalogue"])
+async def get_garment_page():
+    """Single garment detail page."""
+    return _serve_static(STATIC_GARMENT, "Garment page")
+
+
+@app.get("/styling", response_class=HTMLResponse, tags=["Styling"])
+async def get_styling_page():
+    """Live, step-by-step Styling Pipeline detail view (all 10 stages)."""
+    return _serve_static(STATIC_STYLING, "Styling pipeline")
+
+
 @app.get("/visualizer", response_class=HTMLResponse, tags=["Visualizer"])
 async def get_visualizer():
     """Visual interactive educational dashboard for explaining the Image Ingestion Pipeline."""
-    if STATIC_INDEX.exists():
-        return HTMLResponse(content=STATIC_INDEX.read_text(encoding="utf-8"))
-    return HTMLResponse("<h1>Visualizer not found</h1>", status_code=404)
+    return _serve_static(STATIC_INDEX, "Visualizer")
 
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
