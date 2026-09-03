@@ -17,8 +17,8 @@ from app.schemas.pipeline import DigitisationResult
 class GPTStudioDigitisationProvider(BaseDigitisationProvider):
     """
     GPT-guided Canonical Studio Digitisation.
-    1. Builds professional e-commerce studio prompt from Stage 3 attributes.
-    2. Calls OpenRouter /api/v1/images API to generate canonical high-resolution studio photo.
+    1. Injects validated garment identity (type, color, pattern, material, cut) into prompt.
+    2. Sends reference image directly to OpenRouter `openai/gpt-image-2` for image-to-image synthesis.
     3. Safe local fallback with hole-protected garment segmentation on off-white studio backdrop.
     """
 
@@ -39,8 +39,8 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         self._active_model: str = "GPT-Studio-Segmenter-v1"
 
     def build_prompt(self, attributes: GarmentAttributes) -> Tuple[str, str]:
-        """Builds production-grade studio canonical prompt for OpenRouter Image Gen."""
-        colors = " ".join(attributes.colour) if attributes.colour else "neutral"
+        """Builds production-grade studio canonical prompt with concrete garment identity."""
+        colors = ", ".join(attributes.colour) if attributes.colour else "neutral"
         pattern = getattr(attributes.pattern, "value", str(attributes.pattern or "solid"))
         material = getattr(attributes.material, "value", str(attributes.material or "cotton"))
         fit = getattr(attributes.fit, "value", str(attributes.fit or "regular"))
@@ -48,25 +48,28 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         sleeve = getattr(attributes.sleeve_length, "value", str(attributes.sleeve_length or "standard"))
         subcategory = (attributes.subcategory or "garment").replace("_", " ")
 
-        positive_prompt = (
-            '''
-            Using the provided wardrobe image as the reference, create a **front-facing, single-garment catalogue image** of the garment visible inside the wardrobe.
+        positive_prompt = f"""REFERENCE GARMENT IDENTITY:
+- Garment Type: {subcategory}
+- Primary & Accent Colors: {colors}
+- Pattern: {pattern}
+- Fabric Material: {material}
+- Cut & Fit: {fit} fit, {silhouette} silhouette, {sleeve} sleeves
+
+Using the provided reference image as the source of truth, create a **front-facing, single-garment catalogue image** of the exact {subcategory} shown in the reference.
 
 ### Garment Preservation — Highest Priority
 
 Extract and reproduce **only the single garment** from the reference image. Preserve its exact:
-
-- garment type and silhouette
-- color and color distribution
-- fabric appearance and texture
-- pattern, prints, embroidery, stitching, seams, buttons, zippers, collars, cuffs, and other details
+- garment type and silhouette ({subcategory})
+- color and color distribution ({colors})
+- fabric appearance and texture ({material})
+- pattern, prints, embroidery, stitching, seams, buttons, zippers, collars, cuffs, and other details ({pattern})
 - proportions and overall shape
 - visible folds and construction details where appropriate
 
 **Do not redesign, beautify, stylize, or invent details that are not present in the reference.**
 
 ### Product Presentation
-
 - Show the garment **straight-on, front-facing**.
 - Center the garment precisely in the frame.
 - Present it as a **single standalone catalogue product**.
@@ -76,9 +79,7 @@ Extract and reproduce **only the single garment** from the reference image. Pres
 - Do not add a person or mannequin unless one is already necessary to accurately represent the garment.
 
 ### Catalogue Photography
-
 Create a professional **e-commerce fashion catalogue** image:
-
 - clean white or very light neutral background
 - soft, uniform studio lighting
 - subtle natural shadow beneath/behind the garment
@@ -90,7 +91,6 @@ Create a professional **e-commerce fashion catalogue** image:
 - no text, labels, logos, watermarks, or price tags
 
 ### Camera
-
 - Perfectly front-facing camera
 - Eye-level view
 - Minimal/zero perspective distortion
@@ -99,14 +99,13 @@ Create a professional **e-commerce fashion catalogue** image:
 - No rotation or tilted composition
 
 ### Framing
-
 Show the **complete garment from top to bottom**, with a small, consistent amount of whitespace around it. Keep the garment centered and isolated.
 
-**The reference image is the source of truth. The goal is not to create a new fashion design, but to convert the garment visible in the wardrobe into a clean, single-product catalogue photograph while preserving its identity and appearance exactly.**'''
-        )
+**The reference image is the source of truth. The goal is not to create a new fashion design, but to convert the garment visible in the wardrobe into a clean, single-product catalogue photograph while preserving its identity and appearance exactly.**"""
 
         negative_prompt = (
-            "human, person, face, head, body, skin, mannequin face, hanger, hooks, wall, "
+            "different garment, wrong garment, dress, gown, kurta, skirt, woman, man, human, person, "
+            "face, head, body, skin, mannequin face, hanger, hooks, wall, "
             "cluttered background, distorted, blurry, low resolution, artifacts, dark shadows, text, watermark"
         )
 
@@ -122,10 +121,10 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
         self._last_prompt = prompt
         self._last_negative_prompt = negative_prompt
 
-        # 1. Generate real canonical studio image via OpenRouter Images API
+        # 1. Generate real canonical studio image via OpenRouter Images API with reference image conditioning
         if self.api_key:
             try:
-                gen_bytes, model_used = await self._call_openrouter_image_gen(prompt)
+                gen_bytes, model_used = await self._call_openrouter_image_gen(prompt, crop_bytes)
                 if gen_bytes:
                     self._last_generated_bytes = gen_bytes
                     self._active_model = f"OpenRouter ({model_used})"
@@ -141,8 +140,7 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
             except Exception as e:
                 logger.warning(f"OpenRouter image generation call could not be completed: {e}")
 
-        # 2. Local Studio Segmentation & Compositing Engine
-        # Runs hole-protected GrabCut to strip door, wall, and hanger
+        # 2. Local Studio Segmentation & Compositing Engine fallback
         studio_bytes = self._segment_and_composite_studio(crop_bytes)
         self._last_generated_bytes = studio_bytes
         self._active_model = "Studio-Segmenter-Protected"
@@ -156,8 +154,8 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
             attempts=attempt,
         )
 
-    async def _call_openrouter_image_gen(self, prompt: str) -> Tuple[Optional[bytes], str]:
-        """Calls OpenRouter /api/v1/images API."""
+    async def _call_openrouter_image_gen(self, prompt: str, crop_bytes: bytes) -> Tuple[Optional[bytes], str]:
+        """Calls OpenRouter /api/v1/images API conditioned on reference crop."""
         url = "https://openrouter.ai/api/v1/images"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -166,8 +164,12 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
             "Content-Type": "application/json",
         }
 
-        # Strictly use gpt image 2 as requested
+        # Strictly use gpt image 2
         models_to_try = ["openai/gpt-image-2", "openai/gpt-5.4-image-2"]
+
+        # Base64 encode the reference crop image for image-to-image conditioning
+        b64_image = base64.b64encode(crop_bytes).decode("utf-8")
+        data_uri = f"data:image/jpeg;base64,{b64_image}"
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             for model_id in models_to_try:
@@ -175,6 +177,7 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
                     payload = {
                         "model": model_id,
                         "prompt": prompt,
+                        "image": data_uri,
                     }
                     resp = await client.post(url, headers=headers, json=payload)
                     if resp.status_code == 200:
@@ -208,7 +211,6 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
 
             h, w = img_bgr.shape[:2]
 
-            # Define rectangle
             margin_x = max(1, int(w * 0.05))
             margin_y = max(1, int(h * 0.08))
             rect = (margin_x, margin_y, w - 2 * margin_x, h - 2 * margin_y)
@@ -221,7 +223,6 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
             mask[int(h * 0.25) : int(h * 0.80), int(w * 0.25) : int(w * 0.75)] = cv2.GC_FGD
 
             cv2.grabCut(img_bgr, mask, rect, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_RECT)
-            # 1 and 3 are foreground
             mask2 = np.where((mask == 2) | (mask == 0), 0, 255).astype("uint8")
             mask2 = cv2.GaussianBlur(mask2, (5, 5), 0)
 
@@ -242,7 +243,6 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
             scaled_h = max(10, int(gh * scale))
             scaled_garment = isolated_garment.resize((scaled_w, scaled_h), Image.Resampling.LANCZOS)
 
-            # Soft commercial drop shadow
             shadow = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
             shadow_x = (canvas_w - scaled_w) // 2
             shadow_y = (canvas_h - scaled_h) // 2 + 10
@@ -253,7 +253,6 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
             shadow.paste(shadow_layer, (shadow_x, shadow_y), blurred_shadow)
             studio_canvas = Image.alpha_composite(studio_canvas, shadow)
 
-            # Paste garment
             paste_x = (canvas_w - scaled_w) // 2
             paste_y = (canvas_h - scaled_h) // 2
             studio_canvas.paste(scaled_garment, (paste_x, paste_y), scaled_garment)
