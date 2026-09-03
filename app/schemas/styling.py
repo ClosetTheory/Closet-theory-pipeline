@@ -2,7 +2,7 @@
 
 from enum import Enum
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -215,3 +215,15 @@ class StylingRecommendationResponse(BaseModel):
     intent: StylingIntent
     outfits: List[OutfitResult]
     trace: List[StageTrace] = Field(default_factory=list)
+
+
+class OutfitVoteRequest(BaseModel):
+    vote: Literal["up", "down"]
+
+
+class OutfitVoteResponse(BaseModel):
+    outfit_id: str
+    vote: Literal["up", "down"]
+    outfit_boldness: float
+    boldness_preference: float
+    vote_count: int

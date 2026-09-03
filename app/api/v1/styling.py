@@ -8,9 +8,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_db_session, get_storage
 from app.models.garment import Garment
+from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
+from app.rules.style_profile import outfit_boldness, update_boldness_preference
 from app.schemas.styling import (
     OutfitResult,
+    OutfitVoteRequest,
+    OutfitVoteResponse,
     ScoreBreakdown,
     SemanticGateResult,
     StageTrace,
@@ -153,4 +157,45 @@ async def get_styling_request(
         intent=StylingIntent.model_validate(styling_request.normalized_intent or {}),
         outfits=outfit_results,
         trace=[StageTrace.model_validate(t) for t in (styling_request.trace or [])],
+    )
+
+
+@router.post("/outfits/{outfit_id}/vote", response_model=OutfitVoteResponse)
+async def vote_outfit(
+    outfit_id: str,
+    request: OutfitVoteRequest,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """
+    Upvote/downvote a previously-recommended outfit. Updates the member's learned
+    StyleProfile.boldness_preference via an EMA pulled toward (upvote) or away from
+    (downvote) the voted outfit's boldness — see app/rules/style_profile.py.
+    """
+    outfit = await session.get(Outfit, outfit_id)
+    if not outfit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outfit '{outfit_id}' not found")
+
+    boldness = outfit_boldness((outfit.score_breakdown or {}).get("visual_harmony", 0.7))
+
+    profile_stmt = select(StyleProfile).where(
+        StyleProfile.tenant_id == outfit.tenant_id,
+        StyleProfile.member_id == outfit.member_id,
+    )
+    profile = (await session.execute(profile_stmt)).scalars().first()
+    if not profile:
+        profile = StyleProfile(tenant_id=outfit.tenant_id, member_id=outfit.member_id)
+        session.add(profile)
+        await session.flush()
+
+    profile.boldness_preference = update_boldness_preference(profile.boldness_preference, boldness, request.vote)
+    profile.vote_count += 1
+    await session.commit()
+    await session.refresh(profile)
+
+    return OutfitVoteResponse(
+        outfit_id=outfit_id,
+        vote=request.vote,
+        outfit_boldness=boldness,
+        boldness_preference=profile.boldness_preference,
+        vote_count=profile.vote_count,
     )

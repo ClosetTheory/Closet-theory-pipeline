@@ -494,7 +494,33 @@
             ${validationBadge(outfit.semantic_validation, "semantic")}
             ${validationBadge(outfit.generation_semantic_gate, "gen. semantic")}
           </div>
+          <div class="flex items-center justify-between pt-1 border-t border-slate-800">
+            <div class="flex gap-2">
+              <button onclick="voteOutfit('${outfit.outfit_id}', 'up', this)" class="vote-btn text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-300 transition">👍 like</button>
+              <button onclick="voteOutfit('${outfit.outfit_id}', 'down', this)" class="vote-btn text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-300 transition">👎 not for me</button>
+            </div>
+            <span class="vote-feedback text-[10px] text-slate-500"></span>
+          </div>
         </div>`;
+    }
+
+    async function voteOutfit(outfitId, vote, btnEl) {
+      const card = btnEl.closest("div.bg-slate-900");
+      const feedbackEl = card.querySelector(".vote-feedback");
+      card.querySelectorAll(".vote-btn").forEach(b => b.disabled = true);
+      try {
+        const res = await fetch(`${API_BASE}/styling/outfits/${encodeURIComponent(outfitId)}/vote`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({vote}),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        feedbackEl.textContent = `boldness pref → ${data.boldness_preference.toFixed(3)} (${data.vote_count} votes)`;
+      } catch (e) {
+        feedbackEl.textContent = "vote failed";
+        card.querySelectorAll(".vote-btn").forEach(b => b.disabled = false);
+      }
     }
 
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

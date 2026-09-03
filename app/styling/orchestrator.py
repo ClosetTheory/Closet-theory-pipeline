@@ -18,10 +18,12 @@ import time
 import uuid
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 from PIL import Image as PILImage
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
+from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
 from app.providers.normalizer import get_request_normalizer_provider
 from app.schemas.styling import (
@@ -150,9 +152,18 @@ class StylingOrchestrator:
             t0,
         )
 
-        # Stage 2: Contextual Analysis (V1: intent + neutral stub signals, no user profile data yet)
+        # Stage 2: Contextual Analysis — pulls in the member's learned StyleProfile
+        # (boldness_preference, updated by outfit up/downvotes) when one exists; an explicit
+        # request.boldness_preference always overrides the learned value for that one request.
         t1 = time.perf_counter()
-        user_preferences = {}
+        user_preferences: Dict[str, Any] = {}
+        profile_stmt = select(StyleProfile).where(
+            StyleProfile.tenant_id == request.tenant_id,
+            StyleProfile.member_id == request.member_id,
+        )
+        style_profile = (await self.session.execute(profile_stmt)).scalars().first()
+        if style_profile:
+            user_preferences["boldness_preference"] = style_profile.boldness_preference
         if request.boldness_preference is not None:
             user_preferences["boldness_preference"] = request.boldness_preference
         context = StylingContext(intent=intent, user_preferences=user_preferences)
