@@ -91,7 +91,7 @@
       grid.innerHTML = Array.from({length: 6}).map(() => `<div class="aspect-[3/4] skeleton rounded-xl"></div>`).join("");
 
       try {
-        const res = await fetch(`${API_BASE}/garments?limit=48`);
+        const res = await fetch(`${API_BASE}/garments?limit=300`);
         const garments = await res.json();
         if (!Array.isArray(garments) || garments.length === 0) {
           grid.innerHTML = "";
