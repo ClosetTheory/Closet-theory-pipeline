@@ -86,6 +86,17 @@
 
   </main>
 
+  <!-- Stage detail modal -->
+  <div id="stage-modal" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeStageModal()">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between p-5 border-b border-slate-800">
+        <h3 id="modal-title" class="text-sm font-bold text-white">Stage detail</h3>
+        <button onclick="closeStageModal()" class="text-slate-400 hover:text-white text-lg leading-none">✕</button>
+      </div>
+      <div id="modal-body" class="p-5 overflow-y-auto space-y-4"></div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = "/api/v1/wardrobe";
 
@@ -146,9 +157,17 @@
         blurb: "Two AI checks run at once on the generated photo: does it look good (0-10 score), and does it actually match the garments that were selected? Failing outfits are retried or swapped for the next-best candidate." },
     ];
 
+    // Stages whose trace summary contains a group of candidate garments/outfits worth
+    // inspecting in a modal (thumbnails, pass/fail, and — for the gate stage — the
+    // actual generated image even for candidates that were rejected).
+    const MODAL_STAGES = new Set(["STAGE_05_RETRIEVAL", "STAGE_07_RANKING", "STAGE_08_SEMANTIC_VALIDATION", "STAGE_10_GATES"]);
+    const stageEntries = {}; // stageKey -> last trace entry, populated as results arrive
+
     function stageCard(def) {
+      const clickable = MODAL_STAGES.has(def.key);
       return `
-        <div id="card-${def.key}" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-40 transition">
+        <div id="card-${def.key}" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-40 transition${clickable ? " cursor-pointer hover:border-purple-500/50" : ""}"
+             ${clickable ? `onclick="openStageModal('${def.key}')"` : ""}>
           <div class="flex items-center justify-between pb-2 border-b border-slate-800">
             <div>
               <span class="text-xs font-bold text-${def.color}-400">${def.title}</span>
@@ -160,7 +179,10 @@
           <div id="body-${def.key}" class="text-[11px] font-mono text-slate-300 space-y-1.5 max-h-72 overflow-y-auto border-t border-slate-800/60 pt-2">
             Waiting to run…
           </div>
-          <div id="duration-${def.key}" class="text-[10px] text-slate-600 font-mono pt-1 border-t border-slate-800/60"></div>
+          <div class="flex items-center justify-between pt-1 border-t border-slate-800/60">
+            <div id="duration-${def.key}" class="text-[10px] text-slate-600 font-mono"></div>
+            ${clickable ? `<span class="text-[10px] text-purple-400">View items →</span>` : ""}
+          </div>
         </div>`;
     }
 
@@ -276,7 +298,163 @@
         badge.className = "text-[10px] font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-400 border border-emerald-500/30";
         body.innerHTML = summaryToHtml(stageKey, entry.summary || {});
         duration.textContent = `${entry.duration_ms} ms`;
+        stageEntries[stageKey] = entry;
       }
+    }
+
+    // --- Stage detail modal ---------------------------------------------------------
+
+    const garmentCache = {};
+    async function fetchGarmentCached(id) {
+      if (garmentCache[id]) return garmentCache[id];
+      try {
+        const res = await fetch(`${API_BASE}/garments/${encodeURIComponent(id)}`);
+        if (!res.ok) return null;
+        const g = await res.json();
+        garmentCache[id] = g;
+        return g;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function garmentImageUrl(g) {
+      if (!g || !g.canonical_image_ref) return null;
+      return `/api/v1/wardrobe/images/media/${g.canonical_image_ref.replace(/^object:\/\/[^/]+\//, "")}`;
+    }
+
+    function garmentThumb(g, footer = "") {
+      const img = g ? garmentImageUrl(g) : null;
+      const label = g ? (g.attributes?.subcategory || g.category || "item").replace(/_/g, " ") : "unknown";
+      return `
+        <a href="${g ? `/garment?id=${encodeURIComponent(g.garment_id)}` : "#"}" target="_blank"
+           class="block bg-slate-950 border border-slate-800 rounded-lg overflow-hidden hover:border-purple-500/50 transition">
+          <div class="aspect-[3/4] bg-slate-900">
+            ${img ? `<img src="${img}" class="w-full h-full object-cover" alt="${label}">` : `<div class="w-full h-full flex items-center justify-center text-slate-600 text-[10px]">no image</div>`}
+          </div>
+          <div class="p-1.5 text-[10px] text-slate-300 truncate">${label}</div>
+          ${footer}
+        </a>`;
+    }
+
+    function openModal(title, bodyHtml) {
+      document.getElementById("modal-title").textContent = title;
+      document.getElementById("modal-body").innerHTML = bodyHtml;
+      document.getElementById("stage-modal").classList.remove("hidden");
+    }
+    function closeStageModal() {
+      document.getElementById("stage-modal").classList.add("hidden");
+    }
+    function modalLoading() {
+      return `<div class="text-sm text-slate-500">Loading garment details…</div>`;
+    }
+
+    async function openStageModal(stageKey) {
+      const entry = stageEntries[stageKey];
+      if (!entry) return;
+      const def = STAGE_DEFS.find(d => d.key === stageKey);
+      openModal(def.title, modalLoading());
+
+      if (stageKey === "STAGE_05_RETRIEVAL") return renderRetrievalModal(entry.summary);
+      if (stageKey === "STAGE_07_RANKING") return renderRankingModal(entry.summary);
+      if (stageKey === "STAGE_08_SEMANTIC_VALIDATION") return renderSemanticModal(entry.summary);
+      if (stageKey === "STAGE_10_GATES") return renderGatesModal(entry.summary);
+    }
+
+    async function renderRetrievalModal(summary) {
+      const detail = summary.candidates_per_role_detail || {};
+      const roles = Object.keys(detail);
+      if (!roles.length) {
+        openModal("Candidate Retrieval", `<p class="text-sm text-slate-500">No candidates were retrieved for any role.</p>`);
+        return;
+      }
+      const sections = await Promise.all(roles.map(async role => {
+        const items = detail[role];
+        const garments = await Promise.all(items.map(it => fetchGarmentCached(it.garment_id)));
+        const thumbs = garments.map((g, i) => garmentThumb(g, `<div class="px-1.5 pb-1.5 text-[9px] text-purple-400">similarity ${items[i].score}</div>`)).join("");
+        return `<div><h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wide">${role} <span class="text-slate-500 font-normal">(${items.length})</span></h4>
+                  <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">${thumbs}</div></div>`;
+      }));
+      openModal("Candidate Retrieval — top garments considered per role", sections.join('<div class="border-t border-slate-800 my-3"></div>'));
+    }
+
+    async function renderRankingModal(summary) {
+      const list = summary.shortlist_before_validation || [];
+      if (!list.length) {
+        openModal("Outfit Ranking", `<p class="text-sm text-slate-500">No combinations survived compatibility checks.</p>`);
+        return;
+      }
+      const sections = await Promise.all(list.map(async (o, idx) => {
+        const garments = await Promise.all(o.garment_ids.map(id => fetchGarmentCached(id)));
+        const thumbs = garments.map(g => garmentThumb(g)).join("");
+        return `<div class="border-b border-slate-800 pb-3">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-slate-300">Ranked combination #${idx + 1}</span>
+                    <span class="text-xs font-mono text-amber-400">${fmtPct(o.final_score)} match score</span>
+                  </div>
+                  <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">${thumbs}</div>
+                </div>`;
+      }));
+      openModal("Outfit Ranking — every combination that passed compatibility, best first", sections.join(""));
+    }
+
+    async function renderSemanticModal(summary) {
+      const list = summary.results || [];
+      if (!list.length) {
+        openModal("Semantic Validation", `<p class="text-sm text-slate-500">No candidates reached semantic validation.</p>`);
+        return;
+      }
+      const sections = await Promise.all(list.map(async (r, idx) => {
+        const garments = await Promise.all((r.garment_ids || []).map(id => fetchGarmentCached(id)));
+        const thumbs = garments.map(g => garmentThumb(g)).join("");
+        const color = r.status === "PASS" ? "emerald" : r.status === "FAIL" ? "red" : "amber";
+        return `<div class="border-b border-slate-800 pb-3">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-slate-300">Candidate #${idx + 1}</span>
+                    <span class="text-xs font-bold text-${color}-400">${r.status} <span class="text-slate-500 font-normal">(${(r.confidence * 100).toFixed(0)}% confidence)</span></span>
+                  </div>
+                  <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">${thumbs}</div>
+                </div>`;
+      }));
+      openModal("Semantic Validation — does each candidate make sense for the request?", sections.join(""));
+    }
+
+    async function renderGatesModal(summary) {
+      const list = summary.results || [];
+      if (!list.length) {
+        openModal("Visual Gate + Semantic Gate", `<p class="text-sm text-slate-500">No candidates reached image generation.</p>`);
+        return;
+      }
+      const sections = await Promise.all(list.map(async (r, idx) => {
+        const garments = await Promise.all((r.garment_ids || []).map(id => fetchGarmentCached(id)));
+        const thumbs = garments.map(g => garmentThumb(g)).join("");
+        const color = r.passed === true ? "emerald" : r.passed === false ? "red" : "amber";
+        const verdict = r.passed === true ? "PASSED — this became a final outfit" : r.passed === false ? "FAILED — rejected, not shown in shortlist" : "unknown";
+        const feedback = r.visual_feedback && Object.keys(r.visual_feedback).length
+          ? `<div class="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-slate-500">${Object.entries(r.visual_feedback).map(([k, v]) => `<div><span class="text-slate-400">${k.replace(/_/g, " ")}:</span> ${v}</div>`).join("")}</div>`
+          : "";
+        const violations = (r.semantic_violations || []).length
+          ? `<div class="mt-1 text-[10px] text-red-400">Issues: ${r.semantic_violations.join("; ")}</div>` : "";
+        return `<div class="border-b border-slate-800 pb-4">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-slate-300">Candidate #${idx + 1} — this is what was actually generated${r.passed === false ? " (rejected)" : ""}</span>
+                    <span class="text-xs font-bold text-${color}-400">${verdict}</span>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-1">
+                      ${r.generated_image_url
+                        ? `<img src="${r.generated_image_url}" class="w-full rounded-lg border ${r.passed === false ? "border-red-500/40" : "border-emerald-500/40"}" alt="Generated candidate outfit">`
+                        : `<div class="aspect-[3/4] bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-center text-[10px] text-slate-600">no image generated</div>`}
+                    </div>
+                    <div class="sm:col-span-2 space-y-2">
+                      <div class="text-[10px] text-slate-500">Visual quality: <span class="text-slate-200 font-bold">${r.visual_score}/10</span> · Matches selection: <span class="text-slate-200 font-bold">${r.semantic_status}</span></div>
+                      <div class="grid grid-cols-3 gap-1.5">${thumbs}</div>
+                      ${feedback}${violations}
+                    </div>
+                  </div>
+                </div>`;
+      }));
+      openModal("Visual Gate + Semantic Gate — every attempt, including rejected ones", sections.join(""));
     }
 
     function scoreBar(label, value) {
