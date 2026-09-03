@@ -4,7 +4,15 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import ClassificationResult, DetectionResult, DigitisationResult
-from app.schemas.styling import GarmentSummary, OutfitCandidate, StylingContext, StylingIntent, ValidationResult
+from app.schemas.styling import (
+    GarmentSummary,
+    OutfitCandidate,
+    SemanticGateResult,
+    StylingContext,
+    StylingIntent,
+    ValidationResult,
+    VisualGateResult,
+)
 
 
 class BaseClassifierProvider(ABC):
@@ -107,6 +115,21 @@ class BaseSemanticValidatorProvider(ABC):
         """Returns PASS | FAIL | NEEDS_REVIEW. Must not invent/replace garments or mutate inventory."""
         pass
 
+    @abstractmethod
+    async def validate_generated(
+        self,
+        context: StylingContext,
+        outfit: OutfitCandidate,
+        garments: List[GarmentSummary],
+        generated_image: bytes,
+    ) -> SemanticGateResult:
+        """
+        SPEC.md Section 35 Semantic Gate: validates the GENERATED image against the
+        original request/context/selected garments (binary PASS/FAIL + violations).
+        Flags generation drift (e.g. a different garment rendered than was selected).
+        """
+        pass
+
 
 class BaseOutfitImageProvider(ABC):
     """Styling Stage 9: Composite outfit image generation from selected canonical garments."""
@@ -122,13 +145,13 @@ class BaseOutfitImageProvider(ABC):
 
 
 class BaseVisualValidatorProvider(ABC):
-    """Styling Stage 10: Verifies a generated outfit image matches the selected garments."""
+    """Styling Stage 10: SPEC.md Section 34 Visual Gate — evaluates the generated outfit image."""
 
     @abstractmethod
     async def validate_image(
         self,
         generated_image: bytes,
         garments: List[GarmentSummary],
-    ) -> ValidationResult:
-        """Returns PASS | FAIL | NEEDS_REVIEW describing whether the image matches the outfit."""
+    ) -> VisualGateResult:
+        """Returns a 0-10 quality score + structured feedback. A quality score, not the styling decision."""
         pass
