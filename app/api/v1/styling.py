@@ -11,14 +11,21 @@ from app.models.garment import Garment
 from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
 from app.models.user import User
-from app.rules.style_profile import outfit_boldness, update_attribute_affinities, update_boldness_preference
+from app.rules.style_profile import (
+    confidence_for_count,
+    outfit_boldness,
+    update_attribute_affinities,
+    update_boldness_preference,
+)
 from app.schemas.styling import (
+    AttributeAffinityValue,
     OutfitResult,
     OutfitVoteRequest,
     OutfitVoteResponse,
     ScoreBreakdown,
     SemanticGateResult,
     StageTrace,
+    StyleProfileResponse,
     StylingIntent,
     StylingRecommendationRequest,
     StylingRecommendationResponse,
@@ -214,4 +221,40 @@ async def vote_outfit(
         outfit_boldness=boldness,
         boldness_preference=profile.boldness_preference,
         vote_count=profile.vote_count,
+    )
+
+
+@router.get("/profile", response_model=StyleProfileResponse)
+async def get_style_profile(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """The authenticated user's learned styling preferences — boldness plus every tracked
+    categorical attribute's per-value affinity (see app/rules/style_profile.py)."""
+    profile_stmt = select(StyleProfile).where(
+        StyleProfile.tenant_id == current_user.tenant_id,
+        StyleProfile.member_id == current_user.member_id,
+    )
+    profile = (await session.execute(profile_stmt)).scalars().first()
+    if not profile:
+        return StyleProfileResponse(boldness_preference=0.0, vote_count=0, attribute_affinities={})
+
+    affinities = {}
+    for field, values in (profile.attribute_affinities or {}).items():
+        entries = [
+            AttributeAffinityValue(
+                value=value,
+                score=stats.get("score", 0.0),
+                count=stats.get("count", 0),
+                confidence=confidence_for_count(stats.get("count", 0)),
+            )
+            for value, stats in values.items()
+        ]
+        entries.sort(key=lambda e: e.count * abs(e.score), reverse=True)
+        affinities[field] = entries
+
+    return StyleProfileResponse(
+        boldness_preference=profile.boldness_preference,
+        vote_count=profile.vote_count,
+        attribute_affinities=affinities,
     )

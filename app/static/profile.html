@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Style Profile</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-16">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/25">CT</div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-white tracking-tight">Style Profile</h1>
+          <p class="text-xs text-slate-400">What we've learned from your likes/dislikes</p>
+        </div>
+      </a>
+      <div class="flex items-center gap-2 text-xs font-medium">
+        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-bold text-white">Boldness Preference</h2>
+        <span id="vote-count" class="text-xs text-slate-500"></span>
+      </div>
+      <p class="text-sm text-slate-400 mb-4">Learned from every outfit you've upvoted/downvoted — pulled toward the boldness (inverse of visual harmony) of outfits you liked, pushed away from ones you didn't.</p>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-500 w-24">Conventional</span>
+        <div class="flex-1 h-3 bg-slate-800 rounded-full overflow-hidden relative">
+          <div id="boldness-bar" class="h-full bg-gradient-to-r from-emerald-500 to-purple-500" style="width:0%"></div>
+        </div>
+        <span class="text-xs text-slate-500 w-10 text-right">Bold</span>
+      </div>
+      <p id="boldness-value" class="text-center text-sm font-mono text-purple-400 mt-2"></p>
+    </section>
+
+    <section id="affinity-sections" class="space-y-6"></section>
+
+    <section id="empty-state" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
+      No preferences learned yet — upvote or downvote outfits on the <a href="/styling" class="text-blue-400 hover:underline">Styling Pipeline</a> page to build your profile.
+    </section>
+
+  </main>
+
+  <script>
+    const API_BASE = "/api/v1/wardrobe";
+
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    async function ctFetch(url, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const headers = Object.assign({}, opts.headers || {}, token ? {Authorization: `Bearer ${token}`} : {});
+      const res = await fetch(url, Object.assign({}, opts, {headers}));
+      if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      return res;
+    }
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
+    const FIELD_LABELS = {
+      colour: "Colour", pattern: "Pattern", material: "Material", fit: "Fit",
+      silhouette: "Silhouette", sleeve_length: "Sleeve Length", garment_class: "Garment Type",
+    };
+
+    function affinityRow(entry) {
+      // score in [-1,1]; confidence in [0,1] scales how much of the bar is actually filled in
+      // (an unconfident value shows a short, muted bar even if its raw score is extreme).
+      const liked = entry.score >= 0;
+      const magnitude = Math.abs(entry.score) * entry.confidence;
+      const pct = Math.round(magnitude * 100);
+      const color = liked ? "emerald" : "red";
+      return `
+        <div class="flex items-center gap-3">
+          <span class="w-32 truncate text-sm text-slate-300">${entry.value.replace(/_/g, " ")}</span>
+          <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full bg-${color}-500" style="width:${pct}%"></div>
+          </div>
+          <span class="w-24 text-right text-[11px] text-slate-500">${liked ? "liked" : "disliked"} · ${entry.count} vote${entry.count === 1 ? "" : "s"}</span>
+        </div>`;
+    }
+
+    function affinitySection(field, entries) {
+      if (!entries.length) return "";
+      return `
+        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
+          <h3 class="text-base font-bold text-white mb-4">${FIELD_LABELS[field] || field}</h3>
+          <div class="space-y-2.5">${entries.map(affinityRow).join("")}</div>
+        </div>`;
+    }
+
+    async function load() {
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/profile`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const profile = await res.json();
+
+        const pct = Math.round(profile.boldness_preference * 100);
+        document.getElementById("boldness-bar").style.width = `${pct}%`;
+        document.getElementById("boldness-value").textContent = `${profile.boldness_preference.toFixed(3)} / 1.0`;
+        document.getElementById("vote-count").textContent = `${profile.vote_count} vote${profile.vote_count === 1 ? "" : "s"} total`;
+
+        const fields = Object.keys(profile.attribute_affinities || {});
+        const hasAny = fields.some(f => (profile.attribute_affinities[f] || []).length > 0);
+        document.getElementById("empty-state").classList.toggle("hidden", hasAny || profile.vote_count > 0);
+
+        document.getElementById("affinity-sections").innerHTML = fields
+          .map(f => affinitySection(f, profile.attribute_affinities[f]))
+          .join("");
+      } catch (e) {
+        document.getElementById("affinity-sections").innerHTML = `<p class="text-red-400 text-sm">Failed to load profile: ${e}</p>`;
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

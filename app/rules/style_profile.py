@@ -103,12 +103,17 @@ def update_attribute_affinities(
     return updated
 
 
+def confidence_for_count(count: int) -> float:
+    """How much a value's raw score should be trusted given how many votes back it — public so
+    API/display layers (e.g. the profile page) can show it without duplicating the math."""
+    return count / (count + CONFIDENCE_PRIOR)
+
+
 def _confident_score(stats: Dict[str, float]) -> Tuple[float, float]:
     """Shrinks a value's raw score toward neutral (0) based on how many votes back it —
     returns (shrunk_score, count) so the caller can also weight by count when combining."""
     count = stats.get("count", 0)
-    confidence = count / (count + CONFIDENCE_PRIOR)
-    return stats.get("score", 0.0) * confidence, count
+    return stats.get("score", 0.0) * confidence_for_count(count), count
 
 
 def attribute_affinity_score(garments_attrs: List[Dict[str, Any]], affinities: Dict[str, Dict[str, Dict[str, float]]]) -> float:

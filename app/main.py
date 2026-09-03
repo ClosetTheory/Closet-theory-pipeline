@@ -60,6 +60,7 @@ STATIC_CATALOGUE = STATIC_DIR / "catalogue.html"
 STATIC_GARMENT = STATIC_DIR / "garment.html"
 STATIC_STYLING = STATIC_DIR / "styling.html"
 STATIC_LOGIN = STATIC_DIR / "login.html"
+STATIC_PROFILE = STATIC_DIR / "profile.html"
 
 
 def _serve_static(path: Path, label: str) -> HTMLResponse:
@@ -72,6 +73,12 @@ def _serve_static(path: Path, label: str) -> HTMLResponse:
 async def get_login_page():
     """Sign in / register page."""
     return _serve_static(STATIC_LOGIN, "Login")
+
+
+@app.get("/profile", response_class=HTMLResponse, tags=["Auth"])
+async def get_profile_page():
+    """Learned styling preference profile: boldness + per-attribute affinities."""
+    return _serve_static(STATIC_PROFILE, "Profile")
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Catalogue"])

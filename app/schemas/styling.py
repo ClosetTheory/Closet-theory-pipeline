@@ -226,3 +226,16 @@ class OutfitVoteResponse(BaseModel):
     outfit_boldness: float
     boldness_preference: float
     vote_count: int
+
+
+class AttributeAffinityValue(BaseModel):
+    value: str
+    score: float  # raw EMA score, [-1, 1]
+    count: int
+    confidence: float  # [0, 1] — how much the score should be trusted given vote volume
+
+
+class StyleProfileResponse(BaseModel):
+    boldness_preference: float
+    vote_count: int
+    attribute_affinities: Dict[str, List[AttributeAffinityValue]]
