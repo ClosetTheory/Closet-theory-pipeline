@@ -8,12 +8,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.dependencies import get_db_session, get_storage
+from app.api.dependencies import get_current_user, get_db_session, get_storage
 from app.config import settings
 from app.models.embedding import GarmentEmbedding
 from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
 from app.models.pipeline_stage import PipelineStageRun
+from app.models.user import User
 from app.observability import log_stage_event, metrics
 from app.pipeline.orchestrator import PipelineOrchestrator
 from app.pipeline.stages.base import StageExecutionContext
@@ -49,6 +50,7 @@ class StepRequest(BaseModel):
 @router.post("", response_model=CanonicalGarment, status_code=status.HTTP_202_ACCEPTED)
 async def create_garment(
     request: GarmentCreateRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ):
     """
@@ -61,10 +63,12 @@ async def create_garment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Source image '{request.source_image_id}' not found",
         )
+    if source_image.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Source image belongs to another account")
 
     garment = Garment(
-        tenant_id=request.tenant_id,
-        member_id=request.member_id,
+        tenant_id=current_user.tenant_id,
+        member_id=current_user.member_id,
         source_image_id=source_image.id,
         status=GarmentState.RECEIVED.value,
         quality_status="PENDING",
@@ -94,21 +98,17 @@ async def create_garment(
 
 @router.get("", response_model=List[GarmentSummary])
 async def list_garments(
-    tenant_id: Optional[str] = Query(default=None),
-    member_id: Optional[str] = Query(default=None),
     category: Optional[str] = Query(default=None),
     status_filter: str = Query(default="COMPLETED", alias="status"),
     limit: int = Query(default=24, ge=1, le=3000),
     offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ):
-    """Catalogue listing of ingested garments — the ingestion pipeline's real, persisted output."""
-    stmt = select(Garment).options(selectinload(Garment.canonical_image))
+    """Catalogue listing of ingested garments — the ingestion pipeline's real, persisted output.
+    Always scoped to the authenticated user's own tenant — a wardrobe is private."""
+    stmt = select(Garment).options(selectinload(Garment.canonical_image)).where(Garment.tenant_id == current_user.tenant_id)
 
-    if tenant_id:
-        stmt = stmt.where(Garment.tenant_id == tenant_id)
-    if member_id:
-        stmt = stmt.where(Garment.member_id == member_id)
     if category:
         stmt = stmt.where(Garment.category == category)
     if status_filter:
@@ -397,6 +397,7 @@ async def execute_single_pipeline_step(
 async def retry_garment_pipeline(
     garment_id: str,
     request: RetryRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Retries a failed or reviewable stage in the garment pipeline."""
@@ -406,6 +407,8 @@ async def retry_garment_pipeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Garment '{garment_id}' not found",
         )
+    if garment.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This garment belongs to another account")
 
     # Enqueue pipeline run
     await enqueue_garment_pipeline(garment.id, force=request.force, resume_stage=request.stage)
@@ -416,6 +419,7 @@ async def retry_garment_pipeline(
 async def review_garment_pipeline(
     garment_id: str,
     request: ReviewRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Submits operator review or overrides for a garment flagged for human review."""
@@ -425,6 +429,8 @@ async def review_garment_pipeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Garment '{garment_id}' not found",
         )
+    if garment.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This garment belongs to another account")
 
     if request.decision == ReviewDecision.APPROVE:
         garment.quality_status = "APPROVED"

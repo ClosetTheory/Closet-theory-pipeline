@@ -124,11 +124,13 @@ class StylingOrchestrator:
         if self.on_stage:
             await self.on_stage(entry)
 
-    async def run(self, request: StylingRecommendationRequest) -> StylingRecommendationResponse:
+    async def run(self, request: StylingRecommendationRequest, tenant_id: str, member_id: str) -> StylingRecommendationResponse:
+        # tenant_id/member_id come from the authenticated caller (see app/api/v1/styling.py),
+        # never from the request body — StylingRecommendationRequest no longer carries them.
         # Hard constraint checks first (code, not AI) — not its own numbered stage but must run before Stage 1
         t0 = time.perf_counter()
         anchors = await get_anchor_garments(
-            self.session, request.tenant_id, request.member_id, request.anchor_garment_ids
+            self.session, tenant_id, member_id, request.anchor_garment_ids
         )
         anchor_categories = [a.category for a in anchors if a.category]
 
@@ -158,8 +160,8 @@ class StylingOrchestrator:
         t1 = time.perf_counter()
         user_preferences: Dict[str, Any] = {}
         profile_stmt = select(StyleProfile).where(
-            StyleProfile.tenant_id == request.tenant_id,
-            StyleProfile.member_id == request.member_id,
+            StyleProfile.tenant_id == tenant_id,
+            StyleProfile.member_id == member_id,
         )
         style_profile = (await self.session.execute(profile_stmt)).scalars().first()
         if style_profile:
@@ -194,7 +196,7 @@ class StylingOrchestrator:
 
         # Stage 4: DB Filtering
         t3 = time.perf_counter()
-        candidates = await filter_candidates(self.session, request.tenant_id, request.member_id, intent)
+        candidates = await filter_candidates(self.session, tenant_id, member_id, intent)
         garments_by_id: Dict[str, Garment] = {g.id: g for g in candidates}
         for a in anchors:
             garments_by_id[a.id] = a
@@ -202,8 +204,8 @@ class StylingOrchestrator:
             "STAGE_04_FILTERING",
             "Attribute Candidate Filtering",
             {
-                "tenant_id": request.tenant_id,
-                "member_id": request.member_id,
+                "tenant_id": tenant_id,
+                "member_id": member_id,
                 "candidates_after_filter": len(candidates),
                 "anchors_locked_in": [a.id for a in anchors],
                 "filters_applied": ["status=COMPLETED", "quality_status in (APPROVED, PENDING)"]
@@ -293,8 +295,8 @@ class StylingOrchestrator:
 
         # Persist StylingRequest (trace finalized after stages 9/10 below)
         styling_request = StylingRequest(
-            tenant_id=request.tenant_id,
-            member_id=request.member_id,
+            tenant_id=tenant_id,
+            member_id=member_id,
             raw_text=request.request_text,
             anchor_garment_ids=request.anchor_garment_ids or [],
             normalized_intent=intent.model_dump(mode="json"),
@@ -336,7 +338,7 @@ class StylingOrchestrator:
             candidate_image_id = None
             if image_bytes:
                 candidate_image_id = await _persist_generated_image(
-                    self.session, self.storage, request.tenant_id, request.member_id, image_bytes
+                    self.session, self.storage, tenant_id, member_id, image_bytes
                 )
                 candidate_image_url = f"/api/v1/wardrobe/images/{candidate_image_id}/bytes"
 
@@ -365,8 +367,8 @@ class StylingOrchestrator:
 
             outfit_row = Outfit(
                 request_id=styling_request.id,
-                tenant_id=request.tenant_id,
-                member_id=request.member_id,
+                tenant_id=tenant_id,
+                member_id=member_id,
                 rank=rank,
                 score_breakdown=outfit_candidate.scores.model_dump(mode="json"),
                 final_score=outfit_candidate.scores.final_score,

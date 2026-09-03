@@ -7,8 +7,6 @@ from app.schemas.attributes import GarmentAttributes
 
 class GarmentCreateRequest(BaseModel):
     source_image_id: str
-    tenant_id: str = "tenant_1"
-    member_id: str = "member_1"
 
 
 class CanonicalGarment(BaseModel):

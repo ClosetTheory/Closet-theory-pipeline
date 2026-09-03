@@ -31,6 +31,7 @@
         <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
         <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 transition font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
       </nav>
     </div>
   </header>
@@ -100,6 +101,16 @@
   <script>
     const API_BASE = "/api/v1/wardrobe";
 
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    async function ctFetch(url, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const headers = Object.assign({}, opts.headers || {}, token ? {Authorization: `Bearer ${token}`} : {});
+      const res = await fetch(url, Object.assign({}, opts, {headers}));
+      if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      return res;
+    }
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
     (function prefillFromQuery() {
       const params = new URLSearchParams(window.location.search);
       const anchor = params.get("anchor");
@@ -118,7 +129,7 @@
       renderStageGrid();
       document.getElementById("stage-grid").classList.remove("hidden");
       try {
-        const res = await fetch(`${API_BASE}/styling/requests/${encodeURIComponent(requestId)}`);
+        const res = await ctFetch(`${API_BASE}/styling/requests/${encodeURIComponent(requestId)}`);
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         for (const def of STAGE_DEFS) {
@@ -308,7 +319,7 @@
     async function fetchGarmentCached(id) {
       if (garmentCache[id]) return garmentCache[id];
       try {
-        const res = await fetch(`${API_BASE}/garments/${encodeURIComponent(id)}`);
+        const res = await ctFetch(`${API_BASE}/garments/${encodeURIComponent(id)}`);
         if (!res.ok) return null;
         const g = await res.json();
         garmentCache[id] = g;
@@ -509,7 +520,7 @@
       const feedbackEl = card.querySelector(".vote-feedback");
       card.querySelectorAll(".vote-btn").forEach(b => b.disabled = true);
       try {
-        const res = await fetch(`${API_BASE}/styling/outfits/${encodeURIComponent(outfitId)}/vote`, {
+        const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(outfitId)}/vote`, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({vote}),
@@ -559,7 +570,7 @@
       document.getElementById("live-stage-title").textContent = STAGE_DEFS[0].title;
 
       try {
-        const res = await fetch(`${API_BASE}/styling/recommendations/stream`, {
+        const res = await ctFetch(`${API_BASE}/styling/recommendations/stream`, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({request_text: requestText || null, anchor_garment_ids: anchors, top_k: 3}),

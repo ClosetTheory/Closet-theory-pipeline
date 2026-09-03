@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.dependencies import get_db_session, get_storage
+from app.api.dependencies import get_current_user, get_db_session, get_storage
 from app.models.garment import Garment
 from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
+from app.models.user import User
 from app.rules.style_profile import outfit_boldness, update_attribute_affinities, update_boldness_preference
 from app.schemas.styling import (
     OutfitResult,
@@ -33,6 +34,7 @@ router = APIRouter(prefix="/wardrobe/styling", tags=["Styling"])
 @router.post("/recommendations", response_model=StylingRecommendationResponse)
 async def get_outfit_recommendations(
     request: StylingRecommendationRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -43,7 +45,7 @@ async def get_outfit_recommendations(
     """
     try:
         orchestrator = StylingOrchestrator(session, storage)
-        return await orchestrator.run(request)
+        return await orchestrator.run(request, current_user.tenant_id, current_user.member_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -51,6 +53,7 @@ async def get_outfit_recommendations(
 @router.post("/recommendations/stream")
 async def stream_outfit_recommendations(
     request: StylingRecommendationRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -72,7 +75,7 @@ async def stream_outfit_recommendations(
     async def runner() -> None:
         try:
             orchestrator = StylingOrchestrator(session, storage, on_stage=on_stage)
-            result = await orchestrator.run(request)
+            result = await orchestrator.run(request, current_user.tenant_id, current_user.member_id)
             await queue.put(("done", result))
         except Exception as e:
             await queue.put(("error", str(e)))
@@ -103,12 +106,15 @@ async def stream_outfit_recommendations(
 @router.get("/requests/{request_id}", response_model=StylingRecommendationResponse)
 async def get_styling_request(
     request_id: str,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Replays a past recommendation result from persisted Outfit/OutfitGarment rows."""
     styling_request = await session.get(StylingRequest, request_id)
     if not styling_request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Styling request '{request_id}' not found")
+    if styling_request.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This styling request belongs to another account")
 
     stmt = (
         select(Outfit)
@@ -164,6 +170,7 @@ async def get_styling_request(
 async def vote_outfit(
     outfit_id: str,
     request: OutfitVoteRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ):
     """
@@ -175,6 +182,8 @@ async def vote_outfit(
     outfit = await session.get(Outfit, outfit_id)
     if not outfit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outfit '{outfit_id}' not found")
+    if outfit.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This outfit belongs to another account")
 
     boldness = outfit_boldness((outfit.score_breakdown or {}).get("visual_harmony", 0.7))
 

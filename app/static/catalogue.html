@@ -27,6 +27,7 @@
         <a href="/styling" class="px-3 py-1.5 rounded-lg text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/30 transition font-semibold">Styling Pipeline</a>
         <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 transition font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
       </nav>
     </div>
   </header>
@@ -68,6 +69,17 @@
   <script>
     const API_BASE = "/api/v1/wardrobe";
 
+    // --- auth helpers (inline: pages here are self-contained, no shared JS mount) ---
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    async function ctFetch(url, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const headers = Object.assign({}, opts.headers || {}, token ? {Authorization: `Bearer ${token}`} : {});
+      const res = await fetch(url, Object.assign({}, opts, {headers}));
+      if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      return res;
+    }
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
     function garmentCard(g) {
       const attrs = g.attributes || {};
       const colour = (attrs.colour || []).join(", ");
@@ -91,7 +103,7 @@
       grid.innerHTML = Array.from({length: 6}).map(() => `<div class="aspect-[3/4] skeleton rounded-xl"></div>`).join("");
 
       try {
-        const res = await fetch(`${API_BASE}/garments?limit=3000`);
+        const res = await ctFetch(`${API_BASE}/garments?limit=3000`);
         const garments = await res.json();
         if (!Array.isArray(garments) || garments.length === 0) {
           grid.innerHTML = "";
@@ -157,7 +169,7 @@
       results.innerHTML = `<div class="col-span-full text-sm text-slate-500">Assembling outfits from your wardrobe…</div>`;
 
       try {
-        const res = await fetch(`${API_BASE}/styling/recommendations`, {
+        const res = await ctFetch(`${API_BASE}/styling/recommendations`, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({request_text: input.value || null, top_k: 3}),

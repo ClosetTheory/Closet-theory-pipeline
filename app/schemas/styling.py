@@ -193,8 +193,6 @@ class OutfitResult(BaseModel):
 
 
 class StylingRecommendationRequest(BaseModel):
-    tenant_id: str = "tenant_1"
-    member_id: str = "member_1"
     request_text: Optional[str] = None
     anchor_garment_ids: Optional[List[str]] = None
     top_k: int = Field(default=3, ge=1, le=10)

@@ -3,12 +3,13 @@
 import hashlib
 import io
 import uuid
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.dependencies import get_db_session, get_storage
+from app.api.dependencies import get_current_user, get_db_session, get_storage
 from app.config import settings
 from app.models.image_asset import ImageAsset
+from app.models.user import User
 from app.schemas.image import ImageUploadResponse
 from app.storage.base import StorageClient
 
@@ -21,8 +22,7 @@ Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
 @router.post("", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_image(
     file: UploadFile = File(...),
-    tenant_id: str = Form("tenant_1"),
-    member_id: str = Form("member_1"),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -61,15 +61,15 @@ async def upload_image(
 
     # 5. Generate secure, non-client key
     ext = "jpg" if "jpeg" in file.content_type else "png"
-    storage_key = f"raw/{tenant_id}/{sha256_hash[:16]}_{uuid.uuid4().hex[:8]}.{ext}"
+    storage_key = f"raw/{current_user.tenant_id}/{sha256_hash[:16]}_{uuid.uuid4().hex[:8]}.{ext}"
 
     # 6. Save bytes to storage
     object_uri = await storage.put_object(storage_key, content, content_type=file.content_type)
 
     # 7. Persist ImageAsset record
     image_asset = ImageAsset(
-        tenant_id=tenant_id,
-        member_id=member_id,
+        tenant_id=current_user.tenant_id,
+        member_id=current_user.member_id,
         object_uri=object_uri,
         mime_type=file.content_type,
         width=width,

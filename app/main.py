@@ -59,12 +59,19 @@ STATIC_INDEX = STATIC_DIR / "index.html"
 STATIC_CATALOGUE = STATIC_DIR / "catalogue.html"
 STATIC_GARMENT = STATIC_DIR / "garment.html"
 STATIC_STYLING = STATIC_DIR / "styling.html"
+STATIC_LOGIN = STATIC_DIR / "login.html"
 
 
 def _serve_static(path: Path, label: str) -> HTMLResponse:
     if path.exists():
         return HTMLResponse(content=path.read_text(encoding="utf-8"))
     return HTMLResponse(f"<h1>{label} not found</h1>", status_code=404)
+
+
+@app.get("/login", response_class=HTMLResponse, tags=["Auth"])
+async def get_login_page():
+    """Sign in / register page."""
+    return _serve_static(STATIC_LOGIN, "Login")
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Catalogue"])

@@ -116,5 +116,9 @@ class Settings(BaseSettings):
     STYLING_MAX_OUTFITS_RETURNED: int = 3
     STYLING_IMAGE_MAX_RETRIES: int = 2
 
+    # --- Auth (presentation-grade: stdlib-only hashing/signing, no OAuth/MFA/rate-limiting) ---
+    AUTH_SECRET_KEY: str = "dev-insecure-secret-change-me"  # dev-only default, same convention as other local defaults above
+    AUTH_TOKEN_EXPIRE_DAYS: int = 7
+
 
 settings = Settings()

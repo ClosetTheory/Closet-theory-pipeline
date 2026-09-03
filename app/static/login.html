@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — ClosetTheory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased flex items-center justify-center px-4">
+
+  <div class="w-full max-w-sm">
+    <div class="flex items-center justify-center gap-3 mb-8">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/25">CT</div>
+      <h1 class="text-lg font-bold text-white tracking-tight">ClosetTheory</h1>
+    </div>
+
+    <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <div class="flex rounded-lg bg-slate-800 p-1 text-sm font-medium">
+        <button id="tab-login" onclick="setMode('login')" class="flex-1 py-1.5 rounded-md transition">Sign in</button>
+        <button id="tab-register" onclick="setMode('register')" class="flex-1 py-1.5 rounded-md transition">Create account</button>
+      </div>
+
+      <div id="register-field" class="hidden">
+        <label class="text-xs text-slate-400 block mb-1">Display name</label>
+        <input id="display-name" type="text" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500" placeholder="Alice">
+      </div>
+
+      <div>
+        <label class="text-xs text-slate-400 block mb-1">Email</label>
+        <input id="email" type="email" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500" placeholder="you@example.com">
+      </div>
+
+      <div>
+        <label class="text-xs text-slate-400 block mb-1">Password</label>
+        <input id="password" type="password" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500" placeholder="••••••••">
+      </div>
+
+      <button id="submit-btn" onclick="submitForm()" class="w-full bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold py-2.5 rounded-lg transition">Sign in</button>
+      <p id="error-msg" class="hidden text-xs text-red-400 text-center"></p>
+      <p class="text-[11px] text-slate-500 text-center">Demo account: demo@closettheory.local / demo1234</p>
+    </div>
+  </div>
+
+  <script>
+    let mode = "login";
+
+    function setMode(newMode) {
+      mode = newMode;
+      document.getElementById("register-field").classList.toggle("hidden", mode !== "register");
+      document.getElementById("submit-btn").textContent = mode === "login" ? "Sign in" : "Create account";
+      document.getElementById("tab-login").classList.toggle("bg-slate-700", mode === "login");
+      document.getElementById("tab-login").classList.toggle("text-white", mode === "login");
+      document.getElementById("tab-register").classList.toggle("bg-slate-700", mode === "register");
+      document.getElementById("tab-register").classList.toggle("text-white", mode === "register");
+      document.getElementById("error-msg").classList.add("hidden");
+    }
+
+    async function submitForm() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const displayName = document.getElementById("display-name").value.trim();
+      const errorEl = document.getElementById("error-msg");
+      errorEl.classList.add("hidden");
+
+      if (!email || !password || (mode === "register" && !displayName)) {
+        errorEl.textContent = "Please fill in all fields.";
+        errorEl.classList.remove("hidden");
+        return;
+      }
+
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      try {
+        const body = mode === "login" ? { email, password } : { email, password, display_name: displayName };
+        const res = await fetch(`/api/v1/auth/${mode}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Something went wrong");
+        localStorage.setItem("ct_auth_token", data.token);
+        window.location.href = "/";
+      } catch (e) {
+        errorEl.textContent = e.message;
+        errorEl.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    setMode("login");
+  </script>
+</body>
+</html>

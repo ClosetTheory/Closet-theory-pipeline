@@ -19,6 +19,7 @@
           <p class="text-xs text-slate-400">← Back to catalogue</p>
         </div>
       </a>
+      <button onclick="ctLogout()" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
     </div>
   </header>
 
@@ -32,6 +33,16 @@
     const API_BASE = "/api/v1/wardrobe";
     const params = new URLSearchParams(window.location.search);
     const garmentId = params.get("id");
+
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    async function ctFetch(url, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const headers = Object.assign({}, opts.headers || {}, token ? {Authorization: `Bearer ${token}`} : {});
+      const res = await fetch(url, Object.assign({}, opts, {headers}));
+      if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      return res;
+    }
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
 
     function attrRow(label, value) {
       if (value === undefined || value === null || value === "") return "";
@@ -51,7 +62,7 @@
         return;
       }
       try {
-        const res = await fetch(`${API_BASE}/garments/${encodeURIComponent(garmentId)}`);
+        const res = await ctFetch(`${API_BASE}/garments/${encodeURIComponent(garmentId)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const g = await res.json();
         const attrs = g.attributes || {};
@@ -127,7 +138,7 @@
       btn.textContent = "Styling…";
       results.innerHTML = `<p class="text-sm text-slate-500">Finding compatible pieces in your wardrobe…</p>`;
       try {
-        const res = await fetch(`${API_BASE}/styling/recommendations`, {
+        const res = await ctFetch(`${API_BASE}/styling/recommendations`, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({anchor_garment_ids: [garmentId], top_k: 3}),
