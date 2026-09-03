@@ -5,6 +5,7 @@ FAIL outfits are dropped in favor of the next-ranked survivor (PRD Section 16);
 NEEDS_REVIEW outfits are kept but flagged. The validator never mutates garments.
 """
 
+import asyncio
 from typing import Dict, List, Tuple
 from app.models.garment import Garment
 from app.providers.semantic_validator import get_semantic_validator_provider
@@ -38,21 +39,24 @@ async def validate_outfits(
 ) -> Tuple[List[Tuple[OutfitCandidate, ValidationResult]], int]:
     """Returns (accepted outfits with their validation result, count dropped for FAIL)."""
     validator = get_semantic_validator_provider()
-    accepted: List[Tuple[OutfitCandidate, ValidationResult]] = []
-    dropped = 0
 
-    for outfit in ranked:
-        if len(accepted) >= top_k:
-            break
-
+    # All candidates in the pool are validated CONCURRENTLY — each is an independent LLM
+    # call, so there's no latency benefit to waiting on one before starting the next.
+    async def _validate_one(outfit: OutfitCandidate) -> ValidationResult:
         garments = [garments_by_id[gid] for gid in outfit.garment_ids]
         summaries = [_to_summary(g, outfit.roles.get(g.id, "")) for g in garments]
+        return await validator.validate(context, outfit, summaries)
 
-        result = await validator.validate(context, outfit, summaries)
+    results = await asyncio.gather(*(_validate_one(outfit) for outfit in ranked))
+
+    accepted: List[Tuple[OutfitCandidate, ValidationResult]] = []
+    dropped = 0
+    for outfit, result in zip(ranked, results):
+        if len(accepted) >= top_k:
+            break
         if result.status == ValidationStatus.FAIL:
             dropped += 1
             continue
-
         accepted.append((outfit, result))
 
     return accepted, dropped
