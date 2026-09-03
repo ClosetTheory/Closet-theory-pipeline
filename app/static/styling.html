@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Styling Pipeline — Live Interactive Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+    .glow-active { box-shadow: 0 0 25px rgba(139, 92, 246, 0.35); }
+    pre.trace-json { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-purple-600 selection:text-white pb-16">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <a href="/" class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-fuchsia-500 to-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-purple-500/25">CT</div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            Styling Pipeline
+            <span class="text-[11px] bg-purple-500/20 text-purple-300 font-semibold px-2 py-0.5 rounded-full border border-purple-500/30">Live Studio</span>
+          </h1>
+          <p class="text-xs text-slate-400">10-stage outfit recommendation, from request to validated shortlist</p>
+        </div>
+      </a>
+      <nav class="flex items-center gap-2 text-xs font-medium">
+        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 transition font-semibold">API Docs ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Request Card -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-purple-950/30 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+        <div class="lg:col-span-7 space-y-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Styling Request</span>
+          <input id="request-text" type="text" placeholder="e.g. smart casual dinner tonight, dark colors"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
+          <span class="text-[10px] text-slate-500 block">Optional — leave blank to style purely from anchor garments below.</span>
+        </div>
+        <div class="lg:col-span-3 space-y-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Anchor Garment IDs</span>
+          <input id="anchor-ids" type="text" placeholder="garm_abc, garm_def"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
+          <span class="text-[10px] text-slate-500 block">Comma-separated, optional preselected garments.</span>
+        </div>
+        <div class="lg:col-span-2">
+          <button id="run-btn" onclick="runPipeline()" class="w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 transition flex items-center justify-center gap-2">
+            <span>✨</span> Run Styling Pipeline
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div id="progress-bar" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div id="live-spinner" class="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+        <div>
+          <div class="text-xs text-slate-400 uppercase font-mono">Current Stage</div>
+          <div id="live-stage-title" class="text-sm font-bold text-white">Initializing…</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 font-mono text-xs">
+        <span class="text-slate-400">Request ID:</span>
+        <span id="live-request-id" class="text-purple-400 font-bold bg-slate-950 px-2.5 py-1 rounded border border-slate-800">-</span>
+      </div>
+    </div>
+
+    <!-- 10-stage grid -->
+    <div id="stage-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+    <!-- Final shortlist -->
+    <section id="shortlist-section" class="hidden">
+      <h2 class="text-lg font-bold text-white mb-4">Final Outfit Shortlist</h2>
+      <div id="shortlist-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </section>
+
+  </main>
+
+  <script>
+    const API_BASE = "/api/v1/wardrobe";
+
+    (function prefillFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const anchor = params.get("anchor");
+      const requestId = params.get("request_id");
+      if (anchor) document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("anchor-ids").value = anchor;
+      });
+      if (requestId) document.addEventListener("DOMContentLoaded", () => loadReplay(requestId));
+    })();
+
+    async function loadReplay(requestId) {
+      document.getElementById("progress-bar").classList.remove("hidden");
+      document.getElementById("live-spinner").classList.add("hidden");
+      document.getElementById("live-request-id").textContent = requestId;
+      document.getElementById("live-stage-title").textContent = "Replaying past request…";
+      renderStageGrid();
+      document.getElementById("stage-grid").classList.remove("hidden");
+      try {
+        const res = await fetch(`${API_BASE}/styling/requests/${encodeURIComponent(requestId)}`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        for (const def of STAGE_DEFS) {
+          const entry = data.trace.find(t => t.stage === def.key);
+          markCard(def.key, "done", entry || { status: "SKIPPED", duration_ms: 0, summary: {} });
+        }
+        document.getElementById("live-stage-title").textContent = "Replayed from history";
+        const grid = document.getElementById("shortlist-grid");
+        grid.innerHTML = data.outfits.length ? data.outfits.map(outfitCard).join("") : `<p class="text-sm text-slate-500 col-span-full">No outfits recorded for this request.</p>`;
+        document.getElementById("shortlist-section").classList.remove("hidden");
+      } catch (e) {
+        document.getElementById("live-stage-title").textContent = "Failed to replay";
+      }
+    }
+
+    const STAGE_DEFS = [
+      { key: "STAGE_01_NORMALISATION", title: "Stage 1: Request Normalisation", color: "purple", tech: "LLM" },
+      { key: "STAGE_02_CONTEXT", title: "Stage 2: Contextual Analysis", color: "purple", tech: "LLM + App Context" },
+      { key: "STAGE_03_WARDROBE_BEHAVIOUR", title: "Stage 3: Wardrobe Behaviour", color: "blue", tech: "Weighted Scorer" },
+      { key: "STAGE_04_FILTERING", title: "Stage 4: Attribute Filtering", color: "blue", tech: "PostgreSQL" },
+      { key: "STAGE_05_RETRIEVAL", title: "Stage 5: Candidate Retrieval", color: "blue", tech: "Embedding Similarity" },
+      { key: "STAGE_06_COMPATIBILITY", title: "Stage 6: Candidate Compatibility", color: "amber", tech: "Decision Tree + VLM" },
+      { key: "STAGE_07_RANKING", title: "Stage 7: Outfit Ranking", color: "amber", tech: "Weighted Scorer" },
+      { key: "STAGE_08_SEMANTIC_VALIDATION", title: "Stage 8: Semantic Validation", color: "emerald", tech: "LLM" },
+      { key: "STAGE_09_IMAGE_GENERATION", title: "Stage 9: Outfit Image Generation", color: "emerald", tech: "gpt-image-2" },
+      { key: "STAGE_10_VISUAL_VALIDATION", title: "Stage 10: Visual Validation", color: "emerald", tech: "VLM" },
+    ];
+
+    function stageCard(def) {
+      return `
+        <div id="card-${def.key}" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-40 transition">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <span class="text-xs font-bold text-${def.color}-400">${def.title}</span>
+              <div class="text-[10px] text-slate-500 font-mono">${def.tech}</div>
+            </div>
+            <span id="badge-${def.key}" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
+          </div>
+          <div id="body-${def.key}" class="text-[11px] font-mono text-slate-400 space-y-1 max-h-56 overflow-y-auto">
+            Waiting to run…
+          </div>
+          <div id="duration-${def.key}" class="text-[10px] text-slate-600 font-mono pt-1 border-t border-slate-800/60"></div>
+        </div>`;
+    }
+
+    function renderStageGrid() {
+      document.getElementById("stage-grid").innerHTML = STAGE_DEFS.map(stageCard).join("");
+    }
+
+    function summaryToHtml(stageKey, summary) {
+      switch (stageKey) {
+        case "STAGE_01_NORMALISATION":
+          return `<div>Provider: <span class="text-slate-200">${summary.provider}</span></div>
+                  <div>Occasion: <span class="text-slate-200">${summary.intent.occasion || '—'}</span></div>
+                  <div>Formality: <span class="text-slate-200">${summary.intent.formality || '—'}</span></div>
+                  <div>Colors: <span class="text-slate-200">${(summary.intent.colors || []).join(', ') || '—'}</span></div>
+                  <div>Time: <span class="text-slate-200">${summary.intent.time_context || '—'}</span></div>`;
+        case "STAGE_02_CONTEXT":
+          return `<div class="text-amber-400/90">${summary.note}</div>`;
+        case "STAGE_03_WARDROBE_BEHAVIOUR":
+          return `<div class="text-amber-400/90">${summary.note}</div><div>Neutral score: <span class="text-slate-200">${summary.neutral_score}</span></div>`;
+        case "STAGE_04_FILTERING":
+          return `<div>Candidates after filter: <span class="text-slate-200 font-bold">${summary.candidates_after_filter}</span></div>
+                  <div>Anchors locked in: <span class="text-slate-200">${(summary.anchors_locked_in || []).length}</span></div>
+                  <div>Filters: <span class="text-slate-200">${(summary.filters_applied || []).join(', ')}</span></div>`;
+        case "STAGE_05_RETRIEVAL": {
+          const roles = Object.entries(summary.candidates_per_role || {}).map(([r, n]) => `${r}: ${n}`).join(' · ');
+          return `<div>Per-role candidates: <span class="text-slate-200">${roles || 'none'}</span></div>
+                  <div>Cap per role: <span class="text-slate-200">${summary.max_candidates_per_role}</span></div>
+                  <div class="text-slate-500">${summary.method}</div>`;
+        }
+        case "STAGE_06_COMPATIBILITY":
+          return `<div>Combinations built: <span class="text-slate-200">${summary.combinations_built}</span></div>
+                  <div>Evaluated: <span class="text-slate-200">${summary.combinations_evaluated}</span></div>
+                  <div>Rejected (incompatible): <span class="text-red-400">${summary.rejected_incompatible}</span></div>
+                  <div>Surviving: <span class="text-emerald-400 font-bold">${summary.surviving_combinations}</span></div>`;
+        case "STAGE_07_RANKING":
+          return (summary.shortlist_before_validation || []).map(o =>
+            `<div class="border-b border-slate-800/50 pb-1 mb-1">Score ${o.final_score} · ${o.garment_ids.length} items</div>`
+          ).join('') || `<div class="text-slate-500">No combinations survived compatibility.</div>`;
+        case "STAGE_08_SEMANTIC_VALIDATION":
+          return `<div>Validated: <span class="text-slate-200">${summary.outfits_validated}</span></div>
+                  <div>Dropped (FAIL): <span class="text-red-400">${summary.dropped_for_fail}</span></div>
+                  <div>Accepted: <span class="text-emerald-400 font-bold">${summary.accepted}</span></div>` +
+                  (summary.results || []).map(r => `<div class="text-[10px]">→ ${r.status} (${(r.confidence*100).toFixed(0)}%)</div>`).join('');
+        case "STAGE_09_IMAGE_GENERATION":
+          return `<div>Provider: <span class="text-slate-200">${summary.provider}</span></div>` +
+                  (summary.results || []).map(r => `<div>Outfit ${r.rank}: ${r.image_generated ? '✅ generated' : '⚠️ skipped'}</div>`).join('');
+        case "STAGE_10_VISUAL_VALIDATION":
+          return `<div>Provider: <span class="text-slate-200">${summary.provider}</span></div>` +
+                  (summary.results || []).map(r => `<div>Outfit ${r.rank}: <span class="text-${r.visual_validation_status === 'PASS' ? 'emerald' : r.visual_validation_status === 'FAIL' ? 'red' : 'amber'}-400">${r.visual_validation_status}</span></div>`).join('');
+        default:
+          return `<pre class="trace-json">${JSON.stringify(summary, null, 1)}</pre>`;
+      }
+    }
+
+    function markCard(stageKey, state, entry) {
+      const card = document.getElementById(`card-${stageKey}`);
+      const badge = document.getElementById(`badge-${stageKey}`);
+      const body = document.getElementById(`body-${stageKey}`);
+      const duration = document.getElementById(`duration-${stageKey}`);
+      if (!card) return;
+
+      if (state === "active") {
+        card.classList.remove("opacity-40");
+        card.classList.add("glow-active", "border-purple-500/60");
+        badge.textContent = "RUNNING";
+        badge.className = "text-[10px] font-mono bg-purple-600 px-2 py-0.5 rounded text-white animate-pulse";
+      } else if (state === "done" && entry) {
+        card.classList.remove("opacity-40", "glow-active", "border-purple-500/60");
+        badge.textContent = entry.status;
+        badge.className = "text-[10px] font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-400 border border-emerald-500/30";
+        body.innerHTML = summaryToHtml(stageKey, entry.summary || {});
+        duration.textContent = `${entry.duration_ms} ms`;
+      }
+    }
+
+    function scoreBar(label, value) {
+      const pct = Math.round((value || 0) * 100);
+      return `<div class="flex items-center gap-2 text-[10px] text-slate-400">
+                <span class="w-24 truncate">${label}</span>
+                <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-purple-500" style="width:${pct}%"></div></div>
+                <span class="w-8 text-right">${pct}</span>
+              </div>`;
+    }
+
+    function outfitCard(outfit) {
+      const scores = outfit.scores || {};
+      const validationBadge = (v, label) => {
+        if (!v) return "";
+        const color = v.status === "PASS" ? "emerald" : v.status === "FAIL" ? "red" : "amber";
+        return `<span class="text-[10px] px-2 py-0.5 rounded-full bg-${color}-500/15 text-${color}-400 border border-${color}-500/30">${label}: ${v.status}</span>`;
+      };
+      return `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white">Outfit ${outfit.rank}</span>
+            <span class="text-xs font-mono text-purple-400">${Math.round((scores.final_score || 0) * 100)}%</span>
+          </div>
+          ${outfit.generated_image_url ? `<img src="${outfit.generated_image_url}" class="w-full rounded-lg border border-slate-800" alt="Generated outfit">` : ""}
+          <div class="flex flex-wrap gap-1.5">
+            ${outfit.garments.map(g => `<a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full transition">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</a>`).join("")}
+          </div>
+          <div class="space-y-1">
+            ${scoreBar("request match", scores.request_match)}
+            ${scoreBar("compatibility", scores.compatibility)}
+            ${scoreBar("occasion fit", scores.occasion_fit)}
+            ${scoreBar("visual harmony", scores.visual_harmony)}
+          </div>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            ${validationBadge(outfit.semantic_validation, "semantic")}
+            ${validationBadge(outfit.visual_validation, "visual")}
+          </div>
+        </div>`;
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function playTrace(trace) {
+      for (const def of STAGE_DEFS) {
+        const entry = trace.find(t => t.stage === def.key);
+        document.getElementById("live-stage-title").textContent = def.title;
+        markCard(def.key, "active");
+        await sleep(280); // brief reveal pause per stage for a legible walkthrough
+        markCard(def.key, "done", entry || { status: "SKIPPED", duration_ms: 0, summary: {} });
+      }
+    }
+
+    async function runPipeline() {
+      const btn = document.getElementById("run-btn");
+      const requestText = document.getElementById("request-text").value.trim();
+      const anchorIds = document.getElementById("anchor-ids").value.trim();
+      const anchors = anchorIds ? anchorIds.split(",").map(s => s.trim()).filter(Boolean) : null;
+
+      if (!requestText && !anchors) {
+        alert("Provide a styling request and/or at least one anchor garment ID.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Running…";
+      document.getElementById("progress-bar").classList.remove("hidden");
+      document.getElementById("shortlist-section").classList.add("hidden");
+      renderStageGrid();
+      document.getElementById("stage-grid").classList.remove("hidden");
+
+      try {
+        const res = await fetch(`${API_BASE}/styling/recommendations`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({request_text: requestText || null, anchor_garment_ids: anchors, top_k: 3}),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+
+        document.getElementById("live-request-id").textContent = data.request_id;
+        await playTrace(data.trace || []);
+
+        document.getElementById("live-stage-title").textContent = "Pipeline complete";
+        document.getElementById("live-spinner").classList.add("hidden");
+
+        const shortlistSection = document.getElementById("shortlist-section");
+        const grid = document.getElementById("shortlist-grid");
+        grid.innerHTML = data.outfits.length
+          ? data.outfits.map(outfitCard).join("")
+          : `<p class="text-sm text-slate-500 col-span-full">No compatible outfits found — ingest more garments across tops/bottoms/shoes.</p>`;
+        shortlistSection.classList.remove("hidden");
+      } catch (e) {
+        document.getElementById("live-stage-title").textContent = "Failed";
+        alert(`Styling pipeline failed: ${e}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "✨ Run Styling Pipeline";
+      }
+    }
+  </script>
+</body>
+</html>
