@@ -58,6 +58,7 @@ class Outfit(Base):
 
     semantic_validation: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     visual_validation: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    generated_image_semantic_validation: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     generated_image_id: Mapped[Optional[str]] = mapped_column(
         String(64),
         ForeignKey("image_assets.id", ondelete="SET NULL"),
