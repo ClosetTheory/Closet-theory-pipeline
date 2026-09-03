@@ -20,12 +20,16 @@ from app.schemas.attributes import GarmentAttributes, validate_extracted_attribu
 from app.schemas.styling import (
     GarmentSummary,
     OutfitCandidate,
+    SemanticGateResult,
     StylingContext,
     StylingIntent,
     ValidationResult,
     ValidationStatus,
+    VisualGateResult,
+    validate_semantic_gate_result,
     validate_styling_intent,
     validate_validation_result,
+    validate_visual_gate_result,
 )
 
 
@@ -285,37 +289,18 @@ Compatibility note: {outfit.compatibility_reason or "n/a"}"""
             model_version=self.model_version,
         )
 
-    async def validate_image(
-        self,
-        generated_image: bytes,
-        garments: List[GarmentSummary],
-    ) -> ValidationResult:
-        """Styling Stage 10: verifies the generated composite image matches the selected real garments."""
-        if not self.api_key:
-            return ValidationResult(
-                status=ValidationStatus.NEEDS_REVIEW,
-                confidence=0.5,
-                reason="No API key configured; visual validation skipped.",
-                model=self.model_name,
-                model_version=self.model_version,
-            )
-
-        b64_image = base64.b64encode(generated_image).decode("utf-8")
-        expected_desc = "; ".join(
+    def _expected_garment_desc(self, garments: List[GarmentSummary]) -> str:
+        return "; ".join(
             f"{g.role or g.category}: {(g.attributes or {}).get('subcategory', g.subcategory)} "
             f"in {', '.join((g.attributes or {}).get('colour', []))}"
             for g in garments
         )
-        prompt_text = f"""Compare this generated outfit image against the expected garments below. Output ONLY JSON:
-{{
-  "status": "PASS" | "FAIL" | "NEEDS_REVIEW",
-  "confidence": 0.0-1.0,
-  "issues": ["mismatches found, empty if none"],
-  "reason": "short explanation"
-}}
 
-Expected garments: {expected_desc}"""
-
+    async def _vision_chat_json(self, prompt_text: str, image_bytes: bytes, max_tokens: int = 400) -> Optional[str]:
+        """Shared helper: single-turn JSON-mode vision chat completion. Returns raw content or None on failure."""
+        if not self.api_key:
+            return None
+        b64_image = base64.b64encode(image_bytes).decode("utf-8")
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "HTTP-Referer": "http://localhost:8000",
@@ -333,7 +318,7 @@ Expected garments: {expected_desc}"""
                     ],
                 }
             ],
-            "max_tokens": 300,
+            "max_tokens": max_tokens,
             "temperature": 0.1,
             "response_format": {"type": "json_object"},
         }
@@ -343,14 +328,77 @@ Expected garments: {expected_desc}"""
                 resp.raise_for_status()
                 content = resp.json()["choices"][0]["message"]["content"].strip()
                 match = re.search(r"\{.*\}", content, re.DOTALL)
-                content = match.group(0) if match else content
-                return validate_validation_result(content, model=self.model_name, model_version=self.model_version)
+                return match.group(0) if match else content
         except Exception as e:
-            logger.warning(f"Visual validation call failed: {e}. Marking NEEDS_REVIEW.")
-            return ValidationResult(
-                status=ValidationStatus.NEEDS_REVIEW,
-                confidence=0.5,
-                reason=f"Visual validation call failed: {e}",
-                model=self.model_name,
-                model_version=self.model_version,
-            )
+            logger.warning(f"Vision JSON chat call failed: {e}")
+            return None
+
+    async def validate_image(
+        self,
+        generated_image: bytes,
+        garments: List[GarmentSummary],
+    ) -> VisualGateResult:
+        """SPEC.md Section 34 Visual Gate: evaluates the generated image, scored 0-10 with structured feedback."""
+        expected_desc = self._expected_garment_desc(garments)
+        prompt_text = f"""Evaluate this generated outfit image as a professional stylist. Output ONLY JSON:
+{{
+  "score": 0.0-10.0 (overall visual quality of the outfit composition),
+  "feedback": {{
+    "proportions": "short note",
+    "silhouette": "short note",
+    "colour_harmony": "short note",
+    "layering": "short note",
+    "garment_interaction": "short note",
+    "visual_coherence": "short note",
+    "overall_aesthetic": "short note"
+  }}
+}}
+
+Expected garments: {expected_desc}"""
+
+        content = await self._vision_chat_json(prompt_text, generated_image, max_tokens=400)
+        if content:
+            try:
+                return validate_visual_gate_result(content, model=self.model_name, model_version=self.model_version)
+            except Exception as e:
+                logger.warning(f"Visual gate result parse failed: {e}. Returning neutral score.")
+        return VisualGateResult(
+            score=5.0,
+            feedback={"overall_aesthetic": "Visual gate unavailable; neutral score assigned."},
+            model=self.model_name,
+            model_version=self.model_version,
+        )
+
+    async def validate_generated(
+        self,
+        context: StylingContext,
+        outfit: OutfitCandidate,
+        garments: List[GarmentSummary],
+        generated_image: bytes,
+    ) -> SemanticGateResult:
+        """SPEC.md Section 35 Semantic Gate: validates the GENERATED image against request + selected garments."""
+        expected_desc = self._expected_garment_desc(garments)
+        prompt_text = f"""Verify this generated outfit image against the original request and the exact garments
+that were selected. Output ONLY JSON:
+{{
+  "status": "PASS" | "FAIL",
+  "violations": ["list any ways the image fails to satisfy the request or drifts from the selected garments, empty if none"],
+  "feedback": "short explanation"
+}}
+
+Request intent: {context.intent.model_dump_json()}
+Selected garments (must be faithfully rendered, not substituted): {expected_desc}"""
+
+        content = await self._vision_chat_json(prompt_text, generated_image, max_tokens=350)
+        if content:
+            try:
+                return validate_semantic_gate_result(content, model=self.model_name, model_version=self.model_version)
+            except Exception as e:
+                logger.warning(f"Semantic gate result parse failed: {e}. Marking FAIL for manual review.")
+        return SemanticGateResult(
+            status="FAIL",
+            violations=["Semantic gate unavailable"],
+            feedback="Semantic gate call failed or returned unparseable output; flagged for review.",
+            model=self.model_name,
+            model_version=self.model_version,
+        )
