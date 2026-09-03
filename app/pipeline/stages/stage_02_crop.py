@@ -12,6 +12,9 @@ from app.pipeline.state_machine import PipelineStage
 from app.providers.detection import get_detection_provider
 
 
+from app.schemas.pipeline import ImageType
+
+
 class Stage02Crop(BaseStage):
     stage_name = PipelineStage.STAGE_02_CROP.value
 
@@ -19,6 +22,27 @@ class Stage02Crop(BaseStage):
         source_image = ctx.garment.source_image
         image_bytes = await ctx.storage.get_object(source_image.object_uri)
         input_hash = compute_stage_input_hash(image_bytes)
+
+        # If image is CATALOG or CROP, skip person detection & cropping
+        image_type = ctx.garment.image_type
+        if image_type in (ImageType.CATALOG.value, ImageType.CROP.value, "CATALOG", "CROP"):
+            ctx.garment.garment_crop_refs = [source_image.object_uri]
+            return StageExecutionResult(
+                status="SUCCEEDED",
+                input_refs={"source_image_id": source_image.id},
+                output_refs={
+                    "skipped": True,
+                    "reason": f"Image classified as {image_type}. Person detection and garment cropping skipped.",
+                    "person_detected": False,
+                    "face_box": None,
+                    "garment_crop_refs": [source_image.object_uri],
+                    "annotated_overlay_uri": source_image.object_uri,
+                },
+                input_hash=input_hash,
+                model="Rule-Bypass",
+                model_version="v1",
+                algorithm_version="crop_skip_v1",
+            )
 
         provider = get_detection_provider()
         detection = await provider.detect_and_crop(image_bytes)

@@ -225,9 +225,16 @@ async def execute_single_pipeline_step(
         settings.NVIDIA_API_KEY = request.nvidia_api_key
 
     # Determine stage to execute
+    # If image is CATALOG or CROP, skip Stage 2 (person/face detection and cropping)
+    next_crop_or_attr = (
+        PipelineStage.STAGE_03_ATTRIBUTES
+        if garment.image_type in ("CATALOG", "CROP")
+        else PipelineStage.STAGE_02_CROP
+    )
+
     stage_mapping = {
         "RECEIVED": PipelineStage.STAGE_01_CLASSIFY,
-        "CLASSIFIED": PipelineStage.STAGE_02_CROP,
+        "CLASSIFIED": next_crop_or_attr,
         "CROPPED": PipelineStage.STAGE_03_ATTRIBUTES,
         "ATTRIBUTES_EXTRACTED": PipelineStage.STAGE_04_DIGITISE,
         "DIGITIZED": PipelineStage.STAGE_05_EMBED,

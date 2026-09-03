@@ -573,6 +573,31 @@
         `;
       }
       else if (stageKey === "STAGE_02_CROP") {
+        if (data.output_data.skipped) {
+          document.getElementById('badge-stage-2').innerText = "SKIPPED (0.1ms)";
+          document.getElementById('badge-stage-2').className = "text-[10px] font-mono bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded";
+
+          const overlayImg = document.getElementById('stage2-overlay-img');
+          overlayImg.src = arts.raw_image_url;
+          overlayImg.classList.remove('hidden');
+          document.getElementById('stage2-overlay-label').innerText = "Catalog/Crop";
+          document.getElementById('stage2-overlay-label').classList.remove('hidden');
+          document.getElementById('stage2-p1').classList.add('hidden');
+
+          const cropImg = document.getElementById('stage2-crop-img');
+          cropImg.src = arts.raw_image_url;
+          cropImg.classList.remove('hidden');
+          document.getElementById('stage2-crop-label').innerText = "Original Kept As-Is";
+          document.getElementById('stage2-crop-label').classList.remove('hidden');
+          document.getElementById('stage2-p2').classList.add('hidden');
+
+          document.getElementById('stage2-data').innerHTML = `
+            <div>Rule: <span class="text-amber-400 font-bold">Bypassed (No person)</span></div>
+            <div>Reason: <span class="text-slate-300">Catalog/Crop image needs no cropping.</span></div>
+          `;
+          return;
+        }
+
         const overlayImg = document.getElementById('stage2-overlay-img');
         overlayImg.src = arts.annotated_overlay_url;
         overlayImg.classList.remove('hidden');
