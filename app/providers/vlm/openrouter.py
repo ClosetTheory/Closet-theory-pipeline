@@ -36,16 +36,22 @@ class OpenRouterGPTProvider(BaseAttributeExtractorProvider, BaseVLMProvider):
             # Fallback to local heuristic if no key in env
             return self._local_vision_analysis(image_bytes)
 
-        prompt = """You are a fashion perception specialist. Analyze this garment photo and output ONLY a raw JSON object with NO markdown formatting, matching this exact schema:
+        prompt = """You are a master fashion perception and garment digitisation specialist. Analyze this garment photo and output ONLY a raw JSON object with NO markdown formatting, matching this exact schema:
 {
   "category": "shirt | pants | dress | jacket | shoes | sweater",
-  "subcategory": "oxford_shirt | tshirt | polo_shirt | jeans | trousers | chinos | blazer | coat | dress | sweater | hoodie | sneakers | boots",
-  "colour": ["primary_color_name"],
+  "subcategory": "oxford_shirt | button_down_shirt | flannel_shirt | tshirt | polo_shirt | jeans | trousers | chinos | blazer | coat | dress | sweater | hoodie | sneakers | boots",
+  "colour": ["list", "of", "all", "prominent", "and", "accent", "colors", "e.g.", "yellow", "salmon pink", "navy blue", "white"],
   "pattern": "solid | striped | plaid | checkered | floral | graphic | polka_dot | geometric | abstract | animal_print | textured | other",
+  "pattern_detail": "Exact description of pattern structure, color blocks, check size, lines, and orientation",
   "material": "cotton | wool | silk | denim | polyester | linen | leather",
   "fit": "slim | regular | oversized | relaxed | tailored | loose | tight",
   "silhouette": "straight | a_line | fitted | boxy | hourglass | tapered | flared | asymmetrical | draped",
   "sleeve_length": "sleeveless | short | three_quarter | long | extra_long | not_applicable",
+  "pocket_detail": "Describe any chest pockets, placement, whether cut on bias/diagonal plaid, accent tabs/tags, or 'none'",
+  "button_detail": "Describe buttons: color, style (e.g. dark ring buttons with light center grommet), count, placement on placket and cuffs",
+  "collar_detail": "Describe collar type (e.g. spread collar, point collar, band collar) and inner collar details",
+  "brand_label": "Exact visible brand name or text on tag if legible (e.g. BLOVIATE) or null",
+  "visual_description": "Comprehensive, ultra-detailed 1:1 photorealistic visual synthesis description of the garment to reproduce an exact digital twin. Include exact cut, colors, fabric weave, pattern alignment, pocket orientation, button details, collar, cuffs, and hem.",
   "occasion": ["casual | smart_casual | business_casual | formal | work | lounge | activewear | evening | party"],
   "season": ["spring | summer | fall | winter | all_season"],
   "layering_role": "base | mid | outer | standalone | accessory | footwear",

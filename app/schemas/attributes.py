@@ -122,6 +122,30 @@ class GarmentAttributes(BaseModel):
     warmth: float = Field(..., ge=0.0, le=1.0, description="Normalized thermal rating 0.0-1.0")
     versatility: float = Field(..., ge=0.0, le=1.0, description="Mix-and-match versatility rating 0.0-1.0")
     confidence: Optional[float] = Field(default=1.0, ge=0.0, le=1.0, description="Extraction confidence score")
+    visual_description: Optional[str] = Field(
+        default=None,
+        description="Comprehensive fine-grained visual description for 1:1 photorealistic digitisation",
+    )
+    pattern_detail: Optional[str] = Field(
+        default=None,
+        description="Specific pattern description including layout, colors, and orientation",
+    )
+    pocket_detail: Optional[str] = Field(
+        default=None,
+        description="Pocket placement, cut, and accent details",
+    )
+    button_detail: Optional[str] = Field(
+        default=None,
+        description="Button style, color, and spacing",
+    )
+    collar_detail: Optional[str] = Field(
+        default=None,
+        description="Collar style and neck details",
+    )
+    brand_label: Optional[str] = Field(
+        default=None,
+        description="Visible brand label or text",
+    )
 
     @field_validator("subcategory")
     @classmethod

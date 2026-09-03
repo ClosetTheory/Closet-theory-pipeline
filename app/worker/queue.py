@@ -56,7 +56,7 @@ async def _in_memory_worker_loop():
 
 
 async def _redis_worker_loop():
-    r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    r = aioredis.from_url(settings.REDIS_URL, decode_responses=True, socket_timeout=15.0)
     logger.info(f"Connected to Redis at {settings.REDIS_URL}, listening on '{REDIS_QUEUE_KEY}'...")
     while True:
         try:

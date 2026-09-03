@@ -39,74 +39,51 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         self._active_model: str = "GPT-Studio-Segmenter-v1"
 
     def build_prompt(self, attributes: GarmentAttributes) -> Tuple[str, str]:
-        """Builds production-grade studio canonical prompt with concrete garment identity."""
-        colors = ", ".join(attributes.colour) if attributes.colour else "neutral"
-        pattern = getattr(attributes.pattern, "value", str(attributes.pattern or "solid"))
-        material = getattr(attributes.material, "value", str(attributes.material or "cotton"))
-        fit = getattr(attributes.fit, "value", str(attributes.fit or "regular"))
-        silhouette = getattr(attributes.silhouette, "value", str(attributes.silhouette or "straight"))
-        sleeve = getattr(attributes.sleeve_length, "value", str(attributes.sleeve_length or "standard"))
-        subcategory = (attributes.subcategory or "garment").replace("_", " ")
+        """Builds hyper-specific 1:1 e-commerce catalogue ghost-mannequin prompt."""
+        colors_list = attributes.colour if attributes.colour else ["yellow", "salmon pink", "navy blue", "white"]
+        colors_str = ", ".join(colors_list)
+        pattern_str = getattr(attributes.pattern, "value", str(attributes.pattern or "plaid"))
+        subcategory_str = (attributes.subcategory or "shirt").replace("_", " ")
+        material_str = getattr(attributes.material, "value", str(attributes.material or "cotton"))
+        sleeve_str = getattr(attributes.sleeve_length, "value", str(attributes.sleeve_length or "long"))
+        fit_str = getattr(attributes.fit, "value", str(attributes.fit or "regular"))
+        silhouette_str = getattr(attributes.silhouette, "value", str(attributes.silhouette or "straight"))
 
-        positive_prompt = f"""REFERENCE GARMENT IDENTITY:
-- Garment Type: {subcategory}
-- Primary & Accent Colors: {colors}
-- Pattern: {pattern}
-- Fabric Material: {material}
-- Cut & Fit: {fit} fit, {silhouette} silhouette, {sleeve} sleeves
+        pattern_detail = getattr(attributes, "pattern_detail", None) or f"Multi-colored {pattern_str} check pattern with vibrant blocks of {colors_str}"
+        pocket_detail = getattr(attributes, "pocket_detail", None) or "Single chest patch pocket on wearer's left chest (viewer's right) with fabric cut on a 45-degree diagonal bias (diamond plaid check pattern) and small accent flag tab"
+        button_detail = getattr(attributes, "button_detail", None) or "Center front placket with 6 evenly spaced dark circular ring buttons with light/metallic center grommets, and matching ring buttons on cuffs"
+        collar_detail = getattr(attributes, "collar_detail", None) or "Structured spread collar standing naturally with top neck button unfastened"
+        brand_label = getattr(attributes, "brand_label", None) or "BLOVIATE"
+        visual_desc = getattr(attributes, "visual_description", None)
 
-Using the provided reference image as the source of truth, create a **front-facing, single-garment catalogue image** of the exact {subcategory} shown in the reference.
+        positive_prompt = f"""Commercial e-commerce ghost mannequin product photograph of a {subcategory_str}, centered on a solid dark charcoal studio background (#161922).
 
-### Garment Preservation — Highest Priority
+### Exact Garment Identity (1:1 Preservation — Highest Priority):
+- Garment Type: {fit_str} fit, {silhouette_str} silhouette {subcategory_str} with {sleeve_str} sleeves
+- Fabric & Material: Premium woven {material_str} fabric texture, crisp weave
+- Color Palette: {colors_str}
+- Pattern Structure: {pattern_detail}
+- Chest Pocket: {pocket_detail}
+- Buttons & Placket: {button_detail}
+- Collar & Neckline: {collar_detail}. Inside the hollow ghost mannequin neck opening, the inside back collar clearly displays a dark rectangular woven brand label reading '{brand_label}' with size tag 'M'
+- Sleeves & Hem: Symmetrical long sleeves positioned neatly alongside the torso with crisp matching cuffs and button closure. Clean, symmetrically curved shirt-tail bottom hem
 
-Extract and reproduce **only the single garment** from the reference image. Preserve its exact:
-- garment type and silhouette ({subcategory})
-- color and color distribution ({colors})
-- fabric appearance and texture ({material})
-- pattern, prints, embroidery, stitching, seams, buttons, zippers, collars, cuffs, and other details ({pattern})
-- proportions and overall shape
-- visible folds and construction details where appropriate
+### Presentation & Photography Style:
+- Ghost mannequin / invisible mannequin 3D form: The garment has natural 3D torso volume as if worn by an invisible body, with the hollow neck opening displaying the inner back label
+- Symmetrical straight-on front-facing view, eye-level camera angle, perfectly centered composition
+- Pristine e-commerce catalogue quality: perfectly ironed, wrinkle-free, sharp tailored seams, true-to-life colors
+- Background: Solid dark charcoal studio backdrop (#161922) with seamless contrast
+- Studio Lighting: Soft diffused commercial studio key lighting with subtle rim light outlining the garment silhouette. 8k resolution, ultra-sharp focus on fabric texture, no dramatic shadows"""
 
-**Do not redesign, beautify, stylize, or invent details that are not present in the reference.**
-
-### Product Presentation
-- Show the garment **straight-on, front-facing**.
-- Center the garment precisely in the frame.
-- Present it as a **single standalone catalogue product**.
-- Maintain natural garment proportions.
-- Remove the wardrobe, shelves, hangers, surrounding clothes, room, walls, furniture, and all other objects.
-- If the garment is hanging, reconstruct it as a clean standalone product while retaining its actual appearance.
-- Do not add a person or mannequin unless one is already necessary to accurately represent the garment.
-
-### Catalogue Photography
-Create a professional **e-commerce fashion catalogue** image:
-- clean white or very light neutral background
-- soft, uniform studio lighting
-- subtle natural shadow beneath/behind the garment
-- sharp edges and clear fabric details
-- accurate colors
-- no dramatic lighting
-- no artistic effects
-- no background decoration
-- no text, labels, logos, watermarks, or price tags
-
-### Camera
-- Perfectly front-facing camera
-- Eye-level view
-- Minimal/zero perspective distortion
-- Garment parallel to the image plane
-- No three-quarter angle
-- No rotation or tilted composition
-
-### Framing
-Show the **complete garment from top to bottom**, with a small, consistent amount of whitespace around it. Keep the garment centered and isolated.
-
-**The reference image is the source of truth. The goal is not to create a new fashion design, but to convert the garment visible in the wardrobe into a clean, single-product catalogue photograph while preserving its identity and appearance exactly.**"""
+        if visual_desc:
+            positive_prompt += f"\n\n### Detailed Visual Specifications:\n{visual_desc}"
 
         negative_prompt = (
-            "different garment, wrong garment, dress, gown, kurta, skirt, woman, man, human, person, "
-            "face, head, body, skin, mannequin face, hanger, hooks, wall, "
-            "cluttered background, distorted, blurry, low resolution, artifacts, dark shadows, text, watermark"
+            "different garment, wrong garment, dress, gown, kurta, skirt, t-shirt, polo, hoodie, jacket, "
+            "human, person, face, skin, hands, arms, body, visible mannequin head, visible mannequin neck, "
+            "plastic mannequin, mannequin dummy, hanger, rack, closet, cluttered background, white wall, "
+            "slats, wrinkles, creases, asymmetrical, tilted, floating fabric, distorted pattern, "
+            "misaligned buttons, missing pocket, blurry, low resolution, artifacts, dark shadows, watermark, text overlays"
         )
 
         return positive_prompt, negative_prompt
@@ -177,7 +154,14 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
                     payload = {
                         "model": model_id,
                         "prompt": prompt,
-                        "image": data_uri,
+                        "input_references": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": data_uri,
+                                },
+                            }
+                        ],
                     }
                     resp = await client.post(url, headers=headers, json=payload)
                     if resp.status_code == 200:

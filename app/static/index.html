@@ -47,6 +47,9 @@
         <button onclick="switchTab('principles')" id="tab-principles" class="tab-btn px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
           Engineering Rationale
         </button>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1.5 transition font-semibold" title="Open Interactive Swagger UI">
+          ⚡ Interactive API (/docs) ↗
+        </a>
       </nav>
     </div>
   </header>
@@ -188,7 +191,7 @@
           <!-- Card 4: Digitisation (FLUX.2 Canonical) -->
           <div id="card-stage-4" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
             <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span class="text-xs font-bold text-blue-400">Stage 4: GPT Studio Digitisation</span>
+              <span class="text-xs font-bold text-blue-400">Stage 4: FLUX.2 Digitisation</span>
               <span id="badge-stage-4" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
             <div class="h-44 bg-slate-950 rounded-xl flex items-center justify-center overflow-hidden border border-slate-800 relative">
@@ -202,7 +205,7 @@
             <!-- Prompt Display Box -->
             <div id="stage4-prompt-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">GPT Studio Prompt</span>
+                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">FLUX.2 Studio Prompt</span>
                 <button type="button" onclick="copyGptPrompt()" class="text-[10px] text-blue-400 hover:text-blue-300 font-mono">📋 Copy</button>
               </div>
               <div id="stage4-prompt-text" class="text-[10px] text-slate-300 bg-slate-950 p-2 rounded border border-slate-800 max-h-20 overflow-y-auto font-sans leading-relaxed"></div>
@@ -626,7 +629,7 @@
           { key: "STAGE_01_CLASSIFY", card: "card-stage-1", badge: "badge-stage-1", title: "Stage 1: Image Classifier" },
           { key: "STAGE_02_CROP", card: "card-stage-2", badge: "badge-stage-2", title: "Stage 2: Detection & Crop" },
           { key: "STAGE_03_ATTRIBUTES", card: "card-stage-3", badge: "badge-stage-3", title: "Stage 3: Garment Attributes" },
-          { key: "STAGE_04_DIGITISE", card: "card-stage-4", badge: "badge-stage-4", title: "Stage 4: GPT-Image-2 Digitisation" },
+          { key: "STAGE_04_DIGITISE", card: "card-stage-4", badge: "badge-stage-4", title: "Stage 4: FLUX.2 Digitisation" },
           { key: "STAGE_05_EMBED", card: "card-stage-5", badge: "badge-stage-5", title: "Stage 5: SigLIP Embedding" },
           { key: "STAGE_06_CATEGORY", card: "card-stage-6", badge: "badge-stage-6", title: "Stage 6: Category Bundling" },
           { key: "STAGE_07_LAYERING", card: "card-stage-7", badge: "badge-stage-7", title: "Stage 7: Layering Analysis" },
