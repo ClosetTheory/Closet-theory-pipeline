@@ -36,10 +36,15 @@ from app.schemas.styling import (
 from app.storage.base import StorageClient
 from app.styling.combinator import build_outfit_combinations
 from app.styling.filtering import filter_candidates, get_anchor_garments
-from app.styling.imaging import generate_and_validate_outfit_image
+from app.styling.imaging import generate_and_run_gates
 from app.styling.ranking import rank_combinations
 from app.styling.retrieval import resolve_role, retrieve_by_role
 from app.styling.semantic_validation import validate_outfits
+
+# How many extra semantically-validated candidates beyond top_k to keep as a fallback
+# pool, so a candidate that fails the post-generation gates can be replaced by the
+# next-best one instead of shrinking the final shortlist (SPEC.md Section 36).
+GATE_FALLBACK_DEPTH = 2
 
 
 def garment_to_summary(garment: Garment, role: str = "") -> GarmentSummary:
@@ -233,10 +238,12 @@ class StylingOrchestrator:
             t6,
         )
 
-        # Stage 8: Semantic Validation (drops FAIL, keeps NEEDS_REVIEW)
+        # Stage 8: Semantic Validation (drops FAIL, keeps NEEDS_REVIEW).
+        # Validates a small pool beyond top_k so a candidate that later fails the
+        # post-generation gates (Stage 10) can be replaced instead of shrinking the shortlist.
         t7 = time.perf_counter()
         validated, dropped_for_fail = await validate_outfits(
-            ranking_trace.outfits, context, garments_by_id, top_k=request.top_k
+            ranking_trace.outfits, context, garments_by_id, top_k=request.top_k + GATE_FALLBACK_DEPTH
         )
         self._record(
             "STAGE_08_SEMANTIC_VALIDATION",
@@ -268,31 +275,45 @@ class StylingOrchestrator:
 
         outfit_results: List[OutfitResult] = []
         imaging_summaries = []
+        gate_summaries = []
+        candidates_skipped = 0
 
         t8 = time.perf_counter()
-        for rank, (outfit_candidate, semantic_result) in enumerate(validated, start=1):
+        rank = 0
+        for outfit_candidate, semantic_result in validated:
+            if len(outfit_results) >= request.top_k:
+                break  # already have enough passing outfits; remaining pool is unused fallback headroom
+
             garments = [garments_by_id[gid] for gid in outfit_candidate.garment_ids]
 
-            # Stage 9 + 10: Outfit Image Generation + Visual Validation (final outfits only)
-            image_bytes, visual_result = await generate_and_validate_outfit_image(
-                garments, outfit_candidate.roles, self.storage
+            # Stage 9: Outfit Image Generation. Stage 10: Visual Gate + Semantic Gate, in
+            # parallel, on the generated result (SPEC.md Section 36). On gate failure this
+            # candidate is skipped in favor of the next one in the pool, rather than
+            # returning a failed result (bounded fallback depth set at Stage 8).
+            image_bytes, visual_gate, semantic_gate, passed = await generate_and_run_gates(
+                context, outfit_candidate, garments, self.storage
             )
 
-            generated_image_id = None
-            generated_image_url = None
-            if image_bytes:
-                generated_image_id = await _persist_generated_image(
-                    self.session, self.storage, request.tenant_id, request.member_id, image_bytes
-                )
-                generated_image_url = f"/api/v1/wardrobe/images/{generated_image_id}/bytes"
-
-            imaging_summaries.append(
+            gate_summaries.append(
                 {
-                    "rank": rank,
-                    "image_generated": bool(generated_image_id),
-                    "visual_validation_status": visual_result.status.value if visual_result else "SKIPPED",
+                    "garment_ids": outfit_candidate.garment_ids,
+                    "passed": passed,
+                    "visual_score": visual_gate.score if visual_gate else None,
+                    "semantic_status": semantic_gate.status if semantic_gate else "SKIPPED",
                 }
             )
+
+            if not passed:
+                candidates_skipped += 1
+                continue
+
+            rank += 1
+            generated_image_id = await _persist_generated_image(
+                self.session, self.storage, request.tenant_id, request.member_id, image_bytes
+            )
+            generated_image_url = f"/api/v1/wardrobe/images/{generated_image_id}/bytes"
+
+            imaging_summaries.append({"rank": rank, "image_generated": True})
 
             outfit_row = Outfit(
                 request_id=styling_request.id,
@@ -303,7 +324,8 @@ class StylingOrchestrator:
                 final_score=outfit_candidate.scores.final_score,
                 compatibility_reason=outfit_candidate.compatibility_reason,
                 semantic_validation=semantic_result.model_dump(mode="json"),
-                visual_validation=visual_result.model_dump(mode="json") if visual_result else {},
+                visual_validation=visual_gate.model_dump(mode="json"),
+                generated_image_semantic_validation=semantic_gate.model_dump(mode="json"),
                 generated_image_id=generated_image_id,
             )
             self.session.add(outfit_row)
@@ -328,7 +350,8 @@ class StylingOrchestrator:
                     compatibility_reason=outfit_candidate.compatibility_reason,
                     semantic_validation=semantic_result,
                     generated_image_url=generated_image_url,
-                    visual_validation=visual_result,
+                    visual_gate=visual_gate,
+                    generation_semantic_gate=semantic_gate,
                 )
             )
 
@@ -339,16 +362,19 @@ class StylingOrchestrator:
                 "provider": settings.STYLING_OUTFIT_IMAGE_PROVIDER,
                 "max_retries": settings.STYLING_IMAGE_MAX_RETRIES,
                 "results": imaging_summaries,
+                "candidates_skipped_after_gate_failure": candidates_skipped,
             },
             "SUCCEEDED",
             t8,
         )
         self._record(
-            "STAGE_10_VISUAL_VALIDATION",
-            "Visual Validation",
+            "STAGE_10_GATES",
+            "Visual Gate + Semantic Gate (parallel, on generated image)",
             {
-                "provider": settings.STYLING_VISUAL_VALIDATOR_PROVIDER,
-                "results": imaging_summaries,
+                "visual_provider": settings.STYLING_VISUAL_VALIDATOR_PROVIDER,
+                "semantic_provider": settings.STYLING_VALIDATOR_PROVIDER,
+                "visual_pass_threshold": 6.0,
+                "results": gate_summaries,
             },
             "SUCCEEDED",
             t8,
