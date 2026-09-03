@@ -62,13 +62,18 @@ class Stage05Embed(BaseStage):
         ctx.session.add(embedding_record)
         await ctx.session.flush()
 
+        norm_val = round(float(np.linalg.norm(vector)), 4)
+        vector_rounded = [round(float(x), 5) for x in vector]
+
         return StageExecutionResult(
             status="SUCCEEDED",
             input_refs={"image_uri": image_uri},
             output_refs={
                 "embedding_id": embedding_record.id,
                 "dimension": len(vector),
-                "norm": round(float(np.linalg.norm(vector)), 4),
+                "norm": norm_val,
+                "vector": vector_rounded,
+                "preview": vector_rounded[:32],
             },
             input_hash=input_hash,
             model=provider.model_name,

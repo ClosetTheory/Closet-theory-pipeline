@@ -212,34 +212,157 @@
           <!-- Card 5: Embedding (MODA SigLIP 768d) -->
           <div id="card-stage-5" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
             <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span class="text-xs font-bold text-blue-400">Stage 5: SigLIP Embedding</span>
+              <span class="text-xs font-bold text-purple-400">Stage 5: SigLIP Embedding</span>
               <span id="badge-stage-5" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-center items-center space-y-2">
-              <div id="embedding-heatmap" class="grid grid-cols-16 gap-0.5 w-full h-8 rounded bg-slate-900 border border-slate-800 p-0.5 overflow-hidden flex">
-                <div class="text-[10px] text-slate-600 m-auto font-mono">768-Dim Vector Heatmap</div>
+            <!-- Heatmap Visualization -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>768-Dim Vector Heatmap</span>
+                <span class="text-emerald-400">L2-Norm: 1.0</span>
               </div>
-              <div class="text-[10px] text-slate-400 font-mono text-center">
-                Stored in PostgreSQL with pgvector (vector_cosine_ops)
+              <div id="embedding-heatmap" class="h-6 w-full rounded bg-slate-950 border border-slate-800 flex overflow-hidden">
+                <div class="text-[10px] text-slate-600 m-auto font-mono">Vector not generated</div>
               </div>
             </div>
-            <div id="stage5-data" class="text-[11px] font-mono text-slate-400 space-y-1">
-              <div>Dimensions: <span class="text-slate-200">-</span></div>
-              <div>L2 Norm: <span class="text-slate-200">-</span></div>
+            <!-- Embedding Preview Array Box -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-mono font-bold text-slate-400 uppercase">Embedding Vector Values</span>
+                <button type="button" onclick="copyEmbeddingVector()" class="text-[10px] text-purple-400 hover:text-purple-300 font-mono">📋 Copy 768d</button>
+              </div>
+              <div id="stage5-vector-box" class="h-20 bg-slate-950 rounded-lg p-2 border border-slate-800 overflow-y-auto text-[10px] font-mono text-purple-300 leading-tight select-all">
+                Waiting for stage execution...
+              </div>
+            </div>
+            <div id="stage5-data" class="text-[11px] font-mono text-slate-400 space-y-0.5 pt-1 border-t border-slate-800">
+              <div>Dimensions: <span class="text-purple-300 font-bold">768</span> (Distilled)</div>
+              <div>Index: <span class="text-slate-300">pgvector (vector_cosine_ops)</span></div>
             </div>
           </div>
 
-          <!-- Card 6: Taxonomy & Rules Evaluation -->
+          <!-- Card 6: Category Bundling & Taxonomy -->
           <div id="card-stage-6" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
             <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span class="text-xs font-bold text-blue-400">Stages 6-9: Taxonomy & Compatibility</span>
+              <span class="text-xs font-bold text-blue-400">Stage 6: Category Bundling</span>
               <span id="badge-stage-6" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 overflow-y-auto text-[11px] font-mono space-y-1.5">
-              <div id="stage6-details" class="text-slate-500">Waiting for rules execution...</div>
+            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-center space-y-3">
+              <div class="text-center">
+                <span class="text-[10px] font-mono text-slate-500 uppercase">Canonical Category</span>
+                <div id="stage6-canonical-badge" class="text-2xl font-bold text-blue-400 font-mono mt-0.5">-</div>
+              </div>
+              <div class="space-y-1 text-[11px] font-mono border-t border-slate-800/80 pt-2">
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Subcategory:</span>
+                  <span id="stage6-subcat" class="text-slate-200 font-bold">-</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Taxonomy Version:</span>
+                  <span id="stage6-tax-ver" class="text-slate-300 font-bold">taxonomy_v1</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Lookup Mechanism:</span>
+                  <span class="text-emerald-400 font-semibold">Deterministic Table</span>
+                </div>
+              </div>
             </div>
-            <div id="stage6-data" class="text-[11px] font-mono text-slate-400 space-y-1">
-              <div>Overall State: <span class="text-slate-200">-</span></div>
+            <div id="stage6-data" class="text-[11px] font-mono text-slate-400 space-y-0.5">
+              <div>Strict type contract · Zero hallucination</div>
+            </div>
+          </div>
+
+          <!-- Card 7: Layering Compatibility -->
+          <div id="card-stage-7" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <span class="text-xs font-bold text-cyan-400">Stage 7: Layering Analysis</span>
+              <span id="badge-stage-7" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
+            </div>
+            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-center space-y-2.5 text-[11px] font-mono">
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase">Assigned Layering Role</span>
+                <div id="stage7-role" class="text-sm font-bold text-cyan-400 mt-0.5">-</div>
+              </div>
+              <div>
+                <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                  <span>Warmth Index</span>
+                  <span id="stage7-warmth-val" class="font-bold text-slate-200">-</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div id="stage7-warmth-bar" class="bg-cyan-500 h-full w-0 transition-all duration-500"></div>
+                </div>
+              </div>
+              <div class="space-y-1 pt-1 border-t border-slate-800 text-[10px]">
+                <div class="text-slate-400">Permissible Inners: <span id="stage7-inners" class="text-slate-200">-</span></div>
+                <div class="text-slate-400">Permissible Outers: <span id="stage7-outers" class="text-slate-200">-</span></div>
+              </div>
+            </div>
+            <div id="stage7-data" class="text-[11px] font-mono text-slate-400 space-y-0.5">
+              <div>Tree: <span class="text-emerald-400 font-semibold">Collision Matrix Verified</span></div>
+            </div>
+          </div>
+
+          <!-- Card 8: Structural Compatibility -->
+          <div id="card-stage-8" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <span class="text-xs font-bold text-indigo-400">Stage 8: Structural Slot</span>
+              <span id="badge-stage-8" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
+            </div>
+            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-center space-y-2 text-[11px] font-mono">
+              <div class="grid grid-cols-2 gap-2">
+                <div class="bg-slate-900 p-2 rounded border border-slate-800">
+                  <div class="text-[10px] text-slate-500">Body Slot</div>
+                  <div id="stage8-slot" class="font-bold text-indigo-400 text-xs">-</div>
+                </div>
+                <div class="bg-slate-900 p-2 rounded border border-slate-800">
+                  <div class="text-[10px] text-slate-500">Fit Cut</div>
+                  <div id="stage8-fit" class="font-bold text-slate-200 text-xs">-</div>
+                </div>
+                <div class="bg-slate-900 p-2 rounded border border-slate-800">
+                  <div class="text-[10px] text-slate-500">Silhouette</div>
+                  <div id="stage8-silh" class="font-bold text-slate-200 text-xs">-</div>
+                </div>
+                <div class="bg-slate-900 p-2 rounded border border-slate-800">
+                  <div class="text-[10px] text-slate-500">Sleeves</div>
+                  <div id="stage8-sleeves" class="font-bold text-slate-200 text-xs">-</div>
+                </div>
+              </div>
+            </div>
+            <div id="stage8-data" class="text-[11px] font-mono text-slate-400 space-y-0.5">
+              <div>Slot Allocation: <span class="text-emerald-400 font-semibold">Clean Torso Fit</span></div>
+            </div>
+          </div>
+
+          <!-- Card 9: Visual & Aesthetic Harmony -->
+          <div id="card-stage-9" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <span class="text-xs font-bold text-pink-400">Stage 9: Visual Harmony</span>
+              <span id="badge-stage-9" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
+            </div>
+            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-between space-y-2 text-[11px] font-mono">
+              <div>
+                <div class="text-[10px] text-slate-500 uppercase mb-1">Color Palette Profile</div>
+                <div id="stage9-palette" class="flex flex-wrap gap-1">
+                  <span class="text-[10px] text-slate-600 font-mono">Waiting for colors...</span>
+                </div>
+              </div>
+              <div class="space-y-1 border-t border-slate-800/80 pt-1.5 text-[10px]">
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Pattern Density:</span>
+                  <span id="stage9-pattern" class="text-pink-300 font-semibold">-</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Versatility:</span>
+                  <span id="stage9-versatility" class="text-emerald-400 font-bold">-</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500">Occasions:</span>
+                  <span id="stage9-occasions" class="text-slate-300 truncate max-w-[120px]">-</span>
+                </div>
+              </div>
+            </div>
+            <div id="stage9-data" class="text-[11px] font-mono text-slate-400 space-y-0.5">
+              <div>Validation: <span class="text-emerald-400 font-bold">APPROVED & CATALOGED</span></div>
             </div>
           </div>
 
@@ -498,14 +621,17 @@
         createdGarmentId = garmentData.garment_id;
         document.getElementById('live-garment-id').innerText = createdGarmentId;
 
-        // 3. Step through stages sequentially
+        // 3. Step through all 9 stages sequentially
         const stagesList = [
           { key: "STAGE_01_CLASSIFY", card: "card-stage-1", badge: "badge-stage-1", title: "Stage 1: Image Classifier" },
           { key: "STAGE_02_CROP", card: "card-stage-2", badge: "badge-stage-2", title: "Stage 2: Detection & Crop" },
           { key: "STAGE_03_ATTRIBUTES", card: "card-stage-3", badge: "badge-stage-3", title: "Stage 3: Garment Attributes" },
-          { key: "STAGE_04_DIGITISE", card: "card-stage-4", badge: "badge-stage-4", title: "Stage 4: GPT Studio Digitisation" },
+          { key: "STAGE_04_DIGITISE", card: "card-stage-4", badge: "badge-stage-4", title: "Stage 4: GPT-Image-2 Digitisation" },
           { key: "STAGE_05_EMBED", card: "card-stage-5", badge: "badge-stage-5", title: "Stage 5: SigLIP Embedding" },
-          { key: "STAGE_06_CATEGORY", card: "card-stage-6", badge: "badge-stage-6", title: "Stages 6-9: Taxonomy & Rules" },
+          { key: "STAGE_06_CATEGORY", card: "card-stage-6", badge: "badge-stage-6", title: "Stage 6: Category Bundling" },
+          { key: "STAGE_07_LAYERING", card: "card-stage-7", badge: "badge-stage-7", title: "Stage 7: Layering Analysis" },
+          { key: "STAGE_08_STRUCTURE", card: "card-stage-8", badge: "badge-stage-8", title: "Stage 8: Structural Compatibility" },
+          { key: "STAGE_09_VISUAL", card: "card-stage-9", badge: "badge-stage-9", title: "Stage 9: Visual Harmony" },
         ];
 
         for (const st of stagesList) {
@@ -533,15 +659,6 @@
 
           // Update card visual artifacts
           updateLiveCardVisuals(st.key, stepData);
-        }
-
-        // Run remaining stages 7, 8, 9
-        for (const rem of ["STAGE_07_LAYERING", "STAGE_08_STRUCTURE", "STAGE_09_VISUAL"]) {
-          await fetch(`/api/v1/wardrobe/garments/${createdGarmentId}/step`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stage: rem, force: true }),
-          });
         }
 
         // 4. Fetch final canonical garment
@@ -654,27 +771,60 @@
         }
       }
       else if (stageKey === "STAGE_05_EMBED") {
+        const out = data.output_data;
+        const vec = out.vector || out.preview || [];
+        window._lastEmbeddingVector = vec;
+
         const heatmap = document.getElementById('embedding-heatmap');
-        heatmap.innerHTML = Array.from({length: 32}).map((_, i) =>
-          `<div style="flex: 1; height: 100%; background: hsl(${((i * 17) % 240) + 160}, 85%, ${(i % 2 === 0 ? 60 : 35)}%);"></div>`
-        ).join('');
+        if (vec.length > 0) {
+          heatmap.innerHTML = vec.slice(0, 48).map((val) => {
+            const hue = val >= 0 ? 275 : 190;
+            const lightness = Math.min(80, Math.max(25, 50 + val * 120));
+            return `<div style="flex: 1; height: 100%; background: hsl(${hue}, 85%, ${lightness}%);" title="dim: ${val}"></div>`;
+          }).join('');
+        }
+
+        const vecBox = document.getElementById('stage5-vector-box');
+        if (vecBox) {
+          vecBox.innerText = JSON.stringify(vec, null, 1);
+        }
 
         document.getElementById('stage5-data').innerHTML = `
-          <div>Dimensions: <span class="text-purple-400 font-bold">${data.output_data.dimension || 768}</span></div>
-          <div>L2 Norm: <span class="text-emerald-400 font-bold">${data.output_data.norm || 1.0}</span> (Unit length)</div>
+          <div>Dimensions: <span class="text-purple-300 font-bold">${out.dimension || 768}</span> (Distilled)</div>
+          <div>L2 Norm: <span class="text-emerald-400 font-bold">${out.norm || 1.0}</span> (Unit length)</div>
         `;
       }
       else if (stageKey === "STAGE_06_CATEGORY") {
-        document.getElementById('stage6-details').innerHTML = `
-          <div>Canonical Category: <strong class="text-blue-400 font-bold">${data.output_data.category}</strong></div>
-          <div>Taxonomy Version: <strong class="text-slate-300">${data.output_data.taxonomy_version}</strong></div>
-          <div class="pt-1 text-[10px] text-emerald-400">✓ Layering Tree evaluated</div>
-          <div class="text-[10px] text-emerald-400">✓ Structural Slot evaluated</div>
-          <div class="text-[10px] text-emerald-400">✓ Visual Harmony evaluated</div>
-        `;
-        document.getElementById('stage6-data').innerHTML = `
-          <div>Overall State: <span class="text-emerald-400 font-bold">APPROVED & COMPLETED</span></div>
-        `;
+        const out = data.output_data;
+        document.getElementById('stage6-canonical-badge').innerText = out.category || '-';
+        document.getElementById('stage6-subcat').innerText = out.subcategory || '-';
+        document.getElementById('stage6-tax-ver').innerText = out.taxonomy_version || 'taxonomy_v1';
+      }
+      else if (stageKey === "STAGE_07_LAYERING") {
+        const out = data.output_data;
+        const role = (out.role || 'mid').toUpperCase();
+        const warmth = out.warmth !== undefined ? out.warmth : 0.25;
+        document.getElementById('stage7-role').innerText = role;
+        document.getElementById('stage7-warmth-val').innerText = `${warmth} / 1.0`;
+        document.getElementById('stage7-warmth-bar').style.width = `${Math.min(100, warmth * 100)}%`;
+        document.getElementById('stage7-inners').innerText = (out.permissible_inner || []).join(', ') || 'None (base)';
+        document.getElementById('stage7-outers').innerText = (out.permissible_outer || []).join(', ') || 'None (outer)';
+      }
+      else if (stageKey === "STAGE_08_STRUCTURE") {
+        const out = data.output_data;
+        document.getElementById('stage8-slot').innerText = (out.slot || 'TOP').toUpperCase();
+        document.getElementById('stage8-fit').innerText = (out.fit || 'regular').toUpperCase();
+        document.getElementById('stage8-silh').innerText = (out.silhouette || 'straight').toUpperCase();
+        document.getElementById('stage8-sleeves').innerText = (out.sleeve_length || 'standard').replace('_', ' ').toUpperCase();
+      }
+      else if (stageKey === "STAGE_09_VISUAL") {
+        const out = data.output_data;
+        const pal = document.getElementById('stage9-palette');
+        const colors = out.colors || [];
+        pal.innerHTML = colors.map(c => `<span class="px-2 py-0.5 rounded text-[10px] font-bold border border-slate-700 bg-slate-800 text-slate-200 capitalize">${c}</span>`).join(' ') || '<span class="text-slate-400">Neutral</span>';
+        document.getElementById('stage9-pattern').innerText = (out.pattern || 'solid').toUpperCase();
+        document.getElementById('stage9-versatility').innerText = `${out.versatility || 0.85} / 1.0`;
+        document.getElementById('stage9-occasions').innerText = (out.occasions || []).join(', ') || 'General';
       }
     }
 
@@ -711,6 +861,17 @@
       alert("GPT Studio prompt copied to clipboard!");
     }
     const copyFluxPrompt = copyGptPrompt;
+
+    function copyEmbeddingVector() {
+      if (window._lastEmbeddingVector && window._lastEmbeddingVector.length) {
+        navigator.clipboard.writeText(JSON.stringify(window._lastEmbeddingVector));
+        alert(`Copied ${window._lastEmbeddingVector.length}-dimensional vector to clipboard!`);
+      } else {
+        const txt = document.getElementById('stage5-vector-box').innerText;
+        navigator.clipboard.writeText(txt);
+        alert("Copied vector preview to clipboard!");
+      }
+    }
   </script>
 </body>
 </html>

@@ -37,7 +37,11 @@ class Stage06Category(BaseStage):
         return StageExecutionResult(
             status="SUCCEEDED",
             input_refs={"subcategory": subcategory},
-            output_refs={"category": canonical_category, "taxonomy_version": taxonomy_version},
+            output_refs={
+                "category": canonical_category,
+                "subcategory": subcategory,
+                "taxonomy_version": taxonomy_version,
+            },
             input_hash=input_hash,
             algorithm_version=taxonomy_version,
         )

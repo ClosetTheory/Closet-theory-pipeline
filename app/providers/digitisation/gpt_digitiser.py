@@ -166,18 +166,10 @@ Show the **complete garment from top to bottom**, with a small, consistent amoun
             "Content-Type": "application/json",
         }
 
-        # Try fast, high-quality OpenRouter image models
-        candidate_models = [
-            settings.OPENROUTER_IMAGE_MODEL,
-            "bytedance-seed/seedream-5-0-lite",
-            "recraft/recraft-v4-styles",
-            "meta/muse-image",
-        ]
+        # Strictly use gpt image 2 as requested
+        models_to_try = ["openai/gpt-image-2", "openai/gpt-5.4-image-2"]
 
-        # Deduplicate while preserving order
-        models_to_try = list(dict.fromkeys(candidate_models))
-
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             for model_id in models_to_try:
                 try:
                     payload = {
