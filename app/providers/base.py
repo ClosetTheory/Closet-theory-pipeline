@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import ClassificationResult, DetectionResult, DigitisationResult
+from app.schemas.styling import GarmentSummary, OutfitCandidate, StylingContext, StylingIntent, ValidationResult
 
 
 class BaseClassifierProvider(ABC):
@@ -81,4 +82,53 @@ class BaseVLMProvider(ABC):
         Evaluates visual harmony between two garments when deterministic rules are inconclusive.
         Returns: (decision: 'COMPATIBLE' | 'INCOMPATIBLE' | 'REVIEW_REQUIRED', score: float, reason: str)
         """
+        pass
+
+
+class BaseRequestNormalizerProvider(ABC):
+    """Styling Stage 1: Natural-language styling request -> structured StylingIntent."""
+
+    @abstractmethod
+    async def normalize(self, request_text: str, anchor_categories: List[str]) -> StylingIntent:
+        """Translates free-text into a validated StylingIntent. Must never invent garments/IDs."""
+        pass
+
+
+class BaseSemanticValidatorProvider(ABC):
+    """Styling Stage 8: Checks whether a composed outfit makes semantic sense for the request."""
+
+    @abstractmethod
+    async def validate(
+        self,
+        context: StylingContext,
+        outfit: OutfitCandidate,
+        garments: List[GarmentSummary],
+    ) -> ValidationResult:
+        """Returns PASS | FAIL | NEEDS_REVIEW. Must not invent/replace garments or mutate inventory."""
+        pass
+
+
+class BaseOutfitImageProvider(ABC):
+    """Styling Stage 9: Composite outfit image generation from selected canonical garments."""
+
+    @abstractmethod
+    async def generate(
+        self,
+        garments: List[GarmentSummary],
+        canonical_images: List[bytes],
+    ) -> Optional[bytes]:
+        """Generates a single presentation image for the outfit, or None on failure."""
+        pass
+
+
+class BaseVisualValidatorProvider(ABC):
+    """Styling Stage 10: Verifies a generated outfit image matches the selected garments."""
+
+    @abstractmethod
+    async def validate_image(
+        self,
+        generated_image: bytes,
+        garments: List[GarmentSummary],
+    ) -> ValidationResult:
+        """Returns PASS | FAIL | NEEDS_REVIEW describing whether the image matches the outfit."""
         pass
