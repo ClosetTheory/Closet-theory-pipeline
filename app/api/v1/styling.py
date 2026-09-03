@@ -1,6 +1,9 @@
 """Styling Pipeline API endpoints (outfit recommendation)."""
 
+import asyncio
+import json
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_db_session, get_storage
@@ -39,6 +42,58 @@ async def get_outfit_recommendations(
         return await orchestrator.run(request)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post("/recommendations/stream")
+async def stream_outfit_recommendations(
+    request: StylingRecommendationRequest,
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
+):
+    """
+    Identical pipeline to /recommendations, but streams each stage's completion as a
+    Server-Sent Event the moment it actually happens, instead of the client blocking
+    on one long request with no feedback until everything finishes.
+
+    Event shapes (each a `data: <json>\\n\\n` line):
+      {"type": "stage", "stage": <StageTrace>}
+      {"type": "done", "result": <StylingRecommendationResponse>}
+      {"type": "error", "message": str}
+    """
+    queue: "asyncio.Queue[tuple]" = asyncio.Queue()
+
+    async def on_stage(entry) -> None:
+        await queue.put(("stage", entry))
+
+    async def runner() -> None:
+        try:
+            orchestrator = StylingOrchestrator(session, storage, on_stage=on_stage)
+            result = await orchestrator.run(request)
+            await queue.put(("done", result))
+        except Exception as e:
+            await queue.put(("error", str(e)))
+
+    async def event_stream():
+        task = asyncio.create_task(runner())
+        try:
+            while True:
+                kind, payload = await queue.get()
+                if kind == "stage":
+                    yield f"data: {json.dumps({'type': 'stage', 'stage': payload.model_dump(mode='json')})}\n\n"
+                elif kind == "done":
+                    yield f"data: {json.dumps({'type': 'done', 'result': payload.model_dump(mode='json')})}\n\n"
+                    break
+                else:
+                    yield f"data: {json.dumps({'type': 'error', 'message': payload})}\n\n"
+                    break
+        finally:
+            await task
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/requests/{request_id}", response_model=StylingRecommendationResponse)
