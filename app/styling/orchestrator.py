@@ -207,6 +207,10 @@ class StylingOrchestrator:
             {
                 "max_candidates_per_role": settings.STYLING_MAX_CANDIDATES_PER_ROLE,
                 "candidates_per_role": {role: len(items) for role, items in role_candidates.items()},
+                "candidates_per_role_detail": {
+                    role: [{"garment_id": g.id, "subcategory": g.subcategory, "score": round(score, 3)} for g, score in items]
+                    for role, items in role_candidates.items()
+                },
                 "method": "cosine similarity to anchor embeddings (Python/numpy) or versatility fallback",
             },
             "SUCCEEDED",
@@ -310,12 +314,27 @@ class StylingOrchestrator:
 
             garments = [garments_by_id[gid] for gid in outfit_candidate.garment_ids]
 
+            # Persist whatever was generated regardless of pass/fail, so rejected candidates
+            # remain inspectable (e.g. in the styling pipeline's stage-detail UI) instead of
+            # being silently discarded — only the ACCEPTED outfits become real Outfit rows.
+            candidate_image_url = None
+            candidate_image_id = None
+            if image_bytes:
+                candidate_image_id = await _persist_generated_image(
+                    self.session, self.storage, request.tenant_id, request.member_id, image_bytes
+                )
+                candidate_image_url = f"/api/v1/wardrobe/images/{candidate_image_id}/bytes"
+
             gate_summaries.append(
                 {
                     "garment_ids": outfit_candidate.garment_ids,
+                    "roles": outfit_candidate.roles,
                     "passed": passed,
                     "visual_score": visual_gate.score if visual_gate else None,
+                    "visual_feedback": visual_gate.feedback if visual_gate else {},
                     "semantic_status": semantic_gate.status if semantic_gate else "SKIPPED",
+                    "semantic_violations": semantic_gate.violations if semantic_gate else [],
+                    "generated_image_url": candidate_image_url,
                 }
             )
 
@@ -324,10 +343,8 @@ class StylingOrchestrator:
                 continue
 
             rank += 1
-            generated_image_id = await _persist_generated_image(
-                self.session, self.storage, request.tenant_id, request.member_id, image_bytes
-            )
-            generated_image_url = f"/api/v1/wardrobe/images/{generated_image_id}/bytes"
+            generated_image_url = candidate_image_url
+            generated_image_id = candidate_image_id
 
             imaging_summaries.append({"rank": rank, "image_generated": True})
 
