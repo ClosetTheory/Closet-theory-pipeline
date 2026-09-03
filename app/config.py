@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     CLASSIFIER_MODEL_VERSION: str = "v1"
     CLASSIFIER_CONFIDENCE_THRESHOLD: float = 0.70
 
+    # OpenRouter API Configuration (GPT Models)
+    OPENROUTER_API_KEY: Optional[str] = None
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    OPENROUTER_MODEL: str = "openai/gpt-4o"
+    OPENROUTER_GENAI_MODEL: str = "openai/dall-e-3"
+
     # NVIDIA NIM API Configuration
     NVIDIA_API_KEY: Optional[str] = None
     NVIDIA_VLM_MODEL: str = "meta/llama-3.2-11b-vision-instruct"
@@ -56,16 +62,16 @@ class Settings(BaseSettings):
     DETECTION_MODEL_NAME: str = "OpenCV-Haar+SAM"
     DETECTION_MODEL_VERSION: str = "v1"
 
-    # Stage 3: Image -> Garment Attributes (NVIDIA NIM / Gemini / Claude / MODA_NER)
-    ATTRIBUTE_PROVIDER: str = "nvidia_nim"  # "nvidia_nim" | "gemini" | "claude" | "moda_ner" | "mock"
-    ATTRIBUTE_MODEL_NAME: str = "meta/llama-3.2-11b-vision-instruct"
+    # Stage 3: Image -> Garment Attributes (OpenRouter GPT / NVIDIA NIM / Gemini / Claude / MODA_NER)
+    ATTRIBUTE_PROVIDER: str = "openrouter"  # "openrouter" | "nvidia_nim" | "gemini" | "claude" | "moda_ner" | "mock"
+    ATTRIBUTE_MODEL_NAME: str = "openai/gpt-4o"
     ATTRIBUTE_MODEL_VERSION: str = "v1"
     GEMINI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 
-    # Stage 4: Image Digitisation (FLUX.2)
-    DIGITISATION_PROVIDER: str = "flux"  # "flux" | "mock"
-    DIGITISATION_MODEL_NAME: str = "FLUX.2"
+    # Stage 4: Image Digitisation (GPT Studio / FLUX.2)
+    DIGITISATION_PROVIDER: str = "gpt"  # "gpt" | "flux" | "mock"
+    DIGITISATION_MODEL_NAME: str = "GPT-4o-Studio"
     DIGITISATION_MODEL_VERSION: str = "v1"
     DIGITISATION_PROMPT_VERSION: str = "prompt_v1"
     DIGITISATION_MAX_RETRIES: int = 3

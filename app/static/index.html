@@ -26,7 +26,7 @@
             Image Ingestion Pipeline
             <span class="text-[11px] bg-emerald-500/20 text-emerald-400 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30">Live Studio</span>
           </h1>
-          <p class="text-xs text-slate-400">NVIDIA NIM VLM + OpenCV Vision + FLUX.2 + pgvector</p>
+          <p class="text-xs text-slate-400">OpenRouter (GPT-4o) + OpenCV Vision + pgvector</p>
         </div>
       </div>
 
@@ -85,15 +85,15 @@
             </div>
           </div>
 
-          <!-- NVIDIA NIM Settings & Run Action (5 cols) -->
+          <!-- OpenRouter GPT Settings & Run Action (5 cols) -->
           <div class="lg:col-span-5 bg-slate-950 p-5 rounded-2xl border border-slate-800/80 space-y-4">
             <div>
               <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                NVIDIA NIM API Key <span class="text-slate-500 font-normal">(Optional)</span>
+                OpenRouter API Key <span class="text-slate-500 font-normal">(Optional)</span>
               </label>
-              <input type="password" id="nvidia-key-input" placeholder="nvapi-..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 placeholder:text-slate-600">
+              <input type="password" id="openrouter-key-input" placeholder="sk-or-v1-..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 placeholder:text-slate-600">
               <span class="text-[10px] text-slate-500 block mt-1">
-                If omitted, uses built-in OpenCV local vision & deterministic rules.
+                Can be entered here or in your <code>.env</code> file (defaults to GPT-4o).
               </span>
             </div>
 
@@ -188,7 +188,7 @@
           <!-- Card 4: Digitisation (FLUX.2 Canonical) -->
           <div id="card-stage-4" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
             <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span class="text-xs font-bold text-blue-400">Stage 4: FLUX.2 Digitisation</span>
+              <span class="text-xs font-bold text-blue-400">Stage 4: GPT Studio Digitisation</span>
               <span id="badge-stage-4" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
             <div class="h-44 bg-slate-950 rounded-xl flex items-center justify-center overflow-hidden border border-slate-800 relative">
@@ -202,8 +202,8 @@
             <!-- Prompt Display Box -->
             <div id="stage4-prompt-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">FLUX.2 Studio Prompt</span>
-                <button type="button" onclick="copyFluxPrompt()" class="text-[10px] text-blue-400 hover:text-blue-300 font-mono">📋 Copy</button>
+                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">GPT Studio Prompt</span>
+                <button type="button" onclick="copyGptPrompt()" class="text-[10px] text-blue-400 hover:text-blue-300 font-mono">📋 Copy</button>
               </div>
               <div id="stage4-prompt-text" class="text-[10px] text-slate-300 bg-slate-950 p-2 rounded border border-slate-800 max-h-20 overflow-y-auto font-sans leading-relaxed"></div>
             </div>
@@ -462,7 +462,7 @@
       document.getElementById('live-results-section').classList.remove('hidden');
       document.getElementById('live-stage-status-title').innerText = "Uploading raw image asset...";
 
-      const apiKey = document.getElementById('nvidia-key-input').value.trim();
+      const apiKey = document.getElementById('openrouter-key-input').value.trim();
 
       try {
         // 1. Upload Raw Image
@@ -503,7 +503,7 @@
           { key: "STAGE_01_CLASSIFY", card: "card-stage-1", badge: "badge-stage-1", title: "Stage 1: Image Classifier" },
           { key: "STAGE_02_CROP", card: "card-stage-2", badge: "badge-stage-2", title: "Stage 2: Detection & Crop" },
           { key: "STAGE_03_ATTRIBUTES", card: "card-stage-3", badge: "badge-stage-3", title: "Stage 3: Garment Attributes" },
-          { key: "STAGE_04_DIGITISE", card: "card-stage-4", badge: "badge-stage-4", title: "Stage 4: FLUX.2 Digitisation" },
+          { key: "STAGE_04_DIGITISE", card: "card-stage-4", badge: "badge-stage-4", title: "Stage 4: GPT Studio Digitisation" },
           { key: "STAGE_05_EMBED", card: "card-stage-5", badge: "badge-stage-5", title: "Stage 5: SigLIP Embedding" },
           { key: "STAGE_06_CATEGORY", card: "card-stage-6", badge: "badge-stage-6", title: "Stages 6-9: Taxonomy & Rules" },
         ];
@@ -520,7 +520,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               stage: st.key,
-              nvidia_api_key: apiKey || null,
+              openrouter_api_key: apiKey || null,
               force: true,
             }),
           });
@@ -704,12 +704,13 @@
       }
     }
 
-    function copyFluxPrompt() {
+    function copyGptPrompt() {
       const el = document.getElementById('stage4-prompt-text');
       if (!el) return;
       navigator.clipboard.writeText(el.innerText);
-      alert("FLUX.2 prompt copied to clipboard!");
+      alert("GPT Studio prompt copied to clipboard!");
     }
+    const copyFluxPrompt = copyGptPrompt;
   </script>
 </body>
 </html>

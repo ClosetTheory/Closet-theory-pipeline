@@ -15,7 +15,7 @@ async def test_digitisation_success_first_attempt(sample_catalog_image_bytes, va
 
     assert is_valid is True
     assert score >= 0.75
-    assert res.model == "FLUX.2"
+    assert res.model in ("FLUX.2", "GPT-4o-Studio")
 
 
 @pytest.mark.asyncio

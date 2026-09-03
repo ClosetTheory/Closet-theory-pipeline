@@ -40,6 +40,7 @@ router = APIRouter(prefix="/wardrobe/garments", tags=["Garments"])
 
 class StepRequest(BaseModel):
     stage: Optional[str] = Field(default=None, description="Specific stage to execute")
+    openrouter_api_key: Optional[str] = Field(default=None, description="OpenRouter API key (sk-or-v1-...)")
     nvidia_api_key: Optional[str] = Field(default=None, description="NVIDIA NIM API key")
     force: bool = Field(default=False, description="Force re-run even if already completed")
 
@@ -221,6 +222,8 @@ async def execute_single_pipeline_step(
         raise HTTPException(status_code=404, detail=f"Garment '{garment_id}' not found")
 
     # If dynamic API key passed in request, set it
+    if request.openrouter_api_key:
+        settings.OPENROUTER_API_KEY = request.openrouter_api_key
     if request.nvidia_api_key:
         settings.NVIDIA_API_KEY = request.nvidia_api_key
 

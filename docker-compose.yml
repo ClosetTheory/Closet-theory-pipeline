@@ -6,6 +6,8 @@ services:
     container_name: pipeline_api
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - ENV=development
       - DEBUG=true
@@ -30,6 +32,8 @@ services:
   worker:
     build: .
     container_name: pipeline_worker
+    env_file:
+      - .env
     environment:
       - ENV=development
       - DEBUG=true

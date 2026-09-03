@@ -7,11 +7,18 @@ from app.providers.attributes.gemini import GeminiAttributeExtractorProvider
 from app.providers.attributes.mock import MockAttributeExtractorProvider
 from app.providers.attributes.moda_ner import ModaNerAttributeExtractorProvider
 from app.providers.vlm.nvidia_nim import NvidiaNimProvider
+from app.providers.vlm.openrouter import OpenRouterGPTProvider
 
 
 def get_attribute_provider() -> BaseAttributeExtractorProvider:
     provider_name = settings.ATTRIBUTE_PROVIDER.lower()
-    if provider_name == "nvidia_nim":
+    if provider_name == "openrouter":
+        return OpenRouterGPTProvider(
+            api_key=settings.OPENROUTER_API_KEY,
+            model_name=settings.OPENROUTER_MODEL,
+            base_url=settings.OPENROUTER_BASE_URL,
+        )
+    elif provider_name == "nvidia_nim":
         return NvidiaNimProvider(
             api_key=settings.NVIDIA_API_KEY,
             model_name=settings.NVIDIA_VLM_MODEL,
