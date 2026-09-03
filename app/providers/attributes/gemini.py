@@ -32,6 +32,7 @@ class GeminiAttributeExtractorProvider(BaseAttributeExtractorProvider):
         prompt = """Analyze this garment image and return a strict JSON object with these exact keys:
 - category: string
 - subcategory: string (e.g. oxford_shirt, jeans, blazer, dress)
+- garment_class: canonical class, e.g. T_SHIRT | SHIRT | JEANS | TROUSERS | DRESS | BLAZER | SNEAKERS | SAREE | KURTA (see full controlled vocabulary; use "<CATEGORY>_OTHER" if uncertain)
 - colour: list of strings (e.g. ["white", "blue"])
 - pattern: solid | striped | plaid | checkered | floral | graphic | polka_dot | geometric | abstract | animal_print | textured | other
 - material: string (e.g. cotton, wool, silk, denim, polyester)

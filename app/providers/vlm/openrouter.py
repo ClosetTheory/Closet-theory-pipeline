@@ -4,16 +4,38 @@ import base64
 import io
 import json
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import httpx
 from PIL import Image
 from app.config import settings
 from app.observability import logger
-from app.providers.base import BaseAttributeExtractorProvider, BaseVLMProvider
+from app.providers.base import (
+    BaseAttributeExtractorProvider,
+    BaseRequestNormalizerProvider,
+    BaseSemanticValidatorProvider,
+    BaseVisualValidatorProvider,
+    BaseVLMProvider,
+)
 from app.schemas.attributes import GarmentAttributes, validate_extracted_attributes
+from app.schemas.styling import (
+    GarmentSummary,
+    OutfitCandidate,
+    StylingContext,
+    StylingIntent,
+    ValidationResult,
+    ValidationStatus,
+    validate_styling_intent,
+    validate_validation_result,
+)
 
 
-class OpenRouterGPTProvider(BaseAttributeExtractorProvider, BaseVLMProvider):
+class OpenRouterGPTProvider(
+    BaseAttributeExtractorProvider,
+    BaseVLMProvider,
+    BaseRequestNormalizerProvider,
+    BaseSemanticValidatorProvider,
+    BaseVisualValidatorProvider,
+):
     """
     OpenRouter multimodal integration for GPT-4o and other OpenAI models.
     Endpoint: https://openrouter.ai/api/v1/chat/completions
@@ -40,6 +62,7 @@ class OpenRouterGPTProvider(BaseAttributeExtractorProvider, BaseVLMProvider):
 {
   "category": "shirt | pants | dress | jacket | shoes | sweater",
   "subcategory": "oxford_shirt | button_down_shirt | flannel_shirt | tshirt | polo_shirt | jeans | trousers | chinos | blazer | coat | dress | sweater | hoodie | sneakers | boots",
+  "garment_class": "canonical controlled-vocabulary class, e.g. T_SHIRT | SHIRT | JEANS | TROUSERS | CHINOS | DRESS | BLAZER | JACKET | SNEAKERS | BOOTS | SAREE | KURTA (use '<CATEGORY>_OTHER' if uncertain)",
   "colour": ["list", "of", "all", "prominent", "and", "accent", "colors", "e.g.", "yellow", "salmon pink", "navy blue", "white"],
   "pattern": "solid | striped | plaid | checkered | floral | graphic | polka_dot | geometric | abstract | animal_print | textured | other",
   "pattern_detail": "Exact description of pattern structure, color blocks, check size, lines, and orientation",
@@ -170,3 +193,164 @@ class OpenRouterGPTProvider(BaseAttributeExtractorProvider, BaseVLMProvider):
             0.92,
             f"OpenRouter ({self.model_name}): Harmonious pairing between {color_a} {mat_a} and {color_b} {mat_b}.",
         )
+
+    async def _chat_json(self, prompt: str, max_tokens: int = 512) -> Optional[str]:
+        """Shared helper: single-turn JSON-mode chat completion. Returns raw content or None on failure."""
+        if not self.api_key:
+            return None
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "Wardrobe Styling Pipeline",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
+                resp.raise_for_status()
+                content = resp.json()["choices"][0]["message"]["content"].strip()
+                match = re.search(r"\{.*\}", content, re.DOTALL)
+                return match.group(0) if match else content
+        except Exception as e:
+            logger.warning(f"OpenRouter JSON chat call failed: {e}")
+            return None
+
+    async def normalize(self, request_text: str, anchor_categories: List[str]) -> StylingIntent:
+        """Styling Stage 1: translate free text into structured StylingIntent. Never invents garments."""
+        prompt = f"""Translate this clothing styling request into a JSON object matching exactly this schema \
+(use null for unknown fields, do not invent garments or IDs):
+{{
+  "occasion": "string or null (e.g. DINNER, WORK, PARTY, DATE, CASUAL)",
+  "formality": "string or null (e.g. CASUAL, SMART_CASUAL, BUSINESS_CASUAL, FORMAL)",
+  "colors": ["list of requested colors, empty if none mentioned"],
+  "style_direction": "string or null (e.g. MINIMAL, CLASSIC, EXPRESSIVE, RELAXED)",
+  "weather": "string or null (e.g. WARM, COLD, RAINY)",
+  "time_context": "string or null (e.g. TONIGHT, TOMORROW, MORNING)",
+  "constraints": ["list of hard constraints mentioned, e.g. 'no jeans'"]
+}}
+
+Request: "{request_text}"
+Anchor garment categories already selected by the user: {anchor_categories or "none"}"""
+
+        content = await self._chat_json(prompt, max_tokens=400)
+        if content:
+            try:
+                return validate_styling_intent(content)
+            except Exception as e:
+                logger.warning(f"Styling intent normalization parse failed: {e}. Falling back to neutral intent.")
+        return StylingIntent()
+
+    async def validate(
+        self,
+        context: StylingContext,
+        outfit: OutfitCandidate,
+        garments: List[GarmentSummary],
+    ) -> ValidationResult:
+        """Styling Stage 8: semantic validation that the outfit fits the request. Validator only, not source of truth."""
+        garment_desc = "; ".join(
+            f"{g.role or g.category or 'item'}: {(g.attributes or {}).get('subcategory', g.subcategory)} "
+            f"in {', '.join((g.attributes or {}).get('colour', []))}"
+            for g in garments
+        )
+        prompt = f"""You are validating a proposed outfit against a styling request. Output ONLY JSON:
+{{
+  "status": "PASS" | "FAIL" | "NEEDS_REVIEW",
+  "confidence": 0.0-1.0,
+  "issues": ["list of issues, empty if none"],
+  "reason": "short explanation"
+}}
+
+Request intent: {context.intent.model_dump_json()}
+Proposed outfit garments: {garment_desc}
+Compatibility note: {outfit.compatibility_reason or "n/a"}"""
+
+        content = await self._chat_json(prompt, max_tokens=300)
+        if content:
+            try:
+                return validate_validation_result(content, model=self.model_name, model_version=self.model_version)
+            except Exception as e:
+                logger.warning(f"Semantic validation parse failed: {e}. Marking NEEDS_REVIEW.")
+        return ValidationResult(
+            status=ValidationStatus.NEEDS_REVIEW,
+            confidence=0.5,
+            reason="Semantic validator unavailable; flagged for manual review.",
+            model=self.model_name,
+            model_version=self.model_version,
+        )
+
+    async def validate_image(
+        self,
+        generated_image: bytes,
+        garments: List[GarmentSummary],
+    ) -> ValidationResult:
+        """Styling Stage 10: verifies the generated composite image matches the selected real garments."""
+        if not self.api_key:
+            return ValidationResult(
+                status=ValidationStatus.NEEDS_REVIEW,
+                confidence=0.5,
+                reason="No API key configured; visual validation skipped.",
+                model=self.model_name,
+                model_version=self.model_version,
+            )
+
+        b64_image = base64.b64encode(generated_image).decode("utf-8")
+        expected_desc = "; ".join(
+            f"{g.role or g.category}: {(g.attributes or {}).get('subcategory', g.subcategory)} "
+            f"in {', '.join((g.attributes or {}).get('colour', []))}"
+            for g in garments
+        )
+        prompt_text = f"""Compare this generated outfit image against the expected garments below. Output ONLY JSON:
+{{
+  "status": "PASS" | "FAIL" | "NEEDS_REVIEW",
+  "confidence": 0.0-1.0,
+  "issues": ["mismatches found, empty if none"],
+  "reason": "short explanation"
+}}
+
+Expected garments: {expected_desc}"""
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "Wardrobe Styling Pipeline",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt_text},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}},
+                    ],
+                }
+            ],
+            "max_tokens": 300,
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        }
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                resp = await client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
+                resp.raise_for_status()
+                content = resp.json()["choices"][0]["message"]["content"].strip()
+                match = re.search(r"\{.*\}", content, re.DOTALL)
+                content = match.group(0) if match else content
+                return validate_validation_result(content, model=self.model_name, model_version=self.model_version)
+        except Exception as e:
+            logger.warning(f"Visual validation call failed: {e}. Marking NEEDS_REVIEW.")
+            return ValidationResult(
+                status=ValidationStatus.NEEDS_REVIEW,
+                confidence=0.5,
+                reason=f"Visual validation call failed: {e}",
+                model=self.model_name,
+                model_version=self.model_version,
+            )
