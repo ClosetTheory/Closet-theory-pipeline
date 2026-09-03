@@ -99,5 +99,15 @@ class Settings(BaseSettings):
     VLM_MODEL_NAME: str = "gemini-flash"
     VLM_MODEL_VERSION: str = "v1"
 
+    # --- Styling Pipeline (Outfit Recommendation) ---
+    STYLING_NORMALIZER_PROVIDER: str = "openrouter"  # "openrouter" | "mock"
+    STYLING_VALIDATOR_PROVIDER: str = "openrouter"  # "openrouter" | "mock"
+    STYLING_VISUAL_VALIDATOR_PROVIDER: str = "openrouter"  # "openrouter" | "mock"
+    STYLING_OUTFIT_IMAGE_PROVIDER: str = "gpt"  # "gpt" | "mock"
+    STYLING_SCORER_VERSION: str = "styling_scorer_v1"
+    STYLING_MAX_CANDIDATES_PER_ROLE: int = 6
+    STYLING_MAX_OUTFITS_RETURNED: int = 3
+    STYLING_IMAGE_MAX_RETRIES: int = 2
+
 
 settings = Settings()
