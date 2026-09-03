@@ -2,7 +2,14 @@
 
 from typing import List
 from app.providers.base import BaseSemanticValidatorProvider
-from app.schemas.styling import GarmentSummary, OutfitCandidate, StylingContext, ValidationResult, ValidationStatus
+from app.schemas.styling import (
+    GarmentSummary,
+    OutfitCandidate,
+    SemanticGateResult,
+    StylingContext,
+    ValidationResult,
+    ValidationStatus,
+)
 
 
 class MockSemanticValidatorProvider(BaseSemanticValidatorProvider):
@@ -31,6 +38,22 @@ class MockSemanticValidatorProvider(BaseSemanticValidatorProvider):
             status=status,
             confidence=max(0.5, compatibility),
             reason=reason,
+            model=self.model_name,
+            model_version=self.model_version,
+        )
+
+    async def validate_generated(
+        self,
+        context: StylingContext,
+        outfit: OutfitCandidate,
+        garments: List[GarmentSummary],
+        generated_image: bytes,
+    ) -> SemanticGateResult:
+        """Mock generated-image semantic gate: no vision model configured, assumes generation was faithful."""
+        return SemanticGateResult(
+            status="PASS",
+            violations=[],
+            feedback="Mock semantic gate: no vision model configured, assuming generation matches the selected garments.",
             model=self.model_name,
             model_version=self.model_version,
         )
