@@ -1,20 +1,30 @@
-"""Styling Stages 9-10: Outfit Image Generation + Visual Validation.
+"""Styling Stage 9 (Generation) + Stage 10 (Visual Gate + Semantic Gate, in parallel).
 
-Runs only on the final, semantically-validated top-k outfits (never on the full
-candidate/combination set — PRD Section 26 latency strategy). On a validation
-failure, retries generation up to STYLING_IMAGE_MAX_RETRIES times; if still
-unresolved, the outfit is persisted/returned without an image rather than
-failing the whole request (PRD Section 27).
+Runs only on the final, semantically-pre-validated top-k outfits (never on the full
+candidate/combination set — SPEC.md Section 26/latency strategy). SPEC.md Section 36:
+the Visual Gate and Semantic Gate evaluate the GENERATED result and may execute in
+parallel; on failure (either gate), generation is retried up to
+STYLING_IMAGE_MAX_RETRIES times before giving up on this outfit candidate.
 """
 
+import asyncio
 from typing import Dict, List, Optional, Tuple
 from app.config import settings
 from app.models.garment import Garment
 from app.observability import logger
 from app.providers.outfit_imaging import get_outfit_image_provider
+from app.providers.semantic_validator import get_semantic_validator_provider
 from app.providers.visual_validator import get_visual_validator_provider
-from app.schemas.styling import GarmentSummary, ValidationResult, ValidationStatus
+from app.schemas.styling import (
+    GarmentSummary,
+    OutfitCandidate,
+    SemanticGateResult,
+    StylingContext,
+    VisualGateResult,
+)
 from app.storage.base import StorageClient
+
+VISUAL_GATE_PASS_THRESHOLD = 6.0
 
 
 def _to_summary(garment: Garment, role: str) -> GarmentSummary:
@@ -30,12 +40,23 @@ def _to_summary(garment: Garment, role: str) -> GarmentSummary:
     )
 
 
-async def generate_and_validate_outfit_image(
+def gates_passed(visual: Optional[VisualGateResult], semantic: Optional[SemanticGateResult]) -> bool:
+    if visual is None or semantic is None:
+        return False
+    return visual.score >= VISUAL_GATE_PASS_THRESHOLD and semantic.status == "PASS"
+
+
+async def generate_and_run_gates(
+    context: StylingContext,
+    outfit: OutfitCandidate,
     garments: List[Garment],
-    roles: Dict[str, str],
     storage: StorageClient,
-) -> Tuple[Optional[bytes], Optional[ValidationResult]]:
-    """Generates a composite outfit image and visually validates it, retrying on mismatch."""
+) -> Tuple[Optional[bytes], Optional[VisualGateResult], Optional[SemanticGateResult], bool]:
+    """
+    Generates a composite outfit image, then runs the Visual Gate and (generated-image-aware)
+    Semantic Gate in parallel on the result. Retries generation on gate failure up to
+    STYLING_IMAGE_MAX_RETRIES times. Returns (image_bytes, visual_gate, semantic_gate, passed).
+    """
     canonical_images = []
     for garment in garments:
         image_asset = garment.canonical_image
@@ -47,28 +68,32 @@ async def generate_and_validate_outfit_image(
             logger.warning(f"Could not load canonical image for garment {garment.id}: {e}")
 
     if not canonical_images:
-        return None, None
+        return None, None, None, False
 
-    summaries = [_to_summary(g, roles.get(g.id, "")) for g in garments]
+    summaries = [_to_summary(g, outfit.roles.get(g.id, "")) for g in garments]
     image_provider = get_outfit_image_provider()
-    validator = get_visual_validator_provider()
+    visual_validator = get_visual_validator_provider()
+    semantic_validator = get_semantic_validator_provider()
 
-    attempts = settings.STYLING_IMAGE_MAX_RETRIES
+    attempts = max(1, settings.STYLING_IMAGE_MAX_RETRIES)
     last_image: Optional[bytes] = None
-    last_result: Optional[ValidationResult] = None
+    last_visual: Optional[VisualGateResult] = None
+    last_semantic: Optional[SemanticGateResult] = None
 
-    for _attempt in range(max(1, attempts)):
+    for _attempt in range(attempts):
         generated = await image_provider.generate(summaries, canonical_images)
         if not generated:
             continue
 
-        result = await validator.validate_image(generated, summaries)
-        last_image, last_result = generated, result
+        visual_result, semantic_result = await asyncio.gather(
+            visual_validator.validate_image(generated, summaries),
+            semantic_validator.validate_generated(context, outfit, summaries, generated),
+        )
+        last_image, last_visual, last_semantic = generated, visual_result, semantic_result
 
-        if result.status in (ValidationStatus.PASS, ValidationStatus.NEEDS_REVIEW):
-            return generated, result
+        if gates_passed(visual_result, semantic_result):
+            return generated, visual_result, semantic_result, True
 
-    # Retries exhausted without a clean PASS/NEEDS_REVIEW — return structured outfit without imagery.
-    if last_result and last_result.status == ValidationStatus.FAIL:
-        return None, last_result
-    return last_image, last_result
+    # Retries exhausted without both gates passing — SPEC.md Section 27: return the
+    # structured outfit without imagery rather than silently accepting a failed result.
+    return None, last_visual, last_semantic, False
