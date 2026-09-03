@@ -1,7 +1,9 @@
 """Background job queue abstraction for async pipeline execution."""
 
 import asyncio
+import json
 from typing import Optional
+import redis.asyncio as aioredis
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.garment import Garment
@@ -13,6 +15,7 @@ from app.storage import get_storage_client
 # In-memory async queue for lightweight standalone/local/testing execution
 _in_memory_queue: Optional[asyncio.Queue] = None
 _worker_task: Optional[asyncio.Task] = None
+REDIS_QUEUE_KEY = "wardrobe_pipeline_jobs"
 
 
 def get_queue() -> asyncio.Queue:
@@ -36,7 +39,7 @@ async def process_job(garment_id: str, force: bool = False, resume_stage: Option
         await orchestrator.run(garment, force=force, resume_stage=stage_enum)
 
 
-async def _worker_loop():
+async def _in_memory_worker_loop():
     queue = get_queue()
     while True:
         try:
@@ -49,14 +52,35 @@ async def _worker_loop():
         except asyncio.CancelledError:
             break
         except Exception as e:
-            logger.error(f"Error in background worker loop: {e}")
+            logger.error(f"Error in in-memory worker loop: {e}")
+
+
+async def _redis_worker_loop():
+    r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    logger.info(f"Connected to Redis at {settings.REDIS_URL}, listening on '{REDIS_QUEUE_KEY}'...")
+    while True:
+        try:
+            item = await r.brpop(REDIS_QUEUE_KEY, timeout=5)
+            if item is None:
+                continue
+            _, payload_str = item
+            job = json.loads(payload_str)
+            garment_id = job["garment_id"]
+            force = job.get("force", False)
+            resume_stage = job.get("resume_stage")
+            await process_job(garment_id, force, resume_stage)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Error in Redis worker loop: {e}")
+            await asyncio.sleep(2)
 
 
 def start_in_memory_worker():
     """Starts background worker task if in-memory queue is enabled."""
     global _worker_task
     if _worker_task is None or _worker_task.done():
-        _worker_task = asyncio.create_task(_worker_loop())
+        _worker_task = asyncio.create_task(_in_memory_worker_loop())
 
 
 async def enqueue_garment_pipeline(
@@ -65,21 +89,23 @@ async def enqueue_garment_pipeline(
     resume_stage: Optional[str] = None,
 ):
     """Enqueues garment for asynchronous ingestion processing."""
+    payload = {
+        "garment_id": garment_id,
+        "force": force,
+        "resume_stage": resume_stage,
+    }
+
     if settings.USE_IN_MEMORY_QUEUE:
         start_in_memory_worker()
         queue = get_queue()
-        await queue.put({
-            "garment_id": garment_id,
-            "force": force,
-            "resume_stage": resume_stage,
-        })
+        await queue.put(payload)
     else:
-        # If external Redis queue is configured:
-        # In a full Redis/Celery deployment, this pushes a job payload to redis
-        start_in_memory_worker()
-        queue = get_queue()
-        await queue.put({
-            "garment_id": garment_id,
-            "force": force,
-            "resume_stage": resume_stage,
-        })
+        try:
+            r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+            await r.lpush(REDIS_QUEUE_KEY, json.dumps(payload))
+            await r.aclose()
+        except Exception as e:
+            logger.error(f"Failed to enqueue to Redis, falling back to in-memory: {e}")
+            start_in_memory_worker()
+            queue = get_queue()
+            await queue.put(payload)

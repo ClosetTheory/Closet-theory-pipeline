@@ -18,7 +18,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 COPY pyproject.toml .
 
 # Install dependencies
-RUN uv pip install --system --no-cache -r <(uv pip compile pyproject.toml)
+RUN uv pip compile pyproject.toml -o requirements.txt && \
+    uv pip install --system --no-cache -r requirements.txt
 
 # Final runtime image
 FROM python:3.12-slim AS runner
