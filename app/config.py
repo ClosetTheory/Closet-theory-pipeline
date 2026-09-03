@@ -44,14 +44,21 @@ class Settings(BaseSettings):
     CLASSIFIER_MODEL_VERSION: str = "v1"
     CLASSIFIER_CONFIDENCE_THRESHOLD: float = 0.70
 
-    # Stage 2: Detection & Garment Crop (RetinaFace + SAM)
-    DETECTION_PROVIDER: str = "mock"  # "retina_sam" | "mock"
-    DETECTION_MODEL_NAME: str = "RetinaFace+SAM"
+    # NVIDIA NIM API Configuration
+    NVIDIA_API_KEY: Optional[str] = None
+    NVIDIA_VLM_MODEL: str = "meta/llama-3.2-11b-vision-instruct"
+    NVIDIA_VLM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
+    NVIDIA_GENAI_MODEL: str = "black-forest-labs/flux.1-schnell"
+    NVIDIA_GENAI_BASE_URL: str = "https://ai.api.nvidia.com/v1/genai"
+
+    # Stage 2: Detection & Garment Crop (OpenCV / RetinaFace + SAM)
+    DETECTION_PROVIDER: str = "opencv"  # "opencv" | "retina_sam" | "mock"
+    DETECTION_MODEL_NAME: str = "OpenCV-Haar+SAM"
     DETECTION_MODEL_VERSION: str = "v1"
 
-    # Stage 3: Image -> Garment Attributes (MODA_NER / Gemini / Claude)
-    ATTRIBUTE_PROVIDER: str = "mock"  # "moda_ner" | "gemini" | "claude" | "mock"
-    ATTRIBUTE_MODEL_NAME: str = "MODA_NER"
+    # Stage 3: Image -> Garment Attributes (NVIDIA NIM / Gemini / Claude / MODA_NER)
+    ATTRIBUTE_PROVIDER: str = "nvidia_nim"  # "nvidia_nim" | "gemini" | "claude" | "moda_ner" | "mock"
+    ATTRIBUTE_MODEL_NAME: str = "meta/llama-3.2-11b-vision-instruct"
     ATTRIBUTE_MODEL_VERSION: str = "v1"
     GEMINI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None

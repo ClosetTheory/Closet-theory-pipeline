@@ -89,3 +89,36 @@ async def upload_image(
         sha256=image_asset.sha256,
         created_at=image_asset.created_at,
     )
+
+
+@router.get("/media/{object_key:path}")
+async def get_media_bytes(
+    object_key: str,
+    storage: StorageClient = Depends(get_storage),
+):
+    """Streams stored image asset bytes directly for browser visual presentation."""
+    from fastapi import Response
+    try:
+        data = await storage.get_object(object_key)
+        return Response(content=data, media_type="image/jpeg")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Media asset not found")
+
+
+@router.get("/{image_id}/bytes")
+async def get_image_asset_bytes(
+    image_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
+):
+    """Streams an ImageAsset by ID directly to the browser."""
+    from fastapi import Response
+    asset = await session.get(ImageAsset, image_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="ImageAsset not found")
+    try:
+        data = await storage.get_object(asset.object_uri)
+        return Response(content=data, media_type=asset.mime_type)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Image bytes could not be retrieved: {e}")
+

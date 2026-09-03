@@ -6,11 +6,17 @@ from app.providers.attributes.claude import ClaudeAttributeExtractorProvider
 from app.providers.attributes.gemini import GeminiAttributeExtractorProvider
 from app.providers.attributes.mock import MockAttributeExtractorProvider
 from app.providers.attributes.moda_ner import ModaNerAttributeExtractorProvider
+from app.providers.vlm.nvidia_nim import NvidiaNimProvider
 
 
 def get_attribute_provider() -> BaseAttributeExtractorProvider:
     provider_name = settings.ATTRIBUTE_PROVIDER.lower()
-    if provider_name == "gemini":
+    if provider_name == "nvidia_nim":
+        return NvidiaNimProvider(
+            api_key=settings.NVIDIA_API_KEY,
+            model_name=settings.NVIDIA_VLM_MODEL,
+        )
+    elif provider_name == "gemini":
         return GeminiAttributeExtractorProvider(
             api_key=settings.GEMINI_API_KEY,
             model_name=settings.ATTRIBUTE_MODEL_NAME,

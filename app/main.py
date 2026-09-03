@@ -51,6 +51,21 @@ app.add_middleware(
 app.include_router(api_router, prefix=settings.API_PREFIX)
 
 
+from pathlib import Path
+from fastapi.responses import HTMLResponse
+
+STATIC_INDEX = Path(__file__).parent / "static" / "index.html"
+
+
+@app.get("/", response_class=HTMLResponse, tags=["Visualizer"])
+@app.get("/visualizer", response_class=HTMLResponse, tags=["Visualizer"])
+async def get_visualizer():
+    """Visual interactive educational dashboard for explaining the Image Ingestion Pipeline."""
+    if STATIC_INDEX.exists():
+        return HTMLResponse(content=STATIC_INDEX.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Visualizer not found</h1>", status_code=404)
+
+
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
 async def health_check():
     return {
