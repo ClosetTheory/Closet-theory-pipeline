@@ -133,7 +133,7 @@
       { key: "STAGE_07_RANKING", title: "Stage 7: Outfit Ranking", color: "amber", tech: "Weighted Scorer" },
       { key: "STAGE_08_SEMANTIC_VALIDATION", title: "Stage 8: Semantic Validation", color: "emerald", tech: "LLM" },
       { key: "STAGE_09_IMAGE_GENERATION", title: "Stage 9: Outfit Image Generation", color: "emerald", tech: "gpt-image-2" },
-      { key: "STAGE_10_VISUAL_VALIDATION", title: "Stage 10: Visual Validation", color: "emerald", tech: "VLM" },
+      { key: "STAGE_10_GATES", title: "Stage 10: Visual Gate + Semantic Gate", color: "emerald", tech: "VLM (parallel)" },
     ];
 
     function stageCard(def) {
@@ -195,10 +195,16 @@
                   (summary.results || []).map(r => `<div class="text-[10px]">→ ${r.status} (${(r.confidence*100).toFixed(0)}%)</div>`).join('');
         case "STAGE_09_IMAGE_GENERATION":
           return `<div>Provider: <span class="text-slate-200">${summary.provider}</span></div>` +
-                  (summary.results || []).map(r => `<div>Outfit ${r.rank}: ${r.image_generated ? '✅ generated' : '⚠️ skipped'}</div>`).join('');
-        case "STAGE_10_VISUAL_VALIDATION":
-          return `<div>Provider: <span class="text-slate-200">${summary.provider}</span></div>` +
-                  (summary.results || []).map(r => `<div>Outfit ${r.rank}: <span class="text-${r.visual_validation_status === 'PASS' ? 'emerald' : r.visual_validation_status === 'FAIL' ? 'red' : 'amber'}-400">${r.visual_validation_status}</span></div>`).join('');
+                  (summary.results || []).map(r => `<div>Outfit ${r.rank}: ${r.image_generated ? '✅ generated' : '⚠️ skipped'}</div>`).join('') +
+                  (summary.candidates_skipped_after_gate_failure > 0 ? `<div class="text-amber-400/90">${summary.candidates_skipped_after_gate_failure} candidate(s) skipped after gate failure</div>` : '');
+        case "STAGE_10_GATES":
+          return `<div>Visual provider: <span class="text-slate-200">${summary.visual_provider}</span></div>
+                  <div>Semantic provider: <span class="text-slate-200">${summary.semantic_provider}</span></div>
+                  <div>Pass threshold: <span class="text-slate-200">${summary.visual_pass_threshold}</span></div>` +
+                  (summary.results || []).map(r => {
+                    const color = r.passed === true ? 'emerald' : r.passed === false ? 'red' : 'amber';
+                    return `<div>Garments ${(r.garment_ids || []).length}: <span class="text-slate-200">${r.visual_score}/10</span> · <span class="text-slate-200">${r.semantic_status}</span> · <span class="text-${color}-400">${r.passed === true ? 'PASSED' : r.passed === false ? 'FAILED' : 'UNKNOWN'}</span></div>`;
+                  }).join('');
         default:
           return `<pre class="trace-json">${JSON.stringify(summary, null, 1)}</pre>`;
       }
@@ -256,10 +262,11 @@
             ${scoreBar("compatibility", scores.compatibility)}
             ${scoreBar("occasion fit", scores.occasion_fit)}
             ${scoreBar("visual harmony", scores.visual_harmony)}
+            ${outfit.visual_gate ? scoreBar("visual gate", outfit.visual_gate.score / 10) : ""}
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
             ${validationBadge(outfit.semantic_validation, "semantic")}
-            ${validationBadge(outfit.visual_validation, "visual")}
+            ${validationBadge(outfit.generation_semantic_gate, "gen. semantic")}
           </div>
         </div>`;
     }
