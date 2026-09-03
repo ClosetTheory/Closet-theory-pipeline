@@ -54,9 +54,7 @@ class FluxDigitisationProvider(BaseDigitisationProvider):
         brand_label = getattr(attributes, "brand_label", None) or "BLOVIATE"
         visual_desc = getattr(attributes, "visual_description", None)
 
-        positive_prompt = f"""Commercial e-commerce product photograph of a {subcategory_str} worn on a visible matte black mannequin bust, centered on a solid dark charcoal studio background (#161922). \
-This is NOT a ghost-mannequin/invisible-body shot — the mannequin's smooth matte black plastic material MUST be clearly visible protruding from every garment opening: at the neckline/collar gap, inside both cuff openings, and at the bottom hem opening, exactly like a real e-commerce mannequin photo. \
-A distinctly headless, faceless matte black mannequin neck stub is visible rising out of the collar opening.
+        positive_prompt = f"""Commercial e-commerce ghost mannequin product photograph of a {subcategory_str}, centered on a solid dark charcoal studio background (#161922).
 
 ### Exact Garment Identity (1:1 Preservation — Highest Priority):
 - Garment Type: {fit_str} fit, {silhouette_str} silhouette {subcategory_str} with {sleeve_str} sleeves
@@ -65,25 +63,24 @@ A distinctly headless, faceless matte black mannequin neck stub is visible risin
 - Pattern Structure: {pattern_detail}
 - Chest Pocket: {pocket_detail}
 - Buttons & Placket: {button_detail}
-- Collar & Neckline: {collar_detail}. The matte black mannequin neck is visibly rising through the open collar; a dark rectangular woven brand label reading '{brand_label}' with size tag 'M' is visible at the nape of the mannequin's neck
-- Sleeves & Hem: Symmetrical long sleeves positioned neatly alongside the torso with crisp matching cuffs — the matte black mannequin wrist/forearm is visible just inside each open cuff. Clean, symmetrically curved shirt-tail bottom hem
+- Collar & Neckline: {collar_detail}. Inside the hollow ghost mannequin neck opening, the inside back collar clearly displays a dark rectangular woven brand label reading '{brand_label}' with size tag 'M'
+- Sleeves & Hem: Symmetrical long sleeves positioned neatly alongside the torso with crisp matching cuffs and button closure. Clean, symmetrically curved shirt-tail bottom hem
 
 ### Presentation & Photography Style:
-- A real, solid, opaque matte black mannequin bust/torso form (faceless, headless stub neck, smooth matte black plastic finish, no visible seams/joints) is wearing the garment with natural 3D drape and volume — the mannequin is a tangible physical object in the shot, not a transparent or hollow silhouette
+- Ghost mannequin / invisible mannequin 3D form: The garment has natural 3D torso volume as if worn by an invisible body, with the hollow neck opening displaying the inner back label
 - Symmetrical straight-on front-facing view, eye-level camera angle, perfectly centered composition
 - Pristine e-commerce catalogue quality: perfectly ironed, wrinkle-free, sharp tailored seams, true-to-life colors
-- Background: Solid dark charcoal studio backdrop (#161922); the mannequin's matte black finish has a subtle sheen/rim-light that visibly differentiates it from the flatter charcoal backdrop
-- Studio Lighting: Soft diffused commercial studio key lighting with subtle rim light outlining both the garment and the mannequin's visible neck/cuff/hem openings. 8k resolution, ultra-sharp focus on fabric texture, no dramatic shadows"""
+- Background: Solid dark charcoal studio backdrop (#161922) with seamless contrast
+- Studio Lighting: Soft diffused commercial studio key lighting with subtle rim light outlining the garment silhouette. 8k resolution, ultra-sharp focus on fabric texture, no dramatic shadows"""
 
         if visual_desc:
             positive_prompt += f"\n\n### Detailed Visual Specifications:\n{visual_desc}"
 
         negative_prompt = (
             "different garment, wrong garment, dress, gown, kurta, skirt, t-shirt, polo, hoodie, jacket, "
-            "human, person, face, skin, hands, arms, real human body, white mannequin, transparent mannequin, "
-            "invisible mannequin, ghost mannequin, no mannequin visible, empty collar, empty cuffs, hollow neckline, "
-            "hollow garment, floating garment, floating shirt, flat garment, flat-lay, hanger, rack, closet, "
-            "cluttered background, white wall, slats, wrinkles, creases, asymmetrical, tilted, distorted pattern, "
+            "human, person, face, skin, hands, arms, body, visible mannequin head, visible mannequin neck, "
+            "plastic mannequin, mannequin dummy, hanger, rack, closet, cluttered background, white wall, "
+            "slats, wrinkles, creases, asymmetrical, tilted, floating fabric, distorted pattern, "
             "misaligned buttons, missing pocket, blurry, low resolution, artifacts, dark shadows, watermark, text overlays"
         )
 
