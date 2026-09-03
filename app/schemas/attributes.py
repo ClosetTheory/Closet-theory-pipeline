@@ -107,6 +107,10 @@ class GarmentAttributes(BaseModel):
 
     category: str = Field(..., description="High-level category or raw category string")
     subcategory: str = Field(..., description="Normalized fine-grained garment type")
+    garment_class: Optional[str] = Field(
+        default=None,
+        description="Canonical SPEC.md garment class (controlled vocabulary, e.g. T_SHIRT, JEANS, SAREE)",
+    )
     colour: List[str] = Field(..., min_length=1, description="One or more primary/secondary colors")
     pattern: PatternEnum = Field(..., description="Fabric pattern")
     material: str = Field(..., min_length=1, description="Primary fabric material")
@@ -162,6 +166,13 @@ class GarmentAttributes(BaseModel):
         if not v:
             raise ValueError("Garment must have at least one color")
         return [c.lower().strip() for c in v if c.strip()]
+
+    @field_validator("garment_class")
+    @classmethod
+    def validate_garment_class(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return v.upper().strip().replace(" ", "_").replace("-", "_")
 
 
 class AttributeValidationError(Exception):
@@ -236,6 +247,16 @@ def validate_extracted_attributes(raw_input: Any, min_confidence: float = 0.5) -
             "5_taxonomy_validation",
             f"Subcategory '{subcat}' is not in known taxonomy list"
         )
+
+    # garment_class (SPEC.md Section 8-10): derive if missing, remap unmapped
+    # classes to a *_OTHER bucket rather than rejecting (SPEC.md Section 37 -
+    # taxonomy mapping failures must never silently discard the garment).
+    from app.rules.garment_class import GARMENT_CLASSES, infer_garment_class_from_subcategory
+
+    if not attributes.garment_class:
+        attributes.garment_class = infer_garment_class_from_subcategory(subcat)
+    elif attributes.garment_class not in GARMENT_CLASSES:
+        attributes.garment_class = infer_garment_class_from_subcategory(subcat)
 
     # Step 7: Confidence checks
     if attributes.confidence is not None and attributes.confidence < min_confidence:
