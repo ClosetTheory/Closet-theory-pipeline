@@ -152,7 +152,10 @@ class StylingOrchestrator:
 
         # Stage 2: Contextual Analysis (V1: intent + neutral stub signals, no user profile data yet)
         t1 = time.perf_counter()
-        context = StylingContext(intent=intent)
+        user_preferences = {}
+        if request.boldness_preference is not None:
+            user_preferences["boldness_preference"] = request.boldness_preference
+        context = StylingContext(intent=intent, user_preferences=user_preferences)
         await self._record(
             "STAGE_02_CONTEXT",
             "Contextual Analysis",
@@ -220,7 +223,7 @@ class StylingOrchestrator:
         # Stage 6 + 7: Combination assembly, compatibility rules + VLM fallback, weighted ranking
         t5 = time.perf_counter()
         combos = build_outfit_combinations(role_candidates, anchors)
-        ranking_trace = await rank_combinations(combos, intent, top_k=max(request.top_k * 2, request.top_k + 2))
+        ranking_trace = await rank_combinations(combos, intent, context, top_k=max(request.top_k * 2, request.top_k + 2))
         rejected_incompatible = ranking_trace.total_evaluated - ranking_trace.total_compatible
         await self._record(
             "STAGE_06_COMPATIBILITY",

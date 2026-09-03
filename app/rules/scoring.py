@@ -12,8 +12,9 @@ DEFAULT_STYLING_WEIGHTS: Dict[str, float] = {
     "user_preference": 0.15,
     "occasion_fit": 0.15,
     "visual_harmony": 0.10,
-    "wardrobe_behavior": 0.10,
-    "novelty": 0.05,
+    "wardrobe_behavior": 0.07,
+    "weather_fit": 0.05,
+    "novelty": 0.03,
 }
 
 

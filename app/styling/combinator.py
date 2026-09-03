@@ -7,11 +7,17 @@ evaluation runs on each one.
 """
 
 from itertools import product
-from typing import Dict, List, Tuple
+from typing import Dict, FrozenSet, List, Optional, Tuple
 from app.models.garment import Garment
 from app.styling.retrieval import RoleCandidates, resolve_role
 
 MAX_COMBOS_TO_EVALUATE = 60
+
+# (garments, retrieval_score_sum, base_combo_key) — base_combo_key is set only for a
+# "base combo + optional outerwear layer" variant, pointing at the frozenset of garment
+# ids of the base combo it layers on top of, so the ranking stage can drop the variant
+# unless the layer actually improves the outfit's final score (see ranking.py).
+ComboEntry = Tuple[List[Garment], float, Optional[FrozenSet[str]]]
 
 
 def _role_options(role_candidates: RoleCandidates, role: str) -> List[Tuple[Garment, float]]:
@@ -21,11 +27,12 @@ def _role_options(role_candidates: RoleCandidates, role: str) -> List[Tuple[Garm
 def build_outfit_combinations(
     role_candidates: RoleCandidates,
     anchors: List[Garment],
-) -> List[Tuple[List[Garment], float]]:
+) -> List[ComboEntry]:
     """
-    Returns a capped list of (garments, retrieval_score_sum) candidate outfit combinations.
-    Body coverage: TOP+BOTTOM or ONE_PIECE (whichever the wardrobe/anchors support).
-    FOOTWEAR: included when available. OUTERWEAR: an additional layered variant per base combo.
+    Returns a capped list of (garments, retrieval_score_sum, base_combo_key) candidate outfit
+    combinations. Body coverage: TOP+BOTTOM or ONE_PIECE (whichever the wardrobe/anchors
+    support). FOOTWEAR: included when available. OUTERWEAR: an additional layered variant per
+    base combo, only ever *suggested* by the ranking stage if it improves the outfit's score.
     ACCESSORY: only included via anchors (not auto-added in V1).
     """
     anchors_by_role: Dict[str, List[Garment]] = {}
@@ -54,7 +61,7 @@ def build_outfit_combinations(
     footwear_options = options_for("FOOTWEAR")
     outerwear_options = options_for("OUTERWEAR")
 
-    raw_combos: List[Tuple[List[Tuple[Garment, float]], float]] = []
+    raw_combos: List[ComboEntry] = []
     for slot_groups in body_options:
         slot_groups_with_shoes = list(slot_groups)
         if footwear_options:
@@ -63,25 +70,30 @@ def build_outfit_combinations(
         for combo in product(*slot_groups_with_shoes):
             score_sum = sum(s for _g, s in combo)
             garments = [g for g, _s in combo]
-            raw_combos.append((garments, score_sum))
+            base_key = frozenset(g.id for g in garments)
+            raw_combos.append((garments, score_sum, None))
 
             if outerwear_options:
                 # Vary the outerwear layer across the top few options (not just the single
                 # best match every time) so different base combos end up wearing different
                 # jackets/coats instead of the wardrobe's one "best" outer layer everywhere.
+                # Tagged with base_key so ranking only suggests the layer if it scores better
+                # than the base combo — otherwise it's dropped (see ranking.py).
                 top_outers = sorted(outerwear_options, key=lambda pair: pair[1], reverse=True)[:3]
                 for outer_garment, outer_score in top_outers:
-                    raw_combos.append((garments + [outer_garment], score_sum + outer_score))
+                    raw_combos.append((garments + [outer_garment], score_sum + outer_score, base_key))
 
-    # Dedup by garment-id set (anchors + limited options can otherwise repeat)
+    # Dedup by garment-id set (anchors + limited options can otherwise repeat). Base combos are
+    # deduped first so a base combo is never dropped in favor of a layered variant sharing the
+    # same score-sort position — ranking needs the base present to judge the layer against it.
     seen = set()
-    deduped: List[Tuple[List[Garment], float]] = []
-    for garments, score in raw_combos:
+    deduped: List[ComboEntry] = []
+    for garments, score, base_key in sorted(raw_combos, key=lambda entry: entry[2] is not None):
         key = frozenset(g.id for g in garments)
         if key in seen:
             continue
         seen.add(key)
-        deduped.append((garments, score))
+        deduped.append((garments, score, base_key))
 
-    deduped.sort(key=lambda pair: pair[1], reverse=True)
+    deduped.sort(key=lambda entry: entry[1], reverse=True)
     return deduped[:MAX_COMBOS_TO_EVALUATE]

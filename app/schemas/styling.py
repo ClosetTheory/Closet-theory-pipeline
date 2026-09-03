@@ -66,6 +66,7 @@ class ScoreBreakdown(BaseModel):
     occasion_fit: float = 0.0
     visual_harmony: float = 0.0
     wardrobe_behavior: float = 0.0
+    weather_fit: float = 0.0
     novelty: float = 0.0
     final_score: float = 0.0
 
@@ -196,6 +197,17 @@ class StylingRecommendationRequest(BaseModel):
     request_text: Optional[str] = None
     anchor_garment_ids: Optional[List[str]] = None
     top_k: int = Field(default=3, ge=1, le=10)
+    boldness_preference: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "0.0 = strongly favour conventional, naturally-matching combinations (default when "
+            "omitted). 1.0 = favour bolder, less conventional combinations. Intended to be "
+            "supplied from a learned per-user preference signal once behavioral history exists; "
+            "until then, callers may pass it explicitly."
+        ),
+    )
 
 
 class StylingRecommendationResponse(BaseModel):

@@ -47,3 +47,4 @@ htmlcov/
 
 # Claude Code worktrees/session state
 .claude/
+backups/
