@@ -5,11 +5,14 @@ combination, using rule-based signals wherever possible and only the neutral
 stubs (wardrobe_behavior, novelty) where no real data exists yet. user_preference
 rewards conventional/well-matched combinations by default, shiftable toward
 bolder combinations via StylingContext.user_preferences["boldness_preference"].
+attribute_affinity rewards colour/pattern values the member has upvoted before,
+via StylingContext.user_preferences["attribute_affinities"] (see app/rules/style_profile.py).
 """
 
 from typing import Dict, List, Optional, Tuple
 from app.models.garment import Garment
 from app.rules.scoring import DEFAULT_STYLING_WEIGHTS, apply_diversity_penalty, compute_outfit_score
+from app.rules.style_profile import attribute_affinity_score
 from app.rules.taxonomy import bundle_category
 from app.rules.visual import FORMALITY_SCORES, NEUTRAL_COLORS, _get_max_formality
 from app.rules.wardrobe_behavior import score_wardrobe_behavior
@@ -166,6 +169,9 @@ async def rank_combinations(
             "visual_harmony": visual_harmony_score,
             "wardrobe_behavior": sum(score_wardrobe_behavior(g) for g in garments) / len(garments),
             "weather_fit": _weather_fit(garments, intent),
+            "attribute_affinity": attribute_affinity_score(
+                [g.attributes_json or {} for g in garments], context.user_preferences.get("attribute_affinities", {})
+            ),
             "novelty": 1.0,  # stub: no WearLog history to compare against yet
         }
         final_score = compute_outfit_score(components, DEFAULT_STYLING_WEIGHTS)

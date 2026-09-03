@@ -10,7 +10,7 @@ from app.api.dependencies import get_db_session, get_storage
 from app.models.garment import Garment
 from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
-from app.rules.style_profile import outfit_boldness, update_boldness_preference
+from app.rules.style_profile import outfit_boldness, update_attribute_affinities, update_boldness_preference
 from app.schemas.styling import (
     OutfitResult,
     OutfitVoteRequest,
@@ -168,14 +168,20 @@ async def vote_outfit(
 ):
     """
     Upvote/downvote a previously-recommended outfit. Updates the member's learned
-    StyleProfile.boldness_preference via an EMA pulled toward (upvote) or away from
-    (downvote) the voted outfit's boldness — see app/rules/style_profile.py.
+    StyleProfile.boldness_preference (EMA toward/away from the voted outfit's boldness) and
+    per-value colour/pattern affinities (also EMA, weighted by accumulated vote count) —
+    see app/rules/style_profile.py.
     """
     outfit = await session.get(Outfit, outfit_id)
     if not outfit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outfit '{outfit_id}' not found")
 
     boldness = outfit_boldness((outfit.score_breakdown or {}).get("visual_harmony", 0.7))
+
+    og_res = await session.execute(select(OutfitGarment).where(OutfitGarment.outfit_id == outfit.id))
+    garment_ids = [og.garment_id for og in og_res.scalars().all()]
+    garments_res = await session.execute(select(Garment).where(Garment.id.in_(garment_ids)))
+    garments_attrs = [g.attributes_json or {} for g in garments_res.scalars().all()]
 
     profile_stmt = select(StyleProfile).where(
         StyleProfile.tenant_id == outfit.tenant_id,
@@ -188,6 +194,7 @@ async def vote_outfit(
         await session.flush()
 
     profile.boldness_preference = update_boldness_preference(profile.boldness_preference, boldness, request.vote)
+    profile.attribute_affinities = update_attribute_affinities(profile.attribute_affinities or {}, garments_attrs, request.vote)
     profile.vote_count += 1
     await session.commit()
     await session.refresh(profile)

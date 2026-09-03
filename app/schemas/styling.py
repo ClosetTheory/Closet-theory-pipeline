@@ -67,6 +67,7 @@ class ScoreBreakdown(BaseModel):
     visual_harmony: float = 0.0
     wardrobe_behavior: float = 0.0
     weather_fit: float = 0.0
+    attribute_affinity: float = 0.0
     novelty: float = 0.0
     final_score: float = 0.0
 

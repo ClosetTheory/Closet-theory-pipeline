@@ -164,6 +164,7 @@ class StylingOrchestrator:
         style_profile = (await self.session.execute(profile_stmt)).scalars().first()
         if style_profile:
             user_preferences["boldness_preference"] = style_profile.boldness_preference
+            user_preferences["attribute_affinities"] = style_profile.attribute_affinities
         if request.boldness_preference is not None:
             user_preferences["boldness_preference"] = request.boldness_preference
         context = StylingContext(intent=intent, user_preferences=user_preferences)
