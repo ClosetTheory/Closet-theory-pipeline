@@ -16,7 +16,7 @@ import hashlib
 import io
 import time
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 from PIL import Image as PILImage
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
@@ -96,21 +96,31 @@ async def _persist_generated_image(
 
 
 class StylingOrchestrator:
-    def __init__(self, session: AsyncSession, storage: StorageClient):
+    def __init__(
+        self,
+        session: AsyncSession,
+        storage: StorageClient,
+        on_stage: Optional[Callable[[StageTrace], Awaitable[None]]] = None,
+    ):
         self.session = session
         self.storage = storage
         self.trace: List[StageTrace] = []
+        # Optional callback invoked immediately after each stage completes (used by the
+        # streaming endpoint to push live progress to the frontend as it actually happens,
+        # rather than only after the whole request finishes).
+        self.on_stage = on_stage
 
-    def _record(self, stage: str, title: str, summary: Dict[str, Any], status: str, started_at: float) -> None:
-        self.trace.append(
-            StageTrace(
-                stage=stage,
-                title=title,
-                status=status,
-                duration_ms=round((time.perf_counter() - started_at) * 1000.0, 2),
-                summary=summary,
-            )
+    async def _record(self, stage: str, title: str, summary: Dict[str, Any], status: str, started_at: float) -> None:
+        entry = StageTrace(
+            stage=stage,
+            title=title,
+            status=status,
+            duration_ms=round((time.perf_counter() - started_at) * 1000.0, 2),
+            summary=summary,
         )
+        self.trace.append(entry)
+        if self.on_stage:
+            await self.on_stage(entry)
 
     async def run(self, request: StylingRecommendationRequest) -> StylingRecommendationResponse:
         # Hard constraint checks first (code, not AI) — not its own numbered stage but must run before Stage 1
@@ -127,7 +137,7 @@ class StylingOrchestrator:
             normalizer = get_request_normalizer_provider()
             normalizer_used = getattr(normalizer, "model_name", type(normalizer).__name__)
             intent = await normalizer.normalize(request.request_text, anchor_categories)
-        self._record(
+        await self._record(
             "STAGE_01_NORMALISATION",
             "Request Normalisation",
             {
@@ -143,7 +153,7 @@ class StylingOrchestrator:
         # Stage 2: Contextual Analysis (V1: intent + neutral stub signals, no user profile data yet)
         t1 = time.perf_counter()
         context = StylingContext(intent=intent)
-        self._record(
+        await self._record(
             "STAGE_02_CONTEXT",
             "Contextual Analysis",
             {
@@ -156,7 +166,7 @@ class StylingOrchestrator:
 
         # Stage 3: Wardrobe Behaviour (stub — no WearLog data yet)
         t2 = time.perf_counter()
-        self._record(
+        await self._record(
             "STAGE_03_WARDROBE_BEHAVIOUR",
             "Wardrobe Behaviour Analysis",
             {
@@ -173,7 +183,7 @@ class StylingOrchestrator:
         garments_by_id: Dict[str, Garment] = {g.id: g for g in candidates}
         for a in anchors:
             garments_by_id[a.id] = a
-        self._record(
+        await self._record(
             "STAGE_04_FILTERING",
             "Attribute Candidate Filtering",
             {
@@ -191,7 +201,7 @@ class StylingOrchestrator:
         # Stage 5: Candidate Retrieval (role-aware)
         t4 = time.perf_counter()
         role_candidates = await retrieve_by_role(self.session, candidates, anchors)
-        self._record(
+        await self._record(
             "STAGE_05_RETRIEVAL",
             "Candidate Retrieval",
             {
@@ -208,7 +218,7 @@ class StylingOrchestrator:
         combos = build_outfit_combinations(role_candidates, anchors)
         ranking_trace = await rank_combinations(combos, intent, top_k=max(request.top_k * 2, request.top_k + 2))
         rejected_incompatible = ranking_trace.total_evaluated - ranking_trace.total_compatible
-        self._record(
+        await self._record(
             "STAGE_06_COMPATIBILITY",
             "Candidate Compatibility Analysis",
             {
@@ -224,7 +234,7 @@ class StylingOrchestrator:
         )
 
         t6 = time.perf_counter()
-        self._record(
+        await self._record(
             "STAGE_07_RANKING",
             "Outfit Ranking & Shortlist",
             {
@@ -246,7 +256,7 @@ class StylingOrchestrator:
         validated, dropped_for_fail = await validate_outfits(
             ranking_trace.outfits, context, garments_by_id, top_k=request.top_k + GATE_FALLBACK_DEPTH
         )
-        self._record(
+        await self._record(
             "STAGE_08_SEMANTIC_VALIDATION",
             "Semantic Validation",
             {
@@ -361,7 +371,7 @@ class StylingOrchestrator:
                 )
             )
 
-        self._record(
+        await self._record(
             "STAGE_09_IMAGE_GENERATION",
             "Outfit Image Generation",
             {
@@ -373,7 +383,7 @@ class StylingOrchestrator:
             "SUCCEEDED",
             t8,
         )
-        self._record(
+        await self._record(
             "STAGE_10_GATES",
             "Visual Gate + Semantic Gate (parallel, on generated image)",
             {
