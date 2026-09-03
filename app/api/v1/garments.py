@@ -25,6 +25,7 @@ from app.pipeline.state_machine import (
 )
 from app.schemas.attributes import validate_extracted_attributes
 from app.schemas.garment import CanonicalGarment, GarmentCreateRequest
+from app.schemas.styling import GarmentSummary
 from app.schemas.pipeline import (
     PipelineStageRunRead,
     PipelineStatusResponse,
@@ -89,6 +90,48 @@ async def create_garment(
         provenance=garment.provenance,
         pipeline_version=garment.pipeline_version,
     )
+
+
+@router.get("", response_model=List[GarmentSummary])
+async def list_garments(
+    tenant_id: Optional[str] = Query(default=None),
+    member_id: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(default=None),
+    status_filter: str = Query(default="COMPLETED", alias="status"),
+    limit: int = Query(default=24, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Catalogue listing of ingested garments — the ingestion pipeline's real, persisted output."""
+    stmt = select(Garment).options(selectinload(Garment.canonical_image))
+
+    if tenant_id:
+        stmt = stmt.where(Garment.tenant_id == tenant_id)
+    if member_id:
+        stmt = stmt.where(Garment.member_id == member_id)
+    if category:
+        stmt = stmt.where(Garment.category == category)
+    if status_filter:
+        stmt = stmt.where(Garment.status == status_filter)
+
+    stmt = stmt.order_by(Garment.updated_at.desc()).offset(offset).limit(limit)
+    res = await session.execute(stmt)
+    garments = res.scalars().all()
+
+    return [
+        GarmentSummary(
+            garment_id=g.id,
+            category=g.category,
+            subcategory=g.subcategory,
+            garment_class=g.garment_class,
+            attributes=g.attributes_json,
+            canonical_image_url=f"/api/v1/wardrobe/images/{g.canonical_image_id}/bytes" if g.canonical_image_id else None,
+            status=g.status,
+            quality_status=g.quality_status,
+            created_at=g.created_at.isoformat() if g.created_at else None,
+        )
+        for g in garments
+    ]
 
 
 @router.get("/{garment_id}", response_model=CanonicalGarment)
