@@ -1,8 +1,8 @@
-"""Mock Visual Validator: always PASS (no real vision check)."""
+"""Mock Visual Validator: neutral 0-10 score (no real vision check)."""
 
 from typing import List
 from app.providers.base import BaseVisualValidatorProvider
-from app.schemas.styling import GarmentSummary, ValidationResult, ValidationStatus
+from app.schemas.styling import GarmentSummary, VisualGateResult
 
 
 class MockVisualValidatorProvider(BaseVisualValidatorProvider):
@@ -10,11 +10,10 @@ class MockVisualValidatorProvider(BaseVisualValidatorProvider):
         self.model_name = model_name
         self.model_version = model_version
 
-    async def validate_image(self, generated_image: bytes, garments: List[GarmentSummary]) -> ValidationResult:
-        return ValidationResult(
-            status=ValidationStatus.PASS,
-            confidence=0.6,
-            reason="Mock visual validator: no vision model configured, assuming generated image matches.",
+    async def validate_image(self, generated_image: bytes, garments: List[GarmentSummary]) -> VisualGateResult:
+        return VisualGateResult(
+            score=7.0,
+            feedback={"overall_aesthetic": "Mock visual gate: no vision model configured, assuming a reasonable result."},
             model=self.model_name,
             model_version=self.model_version,
         )
