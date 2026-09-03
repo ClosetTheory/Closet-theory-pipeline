@@ -49,12 +49,60 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         subcategory = (attributes.subcategory or "garment").replace("_", " ")
 
         positive_prompt = (
-            f"Professional studio e-commerce fashion photography of a single {subcategory}, "
-            f"{colors} color, {pattern} pattern, made of {material} fabric. "
-            f"Clean {fit} fit, {silhouette} silhouette, {sleeve} sleeves. "
-            f"Displayed on a neutral clean off-white studio background, flat lay / ghost mannequin, "
-            f"perfectly centered, no human body, no face, soft diffused commercial studio lighting, "
-            f"8k resolution, photorealistic, sharp fabric texture and seam details."
+            '''
+            Using the provided wardrobe image as the reference, create a **front-facing, single-garment catalogue image** of the garment visible inside the wardrobe.
+
+### Garment Preservation — Highest Priority
+
+Extract and reproduce **only the single garment** from the reference image. Preserve its exact:
+
+- garment type and silhouette
+- color and color distribution
+- fabric appearance and texture
+- pattern, prints, embroidery, stitching, seams, buttons, zippers, collars, cuffs, and other details
+- proportions and overall shape
+- visible folds and construction details where appropriate
+
+**Do not redesign, beautify, stylize, or invent details that are not present in the reference.**
+
+### Product Presentation
+
+- Show the garment **straight-on, front-facing**.
+- Center the garment precisely in the frame.
+- Present it as a **single standalone catalogue product**.
+- Maintain natural garment proportions.
+- Remove the wardrobe, shelves, hangers, surrounding clothes, room, walls, furniture, and all other objects.
+- If the garment is hanging, reconstruct it as a clean standalone product while retaining its actual appearance.
+- Do not add a person or mannequin unless one is already necessary to accurately represent the garment.
+
+### Catalogue Photography
+
+Create a professional **e-commerce fashion catalogue** image:
+
+- clean white or very light neutral background
+- soft, uniform studio lighting
+- subtle natural shadow beneath/behind the garment
+- sharp edges and clear fabric details
+- accurate colors
+- no dramatic lighting
+- no artistic effects
+- no background decoration
+- no text, labels, logos, watermarks, or price tags
+
+### Camera
+
+- Perfectly front-facing camera
+- Eye-level view
+- Minimal/zero perspective distortion
+- Garment parallel to the image plane
+- No three-quarter angle
+- No rotation or tilted composition
+
+### Framing
+
+Show the **complete garment from top to bottom**, with a small, consistent amount of whitespace around it. Keep the garment centered and isolated.
+
+**The reference image is the source of truth. The goal is not to create a new fashion design, but to convert the garment visible in the wardrobe into a clean, single-product catalogue photograph while preserving its identity and appearance exactly.**'''
         )
 
         negative_prompt = (
