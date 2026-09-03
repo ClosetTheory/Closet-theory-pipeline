@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     # Redis / Async Worker Queue
     REDIS_URL: str = "redis://localhost:6379/0"
     USE_IN_MEMORY_QUEUE: bool = True
+    WORKER_CONCURRENCY: int = 5  # number of pipeline jobs processed in parallel per worker process
 
     # Image Upload Security Limits
     MAX_IMAGE_SIZE_BYTES: int = 25 * 1024 * 1024  # 25 MB
