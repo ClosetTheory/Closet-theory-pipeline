@@ -20,11 +20,11 @@ class Stage04Digitise(BaseStage):
     stage_name = PipelineStage.STAGE_04_DIGITISE.value
 
     async def execute(self, ctx: StageExecutionContext) -> StageExecutionResult:
-        crop_uri = (
-            ctx.garment.garment_crop_refs[0]
-            if ctx.garment.garment_crop_refs
-            else ctx.garment.source_image.object_uri
-        )
+        # Stage 2 no longer pixel-crops — garment_crop_refs always points at the full source
+        # photo. `detected_label` (set by Stage 2, None for single-garment/catalog images) tells
+        # the provider which garment within that photo to isolate and reproduce.
+        crop_uri = ctx.garment.source_image.object_uri
+        garment_label = ctx.garment.detected_label
         crop_bytes = await ctx.storage.get_object(crop_uri)
         input_hash = compute_stage_input_hash(crop_bytes)
 
@@ -41,7 +41,7 @@ class Stage04Digitise(BaseStage):
         verification_history = []
 
         for attempt in range(1, max_retries + 1):
-            digit_res = await provider.digitise(crop_bytes, attributes, attempt=attempt)
+            digit_res = await provider.digitise(crop_bytes, attributes, attempt=attempt, garment_label=garment_label)
             last_result = digit_res
 
             # Generate synthetic or actual canonical image bytes

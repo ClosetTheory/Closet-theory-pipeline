@@ -16,12 +16,11 @@ class Stage03Attributes(BaseStage):
     stage_name = PipelineStage.STAGE_03_ATTRIBUTES.value
 
     async def execute(self, ctx: StageExecutionContext) -> StageExecutionResult:
-        # Select best available visual crop: primary garment crop or source image
-        image_uri = (
-            ctx.garment.garment_crop_refs[0]
-            if ctx.garment.garment_crop_refs
-            else ctx.garment.source_image.object_uri
-        )
+        # Stage 2 no longer pixel-crops — garment_crop_refs always points at the full source
+        # photo. `detected_label` (set by Stage 2, None for single-garment/catalog images) tells
+        # the provider which garment within that photo to describe.
+        image_uri = ctx.garment.source_image.object_uri
+        garment_label = ctx.garment.detected_label
         image_bytes = await ctx.storage.get_object(image_uri)
         input_hash = compute_stage_input_hash(image_bytes)
 
@@ -32,7 +31,9 @@ class Stage03Attributes(BaseStage):
         try:
             attributes = None
             for attempt in range(1, max_retries + 1):
-                attributes = await provider.extract_attributes(image_bytes, image_type=ctx.garment.image_type)
+                attributes = await provider.extract_attributes(
+                    image_bytes, image_type=ctx.garment.image_type, garment_label=garment_label
+                )
 
                 # Second-opinion verification (Gemini via settings.VISION_VERIFIER_MODEL — a
                 # different model/vendor than MODA_NER or GPT-4o) against the actual image:
