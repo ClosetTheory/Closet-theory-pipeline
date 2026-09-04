@@ -99,6 +99,7 @@ class Settings(BaseSettings):
     RUNPOD_BASE_URL: str = "https://api.runpod.ai/v2"
     RUNPOD_EMBEDDING_ENDPOINT_ID: Optional[str] = None
     RUNPOD_ATTRIBUTE_ENDPOINT_ID: Optional[str] = None
+    RUNPOD_DETECTION_ENDPOINT_ID: Optional[str] = None
 
     # Stage 6: Category Bundling (Lookup Table)
     TAXONOMY_VERSION: str = "taxonomy_v1"
