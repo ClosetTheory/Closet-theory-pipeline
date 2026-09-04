@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     MAX_IMAGE_PIXELS: int = 89_478_485  # Pillow default decompression bomb ceiling
     ALLOWED_MIME_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
 
-    # Stage 1: Classifier (MobileNetV3)
-    CLASSIFIER_PROVIDER: str = "mock"  # "mobilenet" | "mock"
+    # Stage 1: Classifier
+    CLASSIFIER_PROVIDER: str = "openrouter"  # "openrouter" | "mobilenet" | "mock"
     CLASSIFIER_MODEL_NAME: str = "MobileNetV3"
     CLASSIFIER_MODEL_VERSION: str = "v1"
     CLASSIFIER_CONFIDENCE_THRESHOLD: float = 0.70

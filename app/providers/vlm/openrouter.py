@@ -11,12 +11,14 @@ from app.config import settings
 from app.observability import logger
 from app.providers.base import (
     BaseAttributeExtractorProvider,
+    BaseClassifierProvider,
     BaseRequestNormalizerProvider,
     BaseSemanticValidatorProvider,
     BaseVisualValidatorProvider,
     BaseVLMProvider,
 )
 from app.schemas.attributes import GarmentAttributes, validate_extracted_attributes
+from app.schemas.pipeline import ClassificationResult, ImageType
 from app.schemas.styling import (
     GarmentSummary,
     OutfitCandidate,
@@ -39,6 +41,7 @@ class OpenRouterGPTProvider(
     BaseRequestNormalizerProvider,
     BaseSemanticValidatorProvider,
     BaseVisualValidatorProvider,
+    BaseClassifierProvider,
 ):
     """
     OpenRouter multimodal integration for GPT-4o and other OpenAI models.
@@ -334,6 +337,38 @@ Compatibility note: {outfit.compatibility_reason or "n/a"}"""
         except Exception as e:
             logger.warning(f"Vision JSON chat call failed: {e}")
             return None
+
+    async def classify(self, image_bytes: bytes) -> ClassificationResult:
+        """Stage 1: real vision-model classification (replaces the aspect-ratio/face-detection
+        heuristic in app/providers/classifier/mock.py — that heuristic is still used as the
+        fallback here when no API key is configured or the call fails)."""
+        prompt_text = """Classify this garment/fashion photo. Output ONLY JSON:
+{
+  "image_type": "CATALOG" | "CROP" | "FULL_BODY",
+  "confidence": 0.0-1.0
+}
+
+CATALOG: a clean, garment-only product shot (flat lay, ghost mannequin, or plain background), no visible person.
+CROP: a close-up crop showing only part of a garment on a person (no full body, no face necessarily visible).
+FULL_BODY: a person wearing the garment is visible, showing most/all of their body or a clear face."""
+
+        content = await self._vision_chat_json(prompt_text, image_bytes, max_tokens=100)
+        if content:
+            try:
+                data = json.loads(content)
+                image_type = ImageType(data["image_type"])
+                confidence = max(0.0, min(1.0, float(data["confidence"])))
+                return ClassificationResult(
+                    image_type=image_type,
+                    confidence=confidence,
+                    model=self.model_name,
+                    model_version=self.model_version,
+                )
+            except Exception as e:
+                logger.warning(f"Classifier result parse failed: {e}. Falling back to heuristic.")
+
+        from app.providers.classifier.mock import MockClassifierProvider
+        return await MockClassifierProvider(model_name=self.model_name, model_version=self.model_version).classify(image_bytes)
 
     async def validate_image(
         self,

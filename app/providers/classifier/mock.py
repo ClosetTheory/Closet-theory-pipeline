@@ -4,15 +4,21 @@ import io
 from PIL import Image
 from app.config import settings
 from app.providers.base import BaseClassifierProvider
+from app.providers.detection import get_detection_provider
 from app.schemas.pipeline import ClassificationResult, ImageType
 
 
 class MockClassifierProvider(BaseClassifierProvider):
     """
-    Deterministic heuristic classifier:
-    - If aspect ratio (height/width) > 1.6 -> FULL_BODY
-    - If aspect ratio between 1.1 and 1.6 -> CROP
-    - If square or wide (<= 1.1) -> CATALOG
+    Heuristic classifier — no trained model is wired up here (see mobilenet.py, which
+    delegates to this same class). Aspect ratio alone is a poor signal: most real photos
+    (portrait phone shots, standard 4:3/3:2 crops) land in a "tall-ish" band regardless of
+    whether they actually show a person, so a pure ratio threshold misclassifies the large
+    majority of uploads as CROP. Instead, this reuses the same face/person detector Stage 2
+    already has (app.providers.detection) as the primary signal for FULL_BODY — a photo with
+    a detected person is a full-body/on-model shot regardless of its exact aspect ratio.
+    Aspect ratio is only used as a fallback to distinguish CATALOG vs CROP among the
+    remaining (person-less) images.
     """
 
     def __init__(
@@ -37,19 +43,34 @@ class MockClassifierProvider(BaseClassifierProvider):
             )
 
         try:
+            detection = await get_detection_provider().detect_and_crop(image_bytes)
+        except Exception:
+            detection = None
+
+        if detection and (detection.person_detected or detection.face_box):
+            return ClassificationResult(
+                image_type=ImageType.FULL_BODY,
+                confidence=0.96,
+                model=self.model_name,
+                model_version=self.model_version,
+            )
+
+        try:
             with Image.open(io.BytesIO(image_bytes)) as img:
                 w, h = img.size
                 ratio = h / max(w, 1)
-
+                # No person/face detected (or detection itself failed) — fall back to aspect
+                # ratio so a genuinely tall full-body photo where detection missed the face
+                # (turned away, obscured, low-res) still isn't lost entirely to CROP/CATALOG.
                 if ratio >= 1.7:
                     img_type = ImageType.FULL_BODY
-                    conf = 0.96
-                elif ratio >= 1.2:
+                    conf = 0.85
+                elif ratio >= 1.3:
                     img_type = ImageType.CROP
-                    conf = 0.92
+                    conf = 0.9
                 else:
                     img_type = ImageType.CATALOG
-                    conf = 0.98
+                    conf = 0.95
         except Exception:
             img_type = ImageType.CATALOG
             conf = self.confidence
