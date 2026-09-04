@@ -688,12 +688,25 @@
 
           const stepData = await stepResp.json();
 
+          const isOk = stepData.status === "SUCCEEDED";
           document.getElementById(st.badge).innerText = `${stepData.status} (${stepData.duration_ms}ms)`;
-          document.getElementById(st.badge).className = "text-[10px] font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded";
+          document.getElementById(st.badge).className = isOk
+            ? "text-[10px] font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded"
+            : "text-[10px] font-mono bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded";
           document.getElementById(st.card).classList.remove('glow-active');
 
           // Update card visual artifacts
           updateLiveCardVisuals(st.key, stepData);
+
+          // A REVIEW_REQUIRED/FAILED stage must halt the run here — continuing to later stages
+          // (e.g. digitising from attributes that never actually passed verification) would
+          // silently produce a "COMPLETED" garment built on data the pipeline itself rejected.
+          if (!isOk) {
+            document.getElementById('live-spinner').classList.add('hidden');
+            document.getElementById('live-stage-status-title').innerText =
+              `Halted at ${st.title}: ${stepData.status}${stepData.error ? ' — ' + stepData.error : ''}`;
+            return;
+          }
         }
 
         // 4. Fetch final canonical garment
