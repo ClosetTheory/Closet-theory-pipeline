@@ -227,15 +227,15 @@
               <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Verification (independent model)</span>
               <div id="stage4-verify-list" class="space-y-1"></div>
             </div>
-          </div>
-
-          <!-- Other garments found in the same photo (multi-garment split) -->
-          <div id="card-other-garments" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 col-span-2 lg:col-span-3">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span class="text-xs font-bold text-purple-400">Other Garments Detected in This Photo</span>
-              <span class="text-[10px] font-mono text-slate-500">processing independently in the background</span>
+            <!-- Other garments found in the same photo — shown in this same card, not a separate
+                 one below, since they're all outputs of the same digitisation stage/photo. -->
+            <div id="stage4-other-garments-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-purple-400 uppercase font-mono">Other Garments From This Photo</span>
+                <span class="text-[9px] font-mono text-slate-500">processing independently</span>
+              </div>
+              <div id="other-garments-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
             </div>
-            <div id="other-garments-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
           </div>
 
           <!-- Card 5: Embedding (MODA SigLIP 768d) -->
@@ -802,7 +802,7 @@
         }
 
         if (spawnedIds.length) {
-          document.getElementById('card-other-garments').classList.remove('hidden');
+          document.getElementById('stage4-other-garments-container').classList.remove('hidden');
           pollOtherGarments(spawnedIds);
         }
 
