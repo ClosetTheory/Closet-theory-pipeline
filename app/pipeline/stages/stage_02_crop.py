@@ -6,12 +6,14 @@ Localizes faces, isolates garment regions, generates clean crops, creates visual
 import io
 from PIL import Image, ImageDraw
 from sqlalchemy import select
+from app.config import settings
 from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
 from app.pipeline.idempotency import compute_stage_input_hash
 from app.pipeline.stages.base import BaseStage, StageExecutionContext, StageExecutionResult
 from app.pipeline.state_machine import GarmentState, PipelineStage
 from app.providers.detection import get_detection_provider
+from app.providers.verification import verify_crop_region
 
 
 from app.schemas.pipeline import ImageType
@@ -71,6 +73,8 @@ class Stage02Crop(BaseStage):
                 draw.rectangle([fx1, max(0, fy1 - 22), fx1 + 80, fy1], fill=(16, 185, 129))
                 draw.text((fx1 + 5, max(0, fy1 - 18)), "FACE", fill=(255, 255, 255))
 
+            crop_verifications = []
+
             if detection.garment_regions:
                 for idx, region in enumerate(detection.garment_regions):
                     box = region.box  # [x1, y1, x2, y2]
@@ -89,6 +93,32 @@ class Stage02Crop(BaseStage):
                     buf = io.BytesIO()
                     cropped.save(buf, format="JPEG", quality=95)
                     crop_data = buf.getvalue()
+
+                    # Second-opinion verification (Gemini via settings.VISION_VERIFIER_MODEL —
+                    # a different model than whichever produced this detection box) on the
+                    # actual cropped pixels: catches a technically-valid-looking box that
+                    # crops to blank background/skin/an unrelated object, which the upstream
+                    # detection-confidence filter can't see (it never looks at the crop itself).
+                    is_valid_crop, crop_score, crop_reason = await verify_crop_region(crop_data, region.label)
+                    is_primary = idx == 0
+                    keep = is_valid_crop and crop_score >= settings.CROP_VERIFICATION_THRESHOLD
+                    crop_verifications.append({
+                        "index": idx,
+                        "label": region.label,
+                        "is_valid": is_valid_crop,
+                        "score": crop_score,
+                        "reason": crop_reason,
+                        "kept": keep or is_primary,
+                    })
+
+                    if not keep and not is_primary:
+                        # A non-primary region that fails the second-opinion check is dropped
+                        # entirely — never stored, never spawned as a sibling garment. The
+                        # primary garment's own crop is always kept even if flagged, since
+                        # downstream stages need *something* to work with; its REVIEW_REQUIRED-
+                        # worthiness is left to Stage 3's own attribute-verification instead.
+                        draw.rectangle([x1, y1, x2, y2], outline=(239, 68, 68), width=3)
+                        continue
 
                     crop_key = f"crops/{ctx.garment.tenant_id}/{ctx.garment.id}_{region.label}_{idx}.jpg"
                     crop_uri = await ctx.storage.put_object(crop_key, crop_data, content_type="image/jpeg")
@@ -152,6 +182,7 @@ class Stage02Crop(BaseStage):
                 "garment_crop_refs": crop_refs,
                 "annotated_overlay_uri": annotated_uri,
                 "spawned_garment_ids": spawned_garment_ids,
+                "crop_verifications": crop_verifications,
             },
             input_hash=input_hash,
             model=detection.model,

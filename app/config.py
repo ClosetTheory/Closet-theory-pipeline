@@ -79,6 +79,15 @@ class Settings(BaseSettings):
     # openai/gpt-5.4-image-2) so the check isn't blind to the same model's own failure modes.
     DIGITISATION_VERIFIER_MODEL: str = "google/gemini-2.5-flash"
 
+    # Shared second-opinion verifier for Stage 2 (crop) and Stage 3 (attributes). Deliberately
+    # the same different-vendor model as the digitisation verifier — Stage 1/2/3's primary
+    # providers are OpenAI GPT-4o (openrouter) or MODA_NER, never this model, so it never shares
+    # a blind spot with whatever produced the thing it's checking.
+    VISION_VERIFIER_MODEL: str = "google/gemini-2.5-flash"
+    CROP_VERIFICATION_THRESHOLD: float = 0.5
+    ATTRIBUTE_MAX_RETRIES: int = 2
+    ATTRIBUTE_VERIFICATION_THRESHOLD: float = 0.6
+
     # Stage 5: Image Embedding (MODA SigLIP Distilled)
     EMBEDDING_PROVIDER: str = "mock"  # "siglip" | "mock"
     EMBEDDING_MODEL_NAME: str = "MODA SigLIP Distilled"

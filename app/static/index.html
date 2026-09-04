@@ -176,6 +176,10 @@
               <div>Person Detected: <span class="text-slate-200">-</span></div>
               <div>Cropped Asset: <span class="text-slate-200 truncate block">-</span></div>
             </div>
+            <div id="stage2-verify-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
+              <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Crop Verification (independent model)</span>
+              <div id="stage2-verify-list" class="space-y-1"></div>
+            </div>
           </div>
 
           <!-- Card 3: Validated Attributes (NVIDIA NIM / MODA) -->
@@ -189,6 +193,10 @@
             </div>
             <div id="stage3-data" class="text-[11px] font-mono text-emerald-400">
               Validation: <span class="text-slate-400">Pending</span>
+            </div>
+            <div id="stage3-verify-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
+              <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Attribute Verification (independent model)</span>
+              <div id="stage3-verify-list" class="space-y-1"></div>
             </div>
           </div>
 
@@ -797,20 +805,57 @@
           document.getElementById('card-other-garments').classList.remove('hidden');
           pollOtherGarments(spawnedIds);
         }
+
+        const cropVerifications = data.output_data.crop_verifications || [];
+        if (cropVerifications.length) {
+          document.getElementById('stage2-verify-container').classList.remove('hidden');
+          document.getElementById('stage2-verify-list').innerHTML = cropVerifications.map(v => `
+            <div class="text-[10px] bg-slate-950 p-2 rounded border ${v.kept ? (v.is_valid ? 'border-emerald-800/60' : 'border-amber-700/60') : 'border-red-800/60'}">
+              <div class="flex items-center justify-between">
+                <span class="font-mono ${v.is_valid ? 'text-emerald-400' : (v.kept ? 'text-amber-400' : 'text-red-400')} font-bold">
+                  Region #${v.index + 1} (${v.label}): ${v.is_valid ? 'PASSED' : (v.kept ? 'FLAGGED (kept — primary crop)' : 'DROPPED')} (${(v.score * 100).toFixed(0)}%)
+                </span>
+                <span class="text-slate-500 font-mono">google/gemini-2.5-flash</span>
+              </div>
+              <div class="text-slate-400 mt-0.5">${v.reason}</div>
+            </div>
+          `).join('');
+        }
       }
       else if (stageKey === "STAGE_03_ATTRIBUTES") {
         const out = data.output_data;
         const colorHtml = (out.colour || []).map(c => `<span class="inline-block px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 text-[10px] mr-1">${c}</span>`).join('');
-        document.getElementById('stage3-attr-list').innerHTML = `
-          <div>Subcategory: <strong class="text-white">${out.subcategory || 'shirt'}</strong></div>
-          <div>Colors: ${colorHtml}</div>
-          <div>Pattern: <strong class="text-slate-300">${out.pattern}</strong> | Material: <strong class="text-slate-300">${out.material}</strong></div>
-          <div>Fit: <strong class="text-slate-300">${out.fit}</strong> | Role: <strong class="text-purple-400">${out.layering_role}</strong></div>
-          <div>Warmth: <strong class="text-emerald-400">${out.warmth}</strong> | Versatility: <strong class="text-emerald-400">${out.versatility}</strong></div>
-        `;
-        document.getElementById('stage3-data').innerHTML = `
-          Validation: <span class="text-emerald-400 font-bold">Passed All 7 Gates</span>
-        `;
+        if (out.subcategory) {
+          document.getElementById('stage3-attr-list').innerHTML = `
+            <div>Subcategory: <strong class="text-white">${out.subcategory || 'shirt'}</strong></div>
+            <div>Colors: ${colorHtml}</div>
+            <div>Pattern: <strong class="text-slate-300">${out.pattern}</strong> | Material: <strong class="text-slate-300">${out.material}</strong></div>
+            <div>Fit: <strong class="text-slate-300">${out.fit}</strong> | Role: <strong class="text-purple-400">${out.layering_role}</strong></div>
+            <div>Warmth: <strong class="text-emerald-400">${out.warmth}</strong> | Versatility: <strong class="text-emerald-400">${out.versatility}</strong></div>
+          `;
+        } else {
+          document.getElementById('stage3-attr-list').innerHTML = `<div class="text-red-400">${data.error || 'Attribute extraction failed schema validation.'}</div>`;
+        }
+        document.getElementById('stage3-data').innerHTML = data.status === "SUCCEEDED"
+          ? `Validation: <span class="text-emerald-400 font-bold">Passed All 7 Gates + Independent Verification</span>`
+          : `Validation: <span class="text-amber-400 font-bold">${data.status}</span>`;
+
+        const attrVerifications = out.verification_history || [];
+        if (attrVerifications.length) {
+          document.getElementById('stage3-verify-container').classList.remove('hidden');
+          document.getElementById('stage3-verify-list').innerHTML = attrVerifications.map(v => `
+            <div class="text-[10px] bg-slate-950 p-2 rounded border ${v.is_valid ? 'border-emerald-800/60' : 'border-red-800/60'}">
+              <div class="flex items-center justify-between">
+                <span class="font-mono ${v.is_valid ? 'text-emerald-400' : 'text-red-400'} font-bold">
+                  Attempt ${v.attempt}: ${v.is_valid ? 'PASSED' : 'FAILED'} (${(v.score * 100).toFixed(0)}%)
+                </span>
+                <span class="text-slate-500 font-mono">${v.verifier_model}</span>
+              </div>
+              <div class="text-slate-400 mt-0.5">${v.reason}</div>
+              ${(v.mismatches && v.mismatches.length) ? `<div class="text-amber-400 mt-0.5">Mismatches: ${v.mismatches.join(', ')}</div>` : ''}
+            </div>
+          `).join('');
+        }
       }
       else if (stageKey === "STAGE_04_DIGITISE") {
         const isDigitiseOk = data.status === "SUCCEEDED" && data.output_data.quality_score !== undefined;

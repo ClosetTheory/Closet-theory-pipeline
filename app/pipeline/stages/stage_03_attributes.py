@@ -3,10 +3,12 @@
 Extracts structured garment attributes through provider with strict 7-step validation.
 """
 
+from app.config import settings
 from app.pipeline.idempotency import compute_stage_input_hash
 from app.pipeline.stages.base import BaseStage, StageExecutionContext, StageExecutionResult
 from app.pipeline.state_machine import PipelineStage
 from app.providers.attributes import get_attribute_provider
+from app.providers.verification import verify_attributes_against_image
 from app.schemas.attributes import AttributeValidationError, validate_extracted_attributes
 
 
@@ -24,22 +26,50 @@ class Stage03Attributes(BaseStage):
         input_hash = compute_stage_input_hash(image_bytes)
 
         provider = get_attribute_provider()
+        max_retries = settings.ATTRIBUTE_MAX_RETRIES
+        verification_history = []
 
         try:
-            attributes = await provider.extract_attributes(image_bytes, image_type=ctx.garment.image_type)
+            attributes = None
+            for attempt in range(1, max_retries + 1):
+                attributes = await provider.extract_attributes(image_bytes, image_type=ctx.garment.image_type)
+
+                # Second-opinion verification (Gemini via settings.VISION_VERIFIER_MODEL — a
+                # different model/vendor than MODA_NER or GPT-4o) against the actual image:
+                # catches extraction errors invisible to the rule-based cross-field checks in
+                # validate_extracted_attributes() (e.g. a color/garment-type that's simply not
+                # what's in the photo), independent of whichever provider produced them.
+                is_match, score, reason, mismatches = await verify_attributes_against_image(image_bytes, attributes)
+                verification_history.append({
+                    "attempt": attempt,
+                    "is_valid": is_match,
+                    "score": score,
+                    "reason": reason,
+                    "mismatches": mismatches,
+                    "verifier_model": settings.VISION_VERIFIER_MODEL,
+                })
+                if is_match and score >= settings.ATTRIBUTE_VERIFICATION_THRESHOLD:
+                    break
+
             # Persist canonical attributes to garment entity
             ctx.garment.attributes_json = attributes.model_dump(mode="json")
             ctx.garment.subcategory = attributes.subcategory
 
+            last_check = verification_history[-1]
+            status = "SUCCEEDED" if (last_check["is_valid"] and last_check["score"] >= settings.ATTRIBUTE_VERIFICATION_THRESHOLD) else "REVIEW_REQUIRED"
+            output_data = attributes.model_dump(mode="json")
+            output_data["verification_history"] = verification_history
+
             return StageExecutionResult(
-                status="SUCCEEDED",
+                status=status,
                 input_refs={"image_uri": image_uri},
-                output_refs=attributes.model_dump(mode="json"),
+                output_refs=output_data,
                 input_hash=input_hash,
                 model=provider.model_name,
                 model_version=provider.model_version,
                 algorithm_version="attr_pipeline_v1",
-                quality_status="APPROVED",
+                error=None if status == "SUCCEEDED" else f"Attribute verification failed after {max_retries} attempt(s): {last_check['reason']}",
+                quality_status="APPROVED" if status == "SUCCEEDED" else "REVIEW_REQUIRED",
             )
         except AttributeValidationError as ave:
             # PRD Section 21: Attribute validation failure routed to human review
