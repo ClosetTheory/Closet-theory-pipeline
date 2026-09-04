@@ -391,9 +391,14 @@ Identify EVERY distinct garment visible (e.g. a shirt AND pants AND shoes are 3 
 entries), not just the most prominent one. person_detected is true if any part of a person
 (face, body, limbs) is visible, even partially or at an angle. Each box MUST fully contain
 the entire garment, including sleeve ends, hems, waistbands, and (for footwear) the whole
-shoe — a box that clips off part of the garment is wrong. If two garments overlap slightly
-(e.g. a jacket over a shirt), each box may include a small overlap rather than cut the other
-garment's visible edge off."""
+shoe — a box that clips off part of the garment is wrong. But each box must ALSO be tight:
+crop as close to the garment's actual edges as possible. Do NOT include the person's face,
+head, hair, skin, or other garments in a box unless that specific part of the body/other
+garment is physically behind/inside this garment's own silhouette (e.g. a coat's open front
+revealing a shirt underneath is fine to include; the person's face above the coat's collar is
+NOT). If two garments overlap slightly (e.g. a jacket over a shirt), each box may include a
+small overlap rather than cut the other garment's visible edge off, but should not extend far
+beyond the overlap."""
 
         try:
             with Image.open(io.BytesIO(image_bytes)) as img:
