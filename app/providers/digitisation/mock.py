@@ -78,6 +78,7 @@ class MockDigitisationProvider(BaseDigitisationProvider):
         original_crop_bytes: bytes,
         generated_bytes: bytes,
         attributes: GarmentAttributes,
+        garment_label: Optional[str] = None,
     ) -> Tuple[bool, float, str]:
         if self.current_attempt_count <= self.fail_attempts:
             return (

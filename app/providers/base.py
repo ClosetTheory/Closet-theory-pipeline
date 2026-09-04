@@ -79,8 +79,13 @@ class BaseDigitisationProvider(ABC):
         original_crop_bytes: bytes,
         generated_bytes: bytes,
         attributes: GarmentAttributes,
+        garment_label: Optional[str] = None,
     ) -> Tuple[bool, float, str]:
-        """Validates that generated image preserves garment color, silhouette, and details."""
+        """Validates that generated image preserves garment color, silhouette, and details.
+
+        garment_label: which garment (of possibly several visible in original_crop_bytes) is
+        being validated. None when original_crop_bytes already shows a single isolated garment.
+        """
         pass
 
 

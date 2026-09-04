@@ -56,7 +56,7 @@ class Stage04Digitise(BaseStage):
                     canonical_bytes = buf.getvalue()
 
             is_valid, quality_score, reason = await provider.validate_digitisation(
-                crop_bytes, canonical_bytes, attributes
+                crop_bytes, canonical_bytes, attributes, garment_label=garment_label
             )
             verifier_info = getattr(provider, "_last_verification", None) or {}
             verification_history.append({

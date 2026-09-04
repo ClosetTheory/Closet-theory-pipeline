@@ -263,6 +263,7 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         original_crop_bytes: bytes,
         generated_bytes: bytes,
         attributes: GarmentAttributes,
+        garment_label: Optional[str] = None,
     ) -> Tuple[bool, float, str]:
         return (
             True,

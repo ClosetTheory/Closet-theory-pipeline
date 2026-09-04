@@ -133,6 +133,7 @@ async def verify_attributes_against_image(
     attributes: GarmentAttributes,
     api_key: Optional[str] = None,
     model: str = settings.VISION_VERIFIER_MODEL,
+    garment_label: Optional[str] = None,
 ) -> Tuple[bool, float, str, List[str]]:
     """
     Stage 3 attribute verification: confirms the extracted attribute JSON actually matches
@@ -140,6 +141,12 @@ async def verify_attributes_against_image(
     structural track vs. the VLM top-up producing a "tank_top" with "three_quarter" sleeves)
     and outright hallucinated fields, independent of the rule-based consistency checks already
     in validate_extracted_attributes().
+
+    garment_label: which garment (of possibly several visible in image_bytes) the attributes
+    describe. Without this, a verifier judging the FULL photo will wrongly flag correct
+    single-garment attributes for not describing the whole outfit (confirmed live: a correct
+    "palazzo_pants" extraction was rejected as wrong because it "doesn't mention the top or
+    dupatta" — the verifier didn't know it was only ever supposed to judge the bottom).
     """
     import base64
 
@@ -151,7 +158,13 @@ async def verify_attributes_against_image(
     pattern_str = getattr(attributes.pattern, "value", str(attributes.pattern))
     fit_str = getattr(attributes.fit, "value", str(attributes.fit))
 
-    prompt_text = f"""You are a strict quality-control inspector checking whether extracted attribute data
+    focus_preamble = (
+        f"This photo shows a person wearing multiple garments. The attributes below describe ONLY "
+        f"the {garment_label} — judge them against that one garment, not the rest of the outfit.\n\n"
+        if garment_label else ""
+    )
+
+    prompt_text = focus_preamble + f"""You are a strict quality-control inspector checking whether extracted attribute data
 actually matches a garment photo.
 
 Extracted attributes: category={attributes.category}, subcategory={attributes.subcategory}, \

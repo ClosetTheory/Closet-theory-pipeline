@@ -321,6 +321,7 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         original_crop_bytes: bytes,
         generated_bytes: bytes,
         attributes: GarmentAttributes,
+        garment_label: Optional[str] = None,
     ) -> Tuple[bool, float, str]:
         """
         Real vision-based verification of the generated canonical image against the
@@ -353,7 +354,13 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
             }
             return fallback
 
-        prompt_text = f"""You are a strict quality-control inspector comparing two images of the SAME garment.
+        focus_note = (
+            f"Image 1 shows a person wearing MULTIPLE garments — judge Image 2 only against the "
+            f"{garment_label} in Image 1, ignoring every other garment/accessory in that photo.\n\n"
+            if garment_label else ""
+        )
+
+        prompt_text = focus_note + f"""You are a strict quality-control inspector comparing two images of the SAME garment.
 Image 1 is the ORIGINAL reference photo (ground truth). Image 2 is a GENERATED standardized studio image meant to depict the exact same garment in isolation.
 
 Extracted attributes for this garment (for reference, not necessarily exhaustive): type={subcategory_str}, color(s)={colors_str}, sleeve_length={sleeve_str}, pattern={pattern_str}.
