@@ -258,6 +258,16 @@ def validate_extracted_attributes(raw_input: Any, min_confidence: float = 0.5) -
     elif attributes.garment_class not in GARMENT_CLASSES:
         attributes.garment_class = infer_garment_class_from_subcategory(subcat)
 
+    # Cross-field consistency: extraction providers score each field somewhat independently
+    # (e.g. MODA_NER's structural track vs. the VLM top-up), which can produce a subcategory
+    # and sleeve_length that contradict each other — a "tank_top" is sleeveless by definition,
+    # so a co-extracted "three_quarter" sleeve_length is simply wrong, not a real variant. The
+    # subcategory is the more reliable signal here (it's what a human actually asked for /
+    # would visually recognize), so it wins when the two disagree.
+    SLEEVELESS_SUBCATEGORIES = {"tank_top", "tube_top"}
+    if subcat in SLEEVELESS_SUBCATEGORIES and attributes.sleeve_length != SleeveLengthEnum.SLEEVELESS:
+        attributes.sleeve_length = SleeveLengthEnum.SLEEVELESS
+
     # Step 7: Confidence checks
     if attributes.confidence is not None and attributes.confidence < min_confidence:
         raise AttributeValidationError(
