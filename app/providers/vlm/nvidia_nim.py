@@ -29,7 +29,9 @@ class NvidiaNimProvider(BaseAttributeExtractorProvider, BaseVLMProvider):
         self.base_url = base_url.rstrip("/")
         self.model_version = "v1"
 
-    async def extract_attributes(self, image_bytes: bytes) -> GarmentAttributes:
+    async def extract_attributes(
+        self, image_bytes: bytes, image_type: Optional[str] = None, garment_label: Optional[str] = None
+    ) -> GarmentAttributes:
         """Extracts structured garment attributes from image bytes using NVIDIA NIM."""
         if not self.api_key:
             # Smart local vision fallback when no key is set

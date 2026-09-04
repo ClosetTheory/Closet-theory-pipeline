@@ -92,6 +92,7 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         crop_bytes: bytes,
         attributes: GarmentAttributes,
         attempt: int = 1,
+        garment_label: Optional[str] = None,
     ) -> DigitisationResult:
         prompt, negative_prompt = self.build_prompt(attributes)
         self._last_prompt = prompt

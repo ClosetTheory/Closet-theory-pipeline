@@ -45,7 +45,7 @@ class ModaNerAttributeExtractorProvider(BaseAttributeExtractorProvider):
         )
 
     async def extract_attributes(
-        self, image_bytes: bytes, image_type: Optional[str] = None
+        self, image_bytes: bytes, image_type: Optional[str] = None, garment_label: Optional[str] = None
     ) -> GarmentAttributes:
         track = _IMAGE_TYPE_TO_TRACK.get((image_type or "").upper(), "crop")
 

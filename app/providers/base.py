@@ -38,13 +38,18 @@ class BaseAttributeExtractorProvider(ABC):
 
     @abstractmethod
     async def extract_attributes(
-        self, image_bytes: bytes, image_type: Optional[str] = None
+        self, image_bytes: bytes, image_type: Optional[str] = None, garment_label: Optional[str] = None
     ) -> GarmentAttributes:
         """Extract structured attributes conforming to the 7-step validation pipeline.
 
         image_type: one of "CATALOG" | "CROP" | "FULL_BODY" (from Stage 1 classification),
         when available. VLM-based providers infer framing from the image itself and may
         ignore it; MODA_NER uses it to select the matching track.
+
+        garment_label: which garment (of possibly several visible in image_bytes) to focus
+        on, e.g. "outerwear" or "the white tank top worn underneath". None when image_bytes
+        already shows a single isolated garment (catalog/crop images). Providers that can't
+        be steered per-garment may ignore it.
         """
         pass
 
@@ -58,8 +63,14 @@ class BaseDigitisationProvider(ABC):
         crop_bytes: bytes,
         attributes: GarmentAttributes,
         attempt: int = 1,
+        garment_label: Optional[str] = None,
     ) -> DigitisationResult:
-        """Generate standardized clean canonical garment representation."""
+        """Generate standardized clean canonical garment representation.
+
+        garment_label: which garment (of possibly several visible in crop_bytes) to isolate
+        and reproduce, e.g. "outerwear". None when crop_bytes already shows a single isolated
+        garment. Providers that can't be steered per-garment may ignore it.
+        """
         pass
 
     @abstractmethod

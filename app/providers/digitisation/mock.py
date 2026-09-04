@@ -1,7 +1,7 @@
 """Mock / Test Provider for FLUX.2 Digitisation with Validation Loop."""
 
 import io
-from typing import Tuple
+from typing import Optional, Tuple
 from PIL import Image, ImageDraw
 from app.config import settings
 from app.providers.base import BaseDigitisationProvider
@@ -32,6 +32,7 @@ class MockDigitisationProvider(BaseDigitisationProvider):
         crop_bytes: bytes,
         attributes: GarmentAttributes,
         attempt: int = 1,
+        garment_label: Optional[str] = None,
     ) -> DigitisationResult:
         self.current_attempt_count = attempt
 

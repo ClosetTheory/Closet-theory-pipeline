@@ -35,6 +35,13 @@ class Garment(Base, TimestampMixin):
         nullable=False,
     )
 
+    # Which garment (of possibly several in the same source photo) this record represents,
+    # e.g. "outerwear" / "top" / "footwear" — from Stage 2's detection call. Stage 3/4 use it
+    # to tell the model which garment to isolate within the full photo, since garment_crop_refs
+    # now always points at the same full source image rather than a physical per-garment crop.
+    # None for catalog/single-garment images, where there's no ambiguity to resolve.
+    detected_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
     category: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     subcategory: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     garment_class: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
