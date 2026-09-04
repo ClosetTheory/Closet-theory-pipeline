@@ -5,6 +5,7 @@ Localizes faces, isolates garment regions, generates clean crops, creates visual
 
 import io
 from PIL import Image, ImageDraw
+from sqlalchemy import select
 from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
 from app.pipeline.idempotency import compute_stage_input_hash
@@ -114,7 +115,21 @@ class Stage02Crop(BaseStage):
         # session try to load a row that isn't durable yet. See PipelineOrchestrator.run().
         ctx.garment.garment_crop_refs = crop_refs[:1]
         spawned_garment_ids = []
+
+        # Idempotency: re-running this stage (e.g. a retry/force re-run, or the live-demo
+        # /step endpoint being invoked twice) must not spawn a second batch of duplicate
+        # siblings for regions already split out. Crop URIs are deterministic (derived from
+        # this garment's own id + label + index), so an existing sibling with the same crop
+        # ref is the same detected region, not a new one.
+        existing_siblings_stmt = select(Garment.garment_crop_refs).where(
+            Garment.source_image_id == ctx.garment.source_image_id,
+            Garment.id != ctx.garment.id,
+        )
+        existing_refs = {ref for (refs,) in (await ctx.session.execute(existing_siblings_stmt)).all() if refs for ref in refs}
+
         for sibling_crop_uri in crop_refs[1:]:
+            if sibling_crop_uri in existing_refs:
+                continue
             sibling = Garment(
                 tenant_id=ctx.garment.tenant_id,
                 member_id=ctx.garment.member_id,
