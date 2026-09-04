@@ -49,15 +49,12 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: Optional[str] = None
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = "openai/gpt-4o"
-    OPENROUTER_GENAI_MODEL: str = "openai/dall-e-3"
     OPENROUTER_IMAGE_MODEL: str = "openai/gpt-image-2"
 
     # NVIDIA NIM API Configuration
     NVIDIA_API_KEY: Optional[str] = None
     NVIDIA_VLM_MODEL: str = "meta/llama-3.2-11b-vision-instruct"
     NVIDIA_VLM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
-    NVIDIA_GENAI_MODEL: str = "black-forest-labs/flux.1-schnell"
-    NVIDIA_GENAI_BASE_URL: str = "https://ai.api.nvidia.com/v1/genai"
 
     # Stage 2: Detection & Garment Crop (OpenCV / RetinaFace + SAM)
     DETECTION_PROVIDER: str = "opencv"  # "opencv" | "retina_sam" | "mock"

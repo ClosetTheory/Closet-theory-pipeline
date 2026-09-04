@@ -142,8 +142,10 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
             "Content-Type": "application/json",
         }
 
-        # Strictly use gpt image 2
-        models_to_try = ["openai/gpt-image-2", "openai/gpt-5.4-image-2"]
+        # settings.OPENROUTER_IMAGE_MODEL is the single source of truth for which image model
+        # to try first (same setting the styling outfit-imaging provider uses); the second
+        # entry is a fixed fallback if that model is ever unavailable.
+        models_to_try = [settings.OPENROUTER_IMAGE_MODEL, "openai/gpt-5.4-image-2"]
 
         # Base64 encode the reference crop image for image-to-image conditioning
         b64_image = base64.b64encode(crop_bytes).decode("utf-8")

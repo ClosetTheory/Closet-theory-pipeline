@@ -8,18 +8,6 @@ services:
       - "8000:8000"
     env_file:
       - .env
-    environment:
-      - ENV=development
-      - DEBUG=true
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/wardrobe
-      - STORAGE_BACKEND=s3
-      - S3_ENDPOINT_URL=http://minio:9000
-      - S3_ACCESS_KEY_ID=minioadmin
-      - S3_SECRET_ACCESS_KEY=minioadmin
-      - S3_BUCKET_NAME=wardrobe-assets
-      - S3_REGION=us-east-1
-      - REDIS_URL=redis://redis:6379/0
-      - USE_IN_MEMORY_QUEUE=false
     depends_on:
       postgres:
         condition: service_healthy
@@ -34,18 +22,6 @@ services:
     container_name: pipeline_worker
     env_file:
       - .env
-    environment:
-      - ENV=development
-      - DEBUG=true
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/wardrobe
-      - STORAGE_BACKEND=s3
-      - S3_ENDPOINT_URL=http://minio:9000
-      - S3_ACCESS_KEY_ID=minioadmin
-      - S3_SECRET_ACCESS_KEY=minioadmin
-      - S3_BUCKET_NAME=wardrobe-assets
-      - S3_REGION=us-east-1
-      - REDIS_URL=redis://redis:6379/0
-      - USE_IN_MEMORY_QUEUE=false
     depends_on:
       postgres:
         condition: service_healthy
