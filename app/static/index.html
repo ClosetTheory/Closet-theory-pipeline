@@ -166,9 +166,9 @@
                 <span id="stage2-p1" class="text-[10px] text-slate-600 font-mono">Overlay</span>
               </div>
               <div class="bg-slate-950 rounded-xl flex flex-col items-center justify-center overflow-hidden border border-slate-800 relative">
-                <img id="stage2-crop-img" src="" alt="Garment Crop" class="h-full w-full object-contain p-1 hidden">
-                <span id="stage2-crop-label" class="text-[9px] text-emerald-400 absolute bottom-1 font-mono hidden">Extracted Crop</span>
-                <span id="stage2-p2" class="text-[10px] text-slate-600 font-mono">Crop</span>
+                <img id="stage2-crop-img" src="" alt="Full Photo + Label" class="h-full w-full object-contain p-1 hidden">
+                <span id="stage2-crop-label" class="text-[9px] text-emerald-400 absolute bottom-1 font-mono hidden">Full Photo (this garment's region labeled)</span>
+                <span id="stage2-p2" class="text-[10px] text-slate-600 font-mono">Full Photo</span>
               </div>
             </div>
             <div id="stage2-all-crops" class="hidden grid grid-cols-4 gap-1.5"></div>
@@ -777,22 +777,23 @@
 
         document.getElementById('stage2-data').innerHTML = `
           <div>Person Detected: <span class="text-emerald-400 font-bold">${data.output_data.person_detected}</span></div>
-          <div>Crops Extracted: <span class="text-blue-400 font-bold">${(data.output_data.garment_crop_refs || []).length} region(s)</span></div>
+          <div>Regions Detected: <span class="text-blue-400 font-bold">${(data.output_data.detected_labels || []).length} garment(s)</span> <span class="text-slate-500">(no pixel crop — full photo + label sent downstream)</span></div>
           ${spawnedLinks}
         `;
 
-        // Show every detected region's crop, not just this garment's own — the #1 label is
-        // this garment (kept above as "Extracted Crop"); #2, #3... are the spawned siblings,
-        // each clickable through to its own (separately processing) garment page.
-        const allCropUrls = arts.all_crop_urls || [];
+        // Every detected garment (this one + every spawned sibling) shares the SAME full
+        // photo — no distinct crop image exists anymore (replaces the old per-region
+        // "Extracted Crop" thumbnails). Show one thumbnail per detected label so it's still
+        // clear how many garments were split out of this photo.
+        const detectedLabels = data.output_data.detected_labels || [];
+        const sameFullPhotoUrl = arts.crop_image_url;
         const allCropsEl = document.getElementById('stage2-all-crops');
-        if (allCropUrls.length > 1) {
+        if (detectedLabels.length > 1) {
           allCropsEl.classList.remove('hidden');
-          allCropsEl.innerHTML = allCropUrls.map((url, i) => {
-            const label = i === 0 ? 'this garment' : `#${i + 1}`;
+          allCropsEl.innerHTML = detectedLabels.map((label, i) => {
             const href = i === 0 ? null : (spawnedIds[i - 1] ? `/garment?id=${encodeURIComponent(spawnedIds[i - 1])}` : null);
-            const inner = `<img src="${url}" class="w-full h-16 object-cover rounded-lg border border-slate-800" alt="${label}">
-                           <span class="text-[8px] text-slate-500 font-mono block text-center mt-0.5">${label}</span>`;
+            const inner = `<img src="${sameFullPhotoUrl}" class="w-full h-16 object-cover rounded-lg border border-slate-800" alt="${label}">
+                           <span class="text-[8px] text-slate-500 font-mono block text-center mt-0.5">${i === 0 ? 'this garment' : `#${i + 1}`}: ${label}</span>`;
             return href
               ? `<a href="${href}" target="_blank">${inner}</a>`
               : `<div>${inner}</div>`;
@@ -806,14 +807,14 @@
           pollOtherGarments(spawnedIds);
         }
 
-        const cropVerifications = data.output_data.crop_verifications || [];
-        if (cropVerifications.length) {
+        const regionVerifications = data.output_data.region_verifications || [];
+        if (regionVerifications.length) {
           document.getElementById('stage2-verify-container').classList.remove('hidden');
-          document.getElementById('stage2-verify-list').innerHTML = cropVerifications.map(v => `
+          document.getElementById('stage2-verify-list').innerHTML = regionVerifications.map(v => `
             <div class="text-[10px] bg-slate-950 p-2 rounded border ${v.kept ? (v.is_valid ? 'border-emerald-800/60' : 'border-amber-700/60') : 'border-red-800/60'}">
               <div class="flex items-center justify-between">
                 <span class="font-mono ${v.is_valid ? 'text-emerald-400' : (v.kept ? 'text-amber-400' : 'text-red-400')} font-bold">
-                  Region #${v.index + 1} (${v.label}): ${v.is_valid ? 'PASSED' : (v.kept ? 'FLAGGED (kept — primary crop)' : 'DROPPED')} (${(v.score * 100).toFixed(0)}%)
+                  Region #${v.index + 1} (${v.label}): ${v.is_valid ? 'PASSED' : (v.kept ? 'FLAGGED (kept — primary garment)' : 'DROPPED')} (${(v.score * 100).toFixed(0)}%)
                 </span>
                 <span class="text-slate-500 font-mono">google/gemini-2.5-flash</span>
               </div>
