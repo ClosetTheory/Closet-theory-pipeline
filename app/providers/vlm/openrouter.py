@@ -383,7 +383,8 @@ FULL_BODY: a person wearing the garment is visible, showing most/all of their bo
   "face_box": [x1, y1, x2, y2] as fractions 0.0-1.0 of image width/height, or null,
   "garments": [
     {"label": "top" | "bottom" | "outerwear" | "footwear" | "one_piece" | "accessory",
-     "box": [x1, y1, x2, y2] as fractions 0.0-1.0 of image width/height}
+     "box": [x1, y1, x2, y2] as fractions 0.0-1.0 of image width/height,
+     "confidence": 0.0-1.0}
   ]
 }
 
@@ -398,7 +399,10 @@ garment is physically behind/inside this garment's own silhouette (e.g. a coat's
 revealing a shirt underneath is fine to include; the person's face above the coat's collar is
 NOT). If two garments overlap slightly (e.g. a jacket over a shirt), each box may include a
 small overlap rather than cut the other garment's visible edge off, but should not extend far
-beyond the overlap."""
+beyond the overlap. Be honest about confidence: if a body part (e.g. feet, waist) is barely
+visible, cropped out of frame, in shadow, or obscured, give that entry LOW confidence (below
+0.5) rather than guessing a specific garment type for something you can't actually see clearly
+— do not report a garment "for completeness" if you aren't actually confident it's there."""
 
         try:
             with Image.open(io.BytesIO(image_bytes)) as img:
@@ -420,10 +424,15 @@ beyond the overlap."""
             try:
                 data = json.loads(content)
                 garments_raw = data.get("garments") or []
+                # Discard low-confidence entries — a region the model itself wasn't sure about
+                # (e.g. feet cropped out of frame) becomes a blank/uninformative crop that Stage
+                # 3 then has to guess a garment identity for from nothing, producing a
+                # confidently-wrong result (a "belt" hallucinated from an empty patch of ground).
+                # Defaults to 1.0 (kept) for providers/prompts that don't return a confidence.
                 regions = [
                     GarmentRegion(label=str(g["label"]), box=_to_pixels(g["box"]))
                     for g in garments_raw
-                    if g.get("box")
+                    if g.get("box") and float(g.get("confidence", 1.0)) >= 0.5
                 ]
                 person_detected = bool(data.get("person_detected"))
                 face_box = _to_pixels(data["face_box"]) if data.get("face_box") else None
