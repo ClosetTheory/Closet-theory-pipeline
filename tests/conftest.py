@@ -32,6 +32,23 @@ def anyio_backend():
     return "asyncio"
 
 
+@pytest.fixture(autouse=True)
+async def _reset_worker_queue_singletons():
+    """app.worker.queue keeps its in-memory queue/worker-task as module-level singletons
+    (by design, for lightweight standalone/local execution — see that module's docstring).
+    pytest-asyncio gives each test its own event loop, so a singleton bound to one test's
+    loop by an earlier enqueue_garment_pipeline() call would break (or hang) a later test
+    that tries to reuse it. Reset them before every test so each gets a fresh queue/task
+    bound to its own loop."""
+    import app.worker.queue as queue_module
+
+    if queue_module._worker_task is not None and not queue_module._worker_task.done():
+        queue_module._worker_task.cancel()
+    queue_module._worker_task = None
+    queue_module._in_memory_queue = None
+    yield
+
+
 @pytest.fixture
 def test_storage(tmp_path):
     """Provides an isolated LocalStorageClient rooted in a temp directory."""
