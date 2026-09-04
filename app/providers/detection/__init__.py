@@ -9,6 +9,14 @@ from app.providers.detection.retina_sam import RetinaSAMDetectionProvider
 
 def get_detection_provider() -> BaseDetectionProvider:
     provider_name = settings.DETECTION_PROVIDER.lower()
+    if provider_name == "openrouter":
+        from app.providers.vlm.openrouter import OpenRouterGPTProvider
+
+        return OpenRouterGPTProvider(
+            api_key=settings.OPENROUTER_API_KEY,
+            model_name=settings.OPENROUTER_MODEL,
+            base_url=settings.OPENROUTER_BASE_URL,
+        )
     if provider_name == "opencv":
         return OpenCVDetectorProvider(
             model_name=settings.DETECTION_MODEL_NAME,

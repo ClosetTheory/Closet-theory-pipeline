@@ -12,13 +12,14 @@ from app.observability import logger
 from app.providers.base import (
     BaseAttributeExtractorProvider,
     BaseClassifierProvider,
+    BaseDetectionProvider,
     BaseRequestNormalizerProvider,
     BaseSemanticValidatorProvider,
     BaseVisualValidatorProvider,
     BaseVLMProvider,
 )
 from app.schemas.attributes import GarmentAttributes, validate_extracted_attributes
-from app.schemas.pipeline import ClassificationResult, ImageType
+from app.schemas.pipeline import ClassificationResult, DetectionResult, GarmentRegion, ImageType
 from app.schemas.styling import (
     GarmentSummary,
     OutfitCandidate,
@@ -42,6 +43,7 @@ class OpenRouterGPTProvider(
     BaseSemanticValidatorProvider,
     BaseVisualValidatorProvider,
     BaseClassifierProvider,
+    BaseDetectionProvider,
 ):
     """
     OpenRouter multimodal integration for GPT-4o and other OpenAI models.
@@ -369,6 +371,80 @@ FULL_BODY: a person wearing the garment is visible, showing most/all of their bo
 
         from app.providers.classifier.mock import MockClassifierProvider
         return await MockClassifierProvider(model_name=self.model_name, model_version=self.model_version).classify(image_bytes)
+
+    async def detect_and_crop(self, image_bytes: bytes) -> DetectionResult:
+        """Stage 2: real vision-model person/garment detection (replaces the Haar-cascade
+        heuristic in app/providers/detection/opencv_detector.py, which is still used as the
+        fallback here). Identifies every distinct garment in the photo — not just one or two
+        anatomical guesses — so Stage02Crop can spawn each as its own Garment record."""
+        prompt_text = """Analyze this fashion/garment photo. Output ONLY JSON:
+{
+  "person_detected": true | false,
+  "face_box": [x1, y1, x2, y2] as fractions 0.0-1.0 of image width/height, or null,
+  "garments": [
+    {"label": "top" | "bottom" | "outerwear" | "footwear" | "one_piece" | "accessory",
+     "box": [x1, y1, x2, y2] as fractions 0.0-1.0 of image width/height}
+  ]
+}
+
+Identify EVERY distinct garment visible (e.g. a shirt AND pants AND shoes are 3 separate
+entries), not just the most prominent one. person_detected is true if any part of a person
+(face, body, limbs) is visible, even partially or at an angle."""
+
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as img:
+                img_w, img_h = img.size
+        except Exception:
+            img_w, img_h = 1, 1
+
+        def _to_pixels(box: List[float]) -> List[int]:
+            x1, y1, x2, y2 = box
+            return [
+                max(0, min(img_w, int(x1 * img_w))),
+                max(0, min(img_h, int(y1 * img_h))),
+                max(0, min(img_w, int(x2 * img_w))),
+                max(0, min(img_h, int(y2 * img_h))),
+            ]
+
+        content = await self._vision_chat_json(prompt_text, image_bytes, max_tokens=500)
+        if content:
+            try:
+                data = json.loads(content)
+                garments_raw = data.get("garments") or []
+                regions = [
+                    GarmentRegion(label=str(g["label"]), box=_to_pixels(g["box"]))
+                    for g in garments_raw
+                    if g.get("box")
+                ]
+                person_detected = bool(data.get("person_detected"))
+                face_box = _to_pixels(data["face_box"]) if data.get("face_box") else None
+
+                if regions:
+                    return DetectionResult(
+                        person_detected=person_detected,
+                        face_box=face_box,
+                        garment_regions=regions,
+                        model=self.model_name,
+                        model_version=self.model_version,
+                    )
+                if not person_detected:
+                    # Genuinely no person/garment found (e.g. a truly empty/unreadable photo) —
+                    # trust the real model's negative rather than falling back to a heuristic.
+                    return DetectionResult(
+                        person_detected=False,
+                        face_box=None,
+                        garment_regions=[],
+                        model=self.model_name,
+                        model_version=self.model_version,
+                    )
+                # Model saw a person but couldn't segment individual garments — fall through
+                # to the heuristic below, which can still derive a reasonable region from a
+                # detected face.
+            except Exception as e:
+                logger.warning(f"Detection result parse failed: {e}. Falling back to heuristic.")
+
+        from app.providers.detection.opencv_detector import OpenCVDetectorProvider
+        return await OpenCVDetectorProvider(model_name=self.model_name, model_version=self.model_version).detect_and_crop(image_bytes)
 
     async def validate_image(
         self,

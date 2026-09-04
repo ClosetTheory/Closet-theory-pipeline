@@ -4,7 +4,7 @@ import io
 from PIL import Image
 from app.config import settings
 from app.providers.base import BaseClassifierProvider
-from app.providers.detection import get_detection_provider
+from app.providers.detection.opencv_detector import OpenCVDetectorProvider
 from app.schemas.pipeline import ClassificationResult, ImageType
 
 
@@ -14,9 +14,11 @@ class MockClassifierProvider(BaseClassifierProvider):
     delegates to this same class). Aspect ratio alone is a poor signal: most real photos
     (portrait phone shots, standard 4:3/3:2 crops) land in a "tall-ish" band regardless of
     whether they actually show a person, so a pure ratio threshold misclassifies the large
-    majority of uploads as CROP. Instead, this reuses the same face/person detector Stage 2
-    already has (app.providers.detection) as the primary signal for FULL_BODY — a photo with
-    a detected person is a full-body/on-model shot regardless of its exact aspect ratio.
+    majority of uploads as CROP. Instead, this uses a local, deterministic, zero-cost face
+    check (OpenCVDetectorProvider — not the globally-configured detection provider, which may
+    be a real paid API call; a class named "Mock" must stay safe to call with zero network
+    dependency regardless of DETECTION_PROVIDER) as the primary signal for FULL_BODY — a photo
+    with a detected face is a full-body/on-model shot regardless of its exact aspect ratio.
     Aspect ratio is only used as a fallback to distinguish CATALOG vs CROP among the
     remaining (person-less) images.
     """
@@ -43,7 +45,7 @@ class MockClassifierProvider(BaseClassifierProvider):
             )
 
         try:
-            detection = await get_detection_provider().detect_and_crop(image_bytes)
+            detection = await OpenCVDetectorProvider().detect_and_crop(image_bytes)
         except Exception:
             detection = None
 

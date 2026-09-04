@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     NVIDIA_VLM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
 
     # Stage 2: Detection & Garment Crop (OpenCV / RetinaFace + SAM)
-    DETECTION_PROVIDER: str = "opencv"  # "opencv" | "retina_sam" | "mock"
+    DETECTION_PROVIDER: str = "openrouter"  # "openrouter" | "opencv" | "retina_sam" | "mock"
     DETECTION_MODEL_NAME: str = "OpenCV-Haar+SAM"
     DETECTION_MODEL_VERSION: str = "v1"
 
