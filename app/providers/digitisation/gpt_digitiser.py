@@ -43,7 +43,7 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         self.verifier_model_name: str = settings.DIGITISATION_VERIFIER_MODEL
         self._last_verification: Optional[dict] = None
 
-    def build_prompt(self, attributes: GarmentAttributes) -> Tuple[str, str]:
+    def build_prompt(self, attributes: GarmentAttributes, garment_label: Optional[str] = None) -> Tuple[str, str]:
         """
         Builds a 1:1-preservation e-commerce catalogue product-shot prompt from the real
         extracted attributes only. Never invents specifics for a field the extractor didn't
@@ -109,9 +109,23 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
             "hem shape) must match the reference photo exactly — do not invent additional features."
         )
 
+        # When the reference photo shows multiple garments (garment_label set), tell the model
+        # which one to isolate — tested this session to produce far more faithful renders than
+        # pixel-cropping first, since the model keeps the garment's true proportions/drape
+        # instead of reconstructing them from a small/degraded crop.
+        reference_instruction = (
+            f"The reference photo shows a person wearing MULTIPLE garments/accessories. Isolate and reproduce "
+            f"ONLY the {garment_label} — ignore every other garment, accessory, and the person entirely. "
+            f"Use that garment in the reference photo as the ground truth for its real appearance — reproduce it "
+            f"faithfully, do not substitute a generic or different item."
+            if garment_label else
+            "Use the provided reference photo as the ground truth for this exact garment's real appearance — "
+            "reproduce it faithfully, do not substitute a generic or different item."
+        )
+
         positive_prompt = f"""Commercial e-commerce product photograph of a {subcategory_str}, centered on a solid dark charcoal studio background (#161922). \
 The garment floats with natural three-dimensional volume and shape, exactly as if being worn, but with no visible body, support structure, or object holding it up. \
-Use the provided reference photo as the ground truth for this exact garment's real appearance — reproduce it faithfully, do not substitute a generic or different item.
+{reference_instruction}
 
 ### Exact Garment Identity (1:1 Preservation — Highest Priority):
 {chr(10).join(identity_lines)}
@@ -142,8 +156,9 @@ Use the provided reference photo as the ground truth for this exact garment's re
         crop_bytes: bytes,
         attributes: GarmentAttributes,
         attempt: int = 1,
+        garment_label: Optional[str] = None,
     ) -> DigitisationResult:
-        prompt, negative_prompt = self.build_prompt(attributes)
+        prompt, negative_prompt = self.build_prompt(attributes, garment_label=garment_label)
         self._last_prompt = prompt
         self._last_negative_prompt = negative_prompt
 
