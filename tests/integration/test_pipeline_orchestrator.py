@@ -30,7 +30,7 @@ async def test_full_pipeline_run_to_completion(
         lambda: MockAttributeExtractorProvider(),
     )
 
-    async def _mock_verify_attributes(image_bytes, attributes, api_key=None, model=None):
+    async def _mock_verify_attributes(image_bytes, attributes, api_key=None, model=None, garment_label=None):
         return True, 1.0, "Mocked verifier: orchestrator-mechanics test, not vision accuracy.", []
 
     monkeypatch.setattr(

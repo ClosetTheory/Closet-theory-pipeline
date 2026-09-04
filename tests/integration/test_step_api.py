@@ -19,7 +19,7 @@ async def test_step_by_step_execution_flow(client: AsyncClient, auth_headers, sa
         lambda: MockAttributeExtractorProvider(),
     )
 
-    async def _mock_verify_attributes(image_bytes, attributes, api_key=None, model=None):
+    async def _mock_verify_attributes(image_bytes, attributes, api_key=None, model=None, garment_label=None):
         return True, 1.0, "Mocked verifier: API wiring test, not vision accuracy.", []
 
     monkeypatch.setattr(
