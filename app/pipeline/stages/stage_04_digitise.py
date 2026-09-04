@@ -38,6 +38,7 @@ class Stage04Digitise(BaseStage):
         last_error = None
         last_result = None
         canonical_bytes = None
+        verification_history = []
 
         for attempt in range(1, max_retries + 1):
             digit_res = await provider.digitise(crop_bytes, attributes, attempt=attempt)
@@ -57,6 +58,15 @@ class Stage04Digitise(BaseStage):
             is_valid, quality_score, reason = await provider.validate_digitisation(
                 crop_bytes, canonical_bytes, attributes
             )
+            verifier_info = getattr(provider, "_last_verification", None) or {}
+            verification_history.append({
+                "attempt": attempt,
+                "is_valid": is_valid,
+                "score": quality_score,
+                "reason": reason,
+                "mismatches": verifier_info.get("mismatches", []),
+                "verifier_model": verifier_info.get("model", "unknown"),
+            })
 
             if is_valid and quality_score >= quality_threshold:
                 accepted = True
@@ -70,7 +80,7 @@ class Stage04Digitise(BaseStage):
             return StageExecutionResult(
                 status="REVIEW_REQUIRED",
                 input_refs={"crop_uri": crop_uri},
-                output_refs={"attempts": max_retries, "reason": last_error},
+                output_refs={"attempts": max_retries, "reason": last_error, "verification_history": verification_history},
                 input_hash=input_hash,
                 model=provider.model_name,
                 model_version=provider.model_version,
@@ -116,6 +126,7 @@ class Stage04Digitise(BaseStage):
                 "attempts": last_result.attempts,
                 "prompt": prompt,
                 "negative_prompt": negative_prompt,
+                "verification_history": verification_history,
             },
             input_hash=input_hash,
             model=last_result.model,

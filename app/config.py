@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     DIGITISATION_PROMPT_VERSION: str = "prompt_v1"
     DIGITISATION_MAX_RETRIES: int = 3
     DIGITISATION_QUALITY_THRESHOLD: float = 0.75
+    # Verification must use a genuinely different vendor than the generator (openai/gpt-image-2,
+    # openai/gpt-5.4-image-2) so the check isn't blind to the same model's own failure modes.
+    DIGITISATION_VERIFIER_MODEL: str = "google/gemini-2.5-flash"
 
     # Stage 5: Image Embedding (MODA SigLIP Distilled)
     EMBEDDING_PROVIDER: str = "mock"  # "siglip" | "mock"

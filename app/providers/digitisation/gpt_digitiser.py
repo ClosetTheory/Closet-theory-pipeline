@@ -2,6 +2,8 @@
 
 import base64
 import io
+import json
+import re
 from typing import Optional, Tuple
 import cv2
 import httpx
@@ -38,6 +40,8 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         self._last_prompt: str = ""
         self._last_negative_prompt: str = ""
         self._active_model: str = "GPT-Studio-Segmenter-v1"
+        self.verifier_model_name: str = settings.DIGITISATION_VERIFIER_MODEL
+        self._last_verification: Optional[dict] = None
 
     def build_prompt(self, attributes: GarmentAttributes) -> Tuple[str, str]:
         """
@@ -303,8 +307,106 @@ Use the provided reference photo as the ground truth for this exact garment's re
         generated_bytes: bytes,
         attributes: GarmentAttributes,
     ) -> Tuple[bool, float, str]:
-        return (
+        """
+        Real vision-based verification of the generated canonical image against the
+        original reference crop and the extracted attributes.
+
+        Deliberately calls a different model/vendor (settings.DIGITISATION_VERIFIER_MODEL,
+        default a Gemini model) than whatever generated the image (openai/gpt-image-2 or
+        openai/gpt-5.4-image-2) — a verifier built on the same model family shares the same
+        blind spots as the generator, so it would tend to rubber-stamp exactly the failure
+        modes (wrong garment, hallucinated details, dropped sleeves, etc.) it should catch.
+        """
+        subcategory_str = (attributes.subcategory or attributes.category or "garment").replace("_", " ")
+        colors_str = ", ".join(attributes.colour) if attributes.colour else "unspecified"
+        sleeve_str = getattr(attributes.sleeve_length, "value", str(attributes.sleeve_length)) if attributes.sleeve_length else "not_applicable"
+        pattern_str = getattr(attributes.pattern, "value", str(attributes.pattern)) if attributes.pattern else "solid"
+
+        fallback = (
             True,
-            0.96,
-            "Validation successful: Standardized canonical studio image synthesized.",
+            0.9,
+            "Verifier unavailable (no API key or call failed): accepted without model-based comparison.",
         )
+
+        if not self.api_key:
+            self._last_verification = {
+                "model": self.verifier_model_name,
+                "is_valid": fallback[0],
+                "score": fallback[1],
+                "reason": fallback[2],
+                "mismatches": [],
+            }
+            return fallback
+
+        prompt_text = f"""You are a strict quality-control inspector comparing two images of the SAME garment.
+Image 1 is the ORIGINAL reference photo (ground truth). Image 2 is a GENERATED standardized studio image meant to depict the exact same garment in isolation.
+
+Extracted attributes for this garment (for reference, not necessarily exhaustive): type={subcategory_str}, color(s)={colors_str}, sleeve_length={sleeve_str}, pattern={pattern_str}.
+
+Check whether Image 2 faithfully preserves Image 1's garment: same garment type/category, same color(s), same sleeve length (e.g. do not accept long sleeves if the reference is sleeveless, or vice versa), same silhouette/pattern, and no hallucinated details (logos, text, pockets, accessories) that are not visible in Image 1. Minor differences in pose, lighting, or background are fine and expected — only flag differences in the garment ITSELF.
+
+Output ONLY raw JSON, no markdown:
+{{"is_match": true|false, "score": 0.0-1.0, "mismatches": ["short phrase per mismatch, empty list if none"], "reason": "one sentence verdict"}}"""
+
+        b64_original = base64.b64encode(original_crop_bytes).decode("utf-8")
+        b64_generated = base64.b64encode(generated_bytes).decode("utf-8")
+
+        payload = {
+            "model": self.verifier_model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt_text},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_original}"}},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_generated}"}},
+                    ],
+                }
+            ],
+            "max_tokens": 400,
+            "temperature": 0.0,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "Wardrobe Ingestion Pipeline",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                resp = await client.post(
+                    f"{settings.OPENROUTER_BASE_URL}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
+                resp.raise_for_status()
+                content = resp.json()["choices"][0]["message"]["content"].strip()
+                json_match = re.search(r"\{.*\}", content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(0)
+                parsed = json.loads(content)
+
+                is_match = bool(parsed.get("is_match", False))
+                score = float(parsed.get("score", 0.0))
+                mismatches = parsed.get("mismatches", []) or []
+                reason = parsed.get("reason", "No reason provided.")
+
+                self._last_verification = {
+                    "model": self.verifier_model_name,
+                    "is_valid": is_match,
+                    "score": score,
+                    "reason": reason,
+                    "mismatches": mismatches,
+                }
+                return is_match, score, reason
+        except Exception as e:
+            logger.warning(f"Digitisation verifier ({self.verifier_model_name}) call failed: {e}")
+            self._last_verification = {
+                "model": self.verifier_model_name,
+                "is_valid": fallback[0],
+                "score": fallback[1],
+                "reason": f"Verifier call failed ({e}); accepted without model-based comparison.",
+                "mismatches": [],
+            }
+            return fallback

@@ -214,6 +214,11 @@
               </div>
               <div id="stage4-prompt-text" class="text-[10px] text-slate-300 bg-slate-950 p-2 rounded border border-slate-800 max-h-20 overflow-y-auto font-sans leading-relaxed"></div>
             </div>
+            <!-- Verification (different-model check) Display Box -->
+            <div id="stage4-verify-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
+              <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Verification (independent model)</span>
+              <div id="stage4-verify-list" class="space-y-1"></div>
+            </div>
           </div>
 
           <!-- Other garments found in the same photo (multi-garment split) -->
@@ -808,19 +813,44 @@
         `;
       }
       else if (stageKey === "STAGE_04_DIGITISE") {
+        const isDigitiseOk = data.status === "SUCCEEDED" && data.output_data.quality_score !== undefined;
         const canImg = document.getElementById('stage4-canonical-img');
-        canImg.src = arts.canonical_image_url;
-        canImg.classList.remove('hidden');
         document.getElementById('stage4-placeholder').classList.add('hidden');
 
-        document.getElementById('stage4-data').innerHTML = `
-          <div>Quality Score: <span class="text-emerald-400 font-bold">${(data.output_data.quality_score * 100).toFixed(0)}%</span></div>
-          <div>Renderer: <span class="text-blue-400 font-bold">${data.model || 'FLUX.2'}</span> (${data.output_data.attempts} attempt)</div>
-        `;
+        if (isDigitiseOk) {
+          canImg.src = arts.canonical_image_url;
+          canImg.classList.remove('hidden');
+          document.getElementById('stage4-data').innerHTML = `
+            <div>Quality Score: <span class="text-emerald-400 font-bold">${(data.output_data.quality_score * 100).toFixed(0)}%</span></div>
+            <div>Renderer: <span class="text-blue-400 font-bold">${data.model || 'FLUX.2'}</span> (${data.output_data.attempts} attempt)</div>
+          `;
+        } else {
+          canImg.classList.add('hidden');
+          document.getElementById('stage4-data').innerHTML = `
+            <div class="text-red-400 font-bold">${data.status}: ${(data.output_data.reason || 'Digitisation failed verification').slice(0, 200)}</div>
+          `;
+        }
 
         if (data.output_data.prompt) {
           document.getElementById('stage4-prompt-container').classList.remove('hidden');
           document.getElementById('stage4-prompt-text').innerText = data.output_data.prompt;
+        }
+
+        const verifyHistory = data.output_data.verification_history || [];
+        if (verifyHistory.length) {
+          document.getElementById('stage4-verify-container').classList.remove('hidden');
+          document.getElementById('stage4-verify-list').innerHTML = verifyHistory.map(v => `
+            <div class="text-[10px] bg-slate-950 p-2 rounded border ${v.is_valid ? 'border-emerald-800/60' : 'border-red-800/60'}">
+              <div class="flex items-center justify-between">
+                <span class="font-mono ${v.is_valid ? 'text-emerald-400' : 'text-red-400'} font-bold">
+                  Attempt ${v.attempt}: ${v.is_valid ? 'PASSED' : 'FAILED'} (${(v.score * 100).toFixed(0)}%)
+                </span>
+                <span class="text-slate-500 font-mono">${v.verifier_model}</span>
+              </div>
+              <div class="text-slate-400 mt-0.5">${v.reason}</div>
+              ${(v.mismatches && v.mismatches.length) ? `<div class="text-amber-400 mt-0.5">Mismatches: ${v.mismatches.join(', ')}</div>` : ''}
+            </div>
+          `).join('');
         }
       }
       else if (stageKey === "STAGE_05_EMBED") {
