@@ -747,9 +747,15 @@
         document.getElementById('stage2-crop-label').classList.remove('hidden');
         document.getElementById('stage2-p2').classList.add('hidden');
 
+        const spawnedIds = data.spawned_garment_ids || [];
+        const spawnedLinks = spawnedIds.length
+          ? `<div>Other garments found: ${spawnedIds.map((id, i) => `<a href="/garment?id=${encodeURIComponent(id)}" target="_blank" class="text-purple-400 hover:underline">#${i + 2}</a>`).join(", ")} <span class="text-slate-500">(processing separately — each gets its own attributes/embedding)</span></div>`
+          : "";
+
         document.getElementById('stage2-data').innerHTML = `
           <div>Person Detected: <span class="text-emerald-400 font-bold">${data.output_data.person_detected}</span></div>
           <div>Crops Extracted: <span class="text-blue-400 font-bold">${(data.output_data.garment_crop_refs || []).length} region(s)</span></div>
+          ${spawnedLinks}
         `;
       }
       else if (stageKey === "STAGE_03_ATTRIBUTES") {
