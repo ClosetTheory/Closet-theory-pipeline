@@ -73,7 +73,7 @@ SUBCATEGORY_TO_CLASS: Dict[str, str] = {
     # Bottoms
     "jeans": "JEANS", "trousers": "TROUSERS", "chinos": "CHINOS",
     "dress_pants": "TROUSERS", "cargo_pants": "CARGO_PANTS", "shorts": "SHORTS",
-    "sweatpants": "JOGGERS", "leggings": "LEGGINGS", "skirt": "SKIRT",
+    "sweatpants": "JOGGERS", "leggings": "LEGGINGS", "skirt": "SKIRT", "palazzo_pants": "TROUSERS",
     "mini_skirt": "SKIRT", "midi_skirt": "SKIRT", "maxi_skirt": "SKIRT",
     # One Piece
     "dress": "DRESS", "sundress": "DRESS", "maxi_dress": "DRESS",

@@ -29,6 +29,7 @@ class FitEnum(str, Enum):
     TAILORED = "tailored"
     LOOSE = "loose"
     TIGHT = "tight"
+    NOT_APPLICABLE = "not_applicable"
 
 
 class SilhouetteEnum(str, Enum):
@@ -41,6 +42,7 @@ class SilhouetteEnum(str, Enum):
     FLARED = "flared"
     ASYMMETRICAL = "asymmetrical"
     DRAPED = "draped"
+    NOT_APPLICABLE = "not_applicable"
 
 
 class SleeveLengthEnum(str, Enum):
@@ -98,7 +100,12 @@ KNOWN_SUBCATEGORIES = {
     # Footwear
     "sneakers", "boots", "loafers", "oxfords", "derby", "sandals", "heels", "flats",
     # Accessories
-    "belt", "scarf", "hat", "cap", "tie", "gloves", "bag", "sunglasses"
+    "belt", "scarf", "hat", "cap", "tie", "gloves", "bag", "sunglasses",
+    # Traditional (South Asian) — SPEC.md TRADITIONAL class already maps these in
+    # app/rules/garment_class.py's SUBCATEGORY_TO_CLASS; they were missing here, which forced
+    # the model to downgrade a correctly-recognized "kurta" into the closest Western word
+    # ("blouse") once the extraction prompt started constraining output to this exact set.
+    "saree", "dhoti", "kurta", "lehenga", "sherwani", "salwar", "dupatta", "palazzo_pants",
 }
 
 # Common alternate spellings a vision model reasonably produces for a compound-word
