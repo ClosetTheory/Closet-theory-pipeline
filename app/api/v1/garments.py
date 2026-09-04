@@ -134,6 +134,25 @@ async def list_garments(
     ]
 
 
+@router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_garment(
+    garment_id: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Permanently deletes a garment (and, via DB cascade, its pipeline stage runs, embedding,
+    and any outfit references). Does not delete underlying storage objects (raw/crop/canonical
+    images) — only the DB record."""
+    garment = await session.get(Garment, garment_id)
+    if not garment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Garment '{garment_id}' not found")
+    if garment.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This garment belongs to another account")
+
+    await session.delete(garment)
+    await session.commit()
+
+
 @router.get("/{garment_id}", response_model=CanonicalGarment)
 async def get_garment(
     garment_id: str,
