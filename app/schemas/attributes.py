@@ -101,6 +101,26 @@ KNOWN_SUBCATEGORIES = {
     "belt", "scarf", "hat", "cap", "tie", "gloves", "bag", "sunglasses"
 }
 
+# Common alternate spellings a vision model reasonably produces for a compound-word
+# subcategory (e.g. "t_shirt" is a completely natural way to write "tshirt") — normalized to
+# the canonical taxonomy value before the strict taxonomy check, rather than routing a
+# correctly-identified garment to REVIEW_REQUIRED purely over spelling.
+SUBCATEGORY_ALIASES = {
+    "t_shirt": "tshirt",
+    "tee_shirt": "tshirt",
+    "tee": "tshirt",
+    "polo": "polo_shirt",
+    "tank": "tank_top",
+    "croptop": "crop_top",
+    "denim_jacket_": "denim_jacket",
+    "sunglass": "sunglasses",
+    "shades": "sunglasses",
+    "handbag": "bag",
+    "purse": "bag",
+    "tote": "bag",
+    "tote_bag": "bag",
+}
+
 
 class GarmentAttributes(BaseModel):
     """Canonical, strongly validated garment attributes."""
@@ -155,9 +175,22 @@ class GarmentAttributes(BaseModel):
     @classmethod
     def validate_subcategory_taxonomy(cls, v: str) -> str:
         clean_v = v.lower().strip().replace(" ", "_").replace("-", "_")
-        if clean_v not in KNOWN_SUBCATEGORIES:
-            # Allow clean representation, but note that taxonomy bundling will check fallback
+        clean_v = SUBCATEGORY_ALIASES.get(clean_v, clean_v)
+        if clean_v in KNOWN_SUBCATEGORIES:
             return clean_v
+
+        # A vision model asked to pick from a fixed list will still sometimes prepend a
+        # descriptive modifier it wants to convey (e.g. "graphic_tshirt" for a tshirt with a
+        # graphic print, which is also separately captured in the `pattern` field). Rather than
+        # reject a garment that's actually correctly identified purely because of an unrequested
+        # modifier, match against the longest known subcategory that's a suffix of the given
+        # value (longest-first so "polo_shirt" wins over a shorter unrelated match).
+        for known in sorted(KNOWN_SUBCATEGORIES, key=len, reverse=True):
+            if clean_v.endswith(f"_{known}") or clean_v == known:
+                return known
+
+        # No match even with the suffix fallback — return the cleaned value as-is; the
+        # taxonomy check downstream (step 5) will route this to REVIEW_REQUIRED.
         return clean_v
 
     @field_validator("colour")

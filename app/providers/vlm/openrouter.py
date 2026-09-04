@@ -18,7 +18,7 @@ from app.providers.base import (
     BaseVisualValidatorProvider,
     BaseVLMProvider,
 )
-from app.schemas.attributes import GarmentAttributes, validate_extracted_attributes
+from app.schemas.attributes import KNOWN_SUBCATEGORIES, GarmentAttributes, validate_extracted_attributes
 from app.schemas.pipeline import ClassificationResult, DetectionResult, GarmentRegion, ImageType
 from app.schemas.styling import (
     GarmentSummary,
@@ -62,17 +62,33 @@ class OpenRouterGPTProvider(
         self.model_version = "v1"
 
     async def extract_attributes(
-        self, image_bytes: bytes, image_type: Optional[str] = None
+        self, image_bytes: bytes, image_type: Optional[str] = None, garment_label: Optional[str] = None
     ) -> GarmentAttributes:
         """Extracts structured garment attributes from image using OpenRouter GPT model."""
         if not self.api_key:
             # Fallback to local heuristic if no key in env
             return self._local_vision_analysis(image_bytes)
 
-        prompt = """You are a master fashion perception and garment digitisation specialist. Analyze this garment photo and output ONLY a raw JSON object with NO markdown formatting, matching this exact schema:
-{
+        # When the photo shows multiple garments (garment_label set), tell the model which one
+        # to describe — tested this session to be far more accurate than pixel-cropping, since
+        # the model keeps full scene context (true proportions, drape, adjacent-garment
+        # boundaries) instead of reasoning from a small/degraded crop.
+        focus_preamble = (
+            f"This photo shows a person wearing multiple garments. Focus ONLY on the {garment_label} "
+            f"(ignore all other garments/accessories) when answering below.\n\n"
+            if garment_label else ""
+        )
+
+        # subcategory is validated downstream against a fixed taxonomy (KNOWN_SUBCATEGORIES) —
+        # any value outside it routes the garment to REVIEW_REQUIRED. Listing the real, full set
+        # here (rather than a handful of illustrative examples) keeps the model from inventing
+        # plausible-sounding but unrecognized values (e.g. "graphic_tshirt" instead of "tshirt").
+        subcategory_list = " | ".join(sorted(KNOWN_SUBCATEGORIES))
+
+        prompt = focus_preamble + f"""You are a master fashion perception and garment digitisation specialist. Analyze this garment photo and output ONLY a raw JSON object with NO markdown formatting, matching this exact schema:
+{{
   "category": "shirt | pants | dress | jacket | shoes | sweater",
-  "subcategory": "oxford_shirt | button_down_shirt | flannel_shirt | tshirt | polo_shirt | jeans | trousers | chinos | blazer | coat | dress | sweater | hoodie | sneakers | boots",
+  "subcategory": "EXACTLY one of these values, choosing the closest match — never invent a new one: {subcategory_list}",
   "garment_class": "canonical controlled-vocabulary class, e.g. T_SHIRT | SHIRT | JEANS | TROUSERS | CHINOS | DRESS | BLAZER | JACKET | SNEAKERS | BOOTS | SAREE | KURTA (use '<CATEGORY>_OTHER' if uncertain)",
   "colour": ["list", "of", "all", "prominent", "and", "accent", "colors", "e.g.", "yellow", "salmon pink", "navy blue", "white"],
   "pattern": "solid | striped | plaid | checkered | floral | graphic | polka_dot | geometric | abstract | animal_print | textured | other",
@@ -92,7 +108,7 @@ class OpenRouterGPTProvider(
   "warmth": 0.25,
   "versatility": 0.85,
   "confidence": 0.95
-}"""
+}}"""
 
         b64_image = base64.b64encode(image_bytes).decode("utf-8")
         payload = {
