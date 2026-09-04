@@ -5,10 +5,11 @@ Localizes faces, isolates garment regions, generates clean crops, creates visual
 
 import io
 from PIL import Image, ImageDraw
+from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
 from app.pipeline.idempotency import compute_stage_input_hash
 from app.pipeline.stages.base import BaseStage, StageExecutionContext, StageExecutionResult
-from app.pipeline.state_machine import PipelineStage
+from app.pipeline.state_machine import GarmentState, PipelineStage
 from app.providers.detection import get_detection_provider
 
 
@@ -100,7 +101,27 @@ class Stage02Crop(BaseStage):
             ann_key = f"crops/{ctx.garment.tenant_id}/{ctx.garment.id}_annotated.jpg"
             annotated_uri = await ctx.storage.put_object(ann_key, ann_buf.getvalue(), content_type="image/jpeg")
 
-        ctx.garment.garment_crop_refs = crop_refs
+        # The first region is this garment's own crop (unchanged single-garment behavior).
+        # Every additional detected garment becomes its own sibling Garment row — each is a
+        # genuinely distinct item that needs its own attributes/embedding, not a sub-part of
+        # this one. Not enqueued here: the orchestrator only commits once, at the very end of
+        # the whole run — enqueuing before that commit would let the worker's separate DB
+        # session try to load a row that isn't durable yet. See PipelineOrchestrator.run().
+        ctx.garment.garment_crop_refs = crop_refs[:1]
+        spawned_garment_ids = []
+        for sibling_crop_uri in crop_refs[1:]:
+            sibling = Garment(
+                tenant_id=ctx.garment.tenant_id,
+                member_id=ctx.garment.member_id,
+                source_image_id=ctx.garment.source_image_id,
+                image_type=ImageType.CROP.value,
+                garment_crop_refs=[sibling_crop_uri],
+                status=GarmentState.CROPPED.value,
+                quality_status="APPROVED",
+            )
+            ctx.session.add(sibling)
+            await ctx.session.flush()
+            spawned_garment_ids.append(sibling.id)
 
         return StageExecutionResult(
             status="SUCCEEDED",
@@ -110,6 +131,7 @@ class Stage02Crop(BaseStage):
                 "face_box": detection.face_box,
                 "garment_crop_refs": crop_refs,
                 "annotated_overlay_uri": annotated_uri,
+                "spawned_garment_ids": spawned_garment_ids,
             },
             input_hash=input_hash,
             model=detection.model,

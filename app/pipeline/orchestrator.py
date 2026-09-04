@@ -51,6 +51,12 @@ class PipelineOrchestrator:
     def __init__(self, session: AsyncSession, storage: StorageClient):
         self.session = session
         self.storage = storage
+        # Populated by run() when Stage 2 detects multiple garments in one photo. Deliberately
+        # NOT enqueued here — this class stays a pure pipeline runner with no worker-queue side
+        # effects (safe to call directly, e.g. in tests, without starting a background worker
+        # bound to a caller's event loop). app/worker/queue.py's process_job() — the one real
+        # async-worker entry point — is what actually enqueues these after this method returns.
+        self.spawned_garment_ids: List[str] = []
 
     async def run(
         self,
@@ -176,6 +182,7 @@ class PipelineOrchestrator:
                         garment.status = next_state.value
                     if result.quality_status:
                         garment.quality_status = result.quality_status
+                    self.spawned_garment_ids.extend(result.output_refs.get("spawned_garment_ids", []))
                 elif result.status == "REVIEW_REQUIRED":
                     garment.status = GarmentState.REVIEW_REQUIRED.value
                     garment.quality_status = "REVIEW_REQUIRED"

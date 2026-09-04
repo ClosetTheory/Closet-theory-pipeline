@@ -370,6 +370,11 @@ async def execute_single_pipeline_step(
     await session.commit()
     await session.refresh(garment)
 
+    spawned_garment_ids = result.output_refs.get("spawned_garment_ids", [])
+    if spawned_garment_ids:
+        for sibling_id in spawned_garment_ids:
+            await enqueue_garment_pipeline(sibling_id, resume_stage=PipelineStage.STAGE_03_ATTRIBUTES.value)
+
     # Build direct media URLs for visual presentation
     raw_url = f"/api/v1/wardrobe/images/{garment.source_image.id}/bytes" if garment.source_image else None
     crop_url = None
@@ -398,6 +403,7 @@ async def execute_single_pipeline_step(
         "is_completed": garment.status == "COMPLETED",
         "output_data": result.output_refs,
         "error": result.error,
+        "spawned_garment_ids": spawned_garment_ids,
         "visual_artifacts": {
             "raw_image_url": raw_url,
             "annotated_overlay_url": overlay_url or raw_url,

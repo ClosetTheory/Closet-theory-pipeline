@@ -38,6 +38,13 @@ async def process_job(garment_id: str, force: bool = False, resume_stage: Option
         orchestrator = PipelineOrchestrator(session=session, storage=storage)
         await orchestrator.run(garment, force=force, resume_stage=stage_enum)
 
+        # Stage 2 may have detected multiple garments in one photo and spawned sibling
+        # Garment rows (see Stage02Crop / PipelineOrchestrator). Enqueue them here — the one
+        # real async-worker context — rather than from inside the orchestrator itself, which
+        # stays a pure pipeline runner safe to call directly (e.g. in tests).
+        for sibling_id in orchestrator.spawned_garment_ids:
+            await enqueue_garment_pipeline(sibling_id, resume_stage=PipelineStage.STAGE_03_ATTRIBUTES.value)
+
 
 async def _in_memory_worker_loop():
     queue = get_queue()
