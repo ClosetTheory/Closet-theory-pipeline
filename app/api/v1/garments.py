@@ -289,17 +289,12 @@ async def execute_single_pipeline_step(
     if request.nvidia_api_key:
         settings.NVIDIA_API_KEY = request.nvidia_api_key
 
-    # Determine stage to execute
-    # If image is CATALOG or CROP, skip Stage 2 (person/face detection and cropping)
-    next_crop_or_attr = (
-        PipelineStage.STAGE_03_ATTRIBUTES
-        if garment.image_type in ("CATALOG", "CROP")
-        else PipelineStage.STAGE_02_CROP
-    )
-
+    # Determine stage to execute. Always route CLASSIFIED -> STAGE_02_CROP regardless of
+    # image_type — Stage02Crop itself decides whether to actually crop (it only fast-skips
+    # a CATALOG/CROP-classified image if no face is detected; a face still gets cropped).
     stage_mapping = {
         "RECEIVED": PipelineStage.STAGE_01_CLASSIFY,
-        "CLASSIFIED": next_crop_or_attr,
+        "CLASSIFIED": PipelineStage.STAGE_02_CROP,
         "CROPPED": PipelineStage.STAGE_03_ATTRIBUTES,
         "ATTRIBUTES_EXTRACTED": PipelineStage.STAGE_04_DIGITISE,
         "DIGITIZED": PipelineStage.STAGE_05_EMBED,

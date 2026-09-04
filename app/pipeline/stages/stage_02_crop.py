@@ -22,18 +22,26 @@ class Stage02Crop(BaseStage):
         source_image = ctx.garment.source_image
         image_bytes = await ctx.storage.get_object(source_image.object_uri)
         input_hash = compute_stage_input_hash(image_bytes)
-
-        # If image is CATALOG or CROP, skip person detection & cropping
         image_type = ctx.garment.image_type
-        if image_type in (ImageType.CATALOG.value, ImageType.CROP.value, "CATALOG", "CROP"):
+
+        provider = get_detection_provider()
+        detection = await provider.detect_and_crop(image_bytes)
+
+        # A classifier label of CATALOG/CROP is a hint that the photo is already a clean
+        # garment-only shot, not a guarantee — many "catalog" photos still show a person/face
+        # (e.g. a model wearing the item). Only take the fast skip path when detection backs
+        # that hint up (no face actually found); otherwise fall through and crop for real, same
+        # as any FULL_BODY image.
+        is_catalog_like = image_type in (ImageType.CATALOG.value, ImageType.CROP.value, "CATALOG", "CROP")
+        if is_catalog_like and not detection.face_box:
             ctx.garment.garment_crop_refs = [source_image.object_uri]
             return StageExecutionResult(
                 status="SUCCEEDED",
                 input_refs={"source_image_id": source_image.id},
                 output_refs={
                     "skipped": True,
-                    "reason": f"Image classified as {image_type}. Person detection and garment cropping skipped.",
-                    "person_detected": False,
+                    "reason": f"Image classified as {image_type} and no face detected. Cropping skipped.",
+                    "person_detected": detection.person_detected,
                     "face_box": None,
                     "garment_crop_refs": [source_image.object_uri],
                     "annotated_overlay_uri": source_image.object_uri,
@@ -43,9 +51,6 @@ class Stage02Crop(BaseStage):
                 model_version="v1",
                 algorithm_version="crop_skip_v1",
             )
-
-        provider = get_detection_provider()
-        detection = await provider.detect_and_crop(image_bytes)
 
         crop_refs = []
         annotated_uri = None
