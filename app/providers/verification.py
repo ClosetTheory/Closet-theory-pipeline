@@ -89,6 +89,45 @@ Output ONLY raw JSON, no markdown:
         return True, 0.9, f"Verifier call failed ({e}); crop accepted without model-based check."
 
 
+async def verify_region_presence(
+    full_image_bytes: bytes,
+    label: str,
+    api_key: Optional[str] = None,
+    model: str = settings.VISION_VERIFIER_MODEL,
+) -> Tuple[bool, float, str]:
+    """
+    Stage 2 region verification (no-crop pipeline): confirms a detected region actually
+    corresponds to a real, visible garment in the FULL photo — catches the exact failure mode
+    that once hallucinated a "belt" from an isolated crop of bare pavement: with the full photo
+    for context, the model can correctly say "there's nothing there" instead of confidently
+    describing whatever an isolated, decontextualized crop happened to show.
+    """
+    import base64
+
+    api_key = api_key or settings.OPENROUTER_API_KEY
+    if not api_key:
+        return True, 0.9, "Verifier unavailable (no API key): region accepted without model-based check."
+
+    prompt_text = f"""This photo shows a person wearing an outfit. A garment detector flagged a possible
+"{label}" region in this photo. Look carefully at the whole photo: is there an actual, distinct, visible
+garment/accessory of this type on the person (even partially visible is fine), or was the detector wrong
+(nothing of this type is actually there)?
+
+Output ONLY raw JSON, no markdown:
+{{"is_present": true|false, "score": 0.0-1.0, "reason": "one short sentence"}}"""
+
+    try:
+        b64 = base64.b64encode(full_image_bytes).decode("utf-8")
+        parsed = await _call_verifier_vision(prompt_text, [b64], api_key, model)
+        is_present = bool(parsed.get("is_present", False))
+        score = float(parsed.get("score", 0.0))
+        reason = parsed.get("reason", "No reason provided.")
+        return is_present, score, reason
+    except Exception as e:
+        logger.warning(f"Region presence verifier ({model}) call failed: {e}")
+        return True, 0.9, f"Verifier call failed ({e}); region accepted without model-based check."
+
+
 async def verify_attributes_against_image(
     image_bytes: bytes,
     attributes: GarmentAttributes,
