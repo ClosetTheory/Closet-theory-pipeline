@@ -109,3 +109,14 @@ async def client(db_session, test_storage) -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def auth_headers(client: AsyncClient) -> dict:
+    """Registers a fresh test user and returns an Authorization header for it."""
+    res = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "test_user@example.com", "password": "testpassword123", "display_name": "Test User"},
+    )
+    token = res.json()["token"]
+    return {"Authorization": f"Bearer {token}"}

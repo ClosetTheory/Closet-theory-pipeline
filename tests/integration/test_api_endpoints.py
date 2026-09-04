@@ -9,9 +9,9 @@ from app.pipeline.state_machine import GarmentState
 
 
 @pytest.mark.asyncio
-async def test_image_upload_success(client: AsyncClient, sample_catalog_image_bytes):
+async def test_image_upload_success(client: AsyncClient, auth_headers, sample_catalog_image_bytes):
     files = {"file": ("test.jpg", sample_catalog_image_bytes, "image/jpeg")}
-    response = await client.post("/api/v1/wardrobe/images", files=files, data={"tenant_id": "t1", "member_id": "m1"})
+    response = await client.post("/api/v1/wardrobe/images", files=files, headers=auth_headers)
 
     assert response.status_code == 201
     data = response.json()
@@ -22,29 +22,31 @@ async def test_image_upload_success(client: AsyncClient, sample_catalog_image_by
 
 
 @pytest.mark.asyncio
-async def test_image_upload_unsupported_mime(client: AsyncClient):
+async def test_image_upload_unsupported_mime(client: AsyncClient, auth_headers):
     files = {"file": ("test.txt", b"plain text", "text/plain")}
-    response = await client.post("/api/v1/wardrobe/images", files=files)
+    response = await client.post("/api/v1/wardrobe/images", files=files, headers=auth_headers)
     assert response.status_code == 415
 
 
 @pytest.mark.asyncio
 async def test_garment_lifecycle_and_pipeline_api(
     client: AsyncClient,
+    auth_headers,
     db_session,
     test_storage,
     sample_catalog_image_bytes,
 ):
     # 1. Upload image
     files = {"file": ("shirt.jpg", sample_catalog_image_bytes, "image/jpeg")}
-    upload_res = await client.post("/api/v1/wardrobe/images", files=files)
+    upload_res = await client.post("/api/v1/wardrobe/images", files=files, headers=auth_headers)
     assert upload_res.status_code == 201
     image_id = upload_res.json()["image_id"]
 
     # 2. Create garment
     garment_res = await client.post(
         "/api/v1/wardrobe/garments",
-        json={"source_image_id": image_id, "tenant_id": "tenant_1", "member_id": "member_1"},
+        json={"source_image_id": image_id},
+        headers=auth_headers,
     )
     assert garment_res.status_code == 202
     garment_id = garment_res.json()["garment_id"]
@@ -66,6 +68,7 @@ async def test_garment_lifecycle_and_pipeline_api(
     retry_res = await client.post(
         f"/api/v1/wardrobe/garments/{garment_id}/retry",
         json={"stage": "STAGE_01_CLASSIFY", "force": True},
+        headers=auth_headers,
     )
     assert retry_res.status_code == 202
 
@@ -73,6 +76,7 @@ async def test_garment_lifecycle_and_pipeline_api(
     review_res = await client.post(
         f"/api/v1/wardrobe/garments/{garment_id}/review",
         json={"decision": "APPROVE", "notes": "Approved by human operator"},
+        headers=auth_headers,
     )
     assert review_res.status_code == 200
     assert review_res.json()["decision"] == "APPROVE"
