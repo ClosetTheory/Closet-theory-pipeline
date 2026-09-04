@@ -10,6 +10,7 @@ from PIL import Image, ImageFilter
 from app.config import settings
 from app.observability import logger
 from app.providers.base import BaseDigitisationProvider
+from app.rules.garment_class import bundle_garment_class, infer_garment_class_from_subcategory
 from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import DigitisationResult
 
@@ -39,52 +40,95 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         self._active_model: str = "GPT-Studio-Segmenter-v1"
 
     def build_prompt(self, attributes: GarmentAttributes) -> Tuple[str, str]:
-        """Builds hyper-specific 1:1 e-commerce catalogue product-shot prompt with no visible body or support form."""
-        colors_list = attributes.colour if attributes.colour else ["yellow", "salmon pink", "navy blue", "white"]
-        colors_str = ", ".join(colors_list)
-        pattern_str = getattr(attributes.pattern, "value", str(attributes.pattern or "plaid"))
-        subcategory_str = (attributes.subcategory or "shirt").replace("_", " ")
-        material_str = getattr(attributes.material, "value", str(attributes.material or "cotton"))
-        sleeve_str = getattr(attributes.sleeve_length, "value", str(attributes.sleeve_length or "long"))
-        fit_str = getattr(attributes.fit, "value", str(attributes.fit or "regular"))
-        silhouette_str = getattr(attributes.silhouette, "value", str(attributes.silhouette or "straight"))
+        """
+        Builds a 1:1-preservation e-commerce catalogue product-shot prompt from the real
+        extracted attributes only. Never invents specifics for a field the extractor didn't
+        populate (no fake brand labels, no fake pocket/button descriptions) — an invented
+        detail tells the image model to draw something that isn't actually on the garment,
+        which is precisely what produces an unrelated-looking result. Any structural feature
+        not confirmed by the reference photo is instead left to "match the reference image
+        exactly" rather than described from a guess.
 
-        pattern_detail = getattr(attributes, "pattern_detail", None) or f"Multi-colored {pattern_str} check pattern with vibrant blocks of {colors_str}"
-        pocket_detail = getattr(attributes, "pocket_detail", None) or "Single chest patch pocket on wearer's left chest (viewer's right) with fabric cut on a 45-degree diagonal bias (diamond plaid check pattern) and small accent flag tab"
-        button_detail = getattr(attributes, "button_detail", None) or "Center front placket with 6 evenly spaced dark circular ring buttons with light/metallic center grommets, and matching ring buttons on cuffs"
-        collar_detail = getattr(attributes, "collar_detail", None) or "Structured spread collar standing naturally with top neck button unfastened"
-        brand_label = getattr(attributes, "brand_label", None) or "BLOVIATE"
-        visual_desc = getattr(attributes, "visual_description", None)
+        The identity section is also garment-category-aware: pockets/buttons/collars only
+        get asked for on tops/outerwear/one-pieces that plausibly have them — describing a
+        "chest pocket" and "collar" on a pair of shoes or trousers is exactly the kind of
+        mismatch that makes the generated result look like a different, wrong garment.
+        """
+        colors_str = ", ".join(attributes.colour) if attributes.colour else "as shown in the reference photo"
+        pattern_str = getattr(attributes.pattern, "value", str(attributes.pattern)) if attributes.pattern else None
+        subcategory_str = (attributes.subcategory or attributes.category or "garment").replace("_", " ")
+        material_str = getattr(attributes.material, "value", str(attributes.material)) if attributes.material else None
+        sleeve_str = getattr(attributes.sleeve_length, "value", str(attributes.sleeve_length)) if attributes.sleeve_length else None
+        fit_str = getattr(attributes.fit, "value", str(attributes.fit)) if attributes.fit else None
+        silhouette_str = getattr(attributes.silhouette, "value", str(attributes.silhouette)) if attributes.silhouette else None
+
+        garment_class = attributes.garment_class or infer_garment_class_from_subcategory(attributes.subcategory or "")
+        category, _version, _requires_review = bundle_garment_class(garment_class) if garment_class else (None, "", True)
+        has_collar_buttons_pockets = category in ("TOP", "OUTERWEAR", "ONE_PIECE")
+        has_sleeves = category in ("TOP", "OUTERWEAR", "ONE_PIECE") and sleeve_str and sleeve_str != "not_applicable"
+
+        identity_lines = []
+        type_desc = f"{fit_str + ' fit, ' if fit_str else ''}{silhouette_str + ' silhouette ' if silhouette_str else ''}{subcategory_str}"
+        if has_sleeves:
+            type_desc += f" with {sleeve_str} sleeves"
+        identity_lines.append(f"- Garment Type: {type_desc}")
+        if material_str:
+            identity_lines.append(f"- Fabric & Material: {material_str} fabric texture, matching the weave/texture shown in the reference photo")
+        identity_lines.append(f"- Color Palette: {colors_str}")
+
+        # Pattern/pocket/button/collar/brand: only describe what's actually known — otherwise
+        # defer entirely to the reference photo rather than inventing a specific that may not exist.
+        pattern_detail = getattr(attributes, "pattern_detail", None)
+        if pattern_detail:
+            identity_lines.append(f"- Pattern Structure: {pattern_detail}")
+        elif pattern_str and pattern_str != "solid":
+            identity_lines.append(f"- Pattern Structure: {pattern_str} pattern, matching the reference photo exactly")
+
+        if has_collar_buttons_pockets:
+            pocket_detail = getattr(attributes, "pocket_detail", None)
+            if pocket_detail and pocket_detail.lower() != "none":
+                identity_lines.append(f"- Pocket(s): {pocket_detail}")
+            button_detail = getattr(attributes, "button_detail", None)
+            if button_detail and button_detail.lower() != "none":
+                identity_lines.append(f"- Buttons & Placket: {button_detail}")
+            collar_detail = getattr(attributes, "collar_detail", None)
+            if collar_detail and collar_detail.lower() != "none":
+                identity_lines.append(f"- Collar & Neckline: {collar_detail}")
+            brand_label = getattr(attributes, "brand_label", None)
+            if brand_label:
+                identity_lines.append(f"- Inside the neck opening, an inner label reads '{brand_label}'")
+            if has_sleeves:
+                identity_lines.append(f"- Sleeves & Hem: Symmetrical {sleeve_str} sleeves positioned neatly alongside the torso, matching the cuff/hem style shown in the reference photo")
+
+        identity_lines.append(
+            "- Any other structural detail not listed above (trims, closures, hardware, seams, "
+            "hem shape) must match the reference photo exactly — do not invent additional features."
+        )
 
         positive_prompt = f"""Commercial e-commerce product photograph of a {subcategory_str}, centered on a solid dark charcoal studio background (#161922). \
-The garment floats with natural three-dimensional volume and shape, exactly as if being worn, but with no visible body, support structure, or object holding it up.
+The garment floats with natural three-dimensional volume and shape, exactly as if being worn, but with no visible body, support structure, or object holding it up. \
+Use the provided reference photo as the ground truth for this exact garment's real appearance — reproduce it faithfully, do not substitute a generic or different item.
 
 ### Exact Garment Identity (1:1 Preservation — Highest Priority):
-- Garment Type: {fit_str} fit, {silhouette_str} silhouette {subcategory_str} with {sleeve_str} sleeves
-- Fabric & Material: Premium woven {material_str} fabric texture, crisp weave
-- Color Palette: {colors_str}
-- Pattern Structure: {pattern_detail}
-- Chest Pocket: {pocket_detail}
-- Buttons & Placket: {button_detail}
-- Collar & Neckline: {collar_detail}. Inside the hollow neck opening, the inside back collar clearly displays a dark rectangular woven brand label reading '{brand_label}' with size tag 'M'
-- Sleeves & Hem: Symmetrical long sleeves positioned neatly alongside the torso with crisp matching cuffs and button closure. Clean, symmetrically curved shirt-tail bottom hem
+{chr(10).join(identity_lines)}
 
 ### Presentation & Photography Style:
-- Invisible-body 3D form: The garment has natural 3D torso volume with no body, form, or object visible inside it, with the hollow neck opening displaying the inner back label
+- Invisible-body 3D form: The garment has natural 3D volume with no body, form, or object visible inside it
 - Symmetrical straight-on front-facing view, eye-level camera angle, perfectly centered composition
-- Pristine e-commerce catalogue quality: perfectly ironed, wrinkle-free, sharp tailored seams, true-to-life colors
+- Pristine e-commerce catalogue quality: perfectly ironed/cleaned, true-to-life colors
 - Background: Solid dark charcoal studio backdrop (#161922) with seamless contrast
 - Studio Lighting: Soft diffused commercial studio key lighting with subtle rim light outlining the garment silhouette. 8k resolution, ultra-sharp focus on fabric texture, no dramatic shadows"""
 
+        visual_desc = getattr(attributes, "visual_description", None)
         if visual_desc:
-            positive_prompt += f"\n\n### Detailed Visual Specifications:\n{visual_desc}"
+            positive_prompt += f"\n\n### Detailed Visual Specifications (from the reference photo):\n{visual_desc}"
 
         negative_prompt = (
-            "different garment, wrong garment, dress, gown, kurta, skirt, t-shirt, polo, hoodie, jacket, "
+            "different garment, wrong garment, generic garment, invented details not in the reference photo, "
             "human, person, face, skin, hands, arms, body, visible head, visible neck, visible support structure, "
             "dress form, dummy, hanger, rack, closet, cluttered background, white wall, "
             "slats, wrinkles, creases, asymmetrical, tilted, floating fabric, distorted pattern, "
-            "misaligned buttons, missing pocket, blurry, low resolution, artifacts, dark shadows, watermark, text overlays"
+            "blurry, low resolution, artifacts, dark shadows, watermark, text overlays, cartoon, illustration, stylized"
         )
 
         return positive_prompt, negative_prompt
