@@ -171,6 +171,7 @@
                 <span id="stage2-p2" class="text-[10px] text-slate-600 font-mono">Crop</span>
               </div>
             </div>
+            <div id="stage2-all-crops" class="hidden grid grid-cols-4 gap-1.5"></div>
             <div id="stage2-data" class="text-[11px] font-mono text-slate-400 space-y-1">
               <div>Person Detected: <span class="text-slate-200">-</span></div>
               <div>Cropped Asset: <span class="text-slate-200 truncate block">-</span></div>
@@ -757,6 +758,26 @@
           <div>Crops Extracted: <span class="text-blue-400 font-bold">${(data.output_data.garment_crop_refs || []).length} region(s)</span></div>
           ${spawnedLinks}
         `;
+
+        // Show every detected region's crop, not just this garment's own — the #1 label is
+        // this garment (kept above as "Extracted Crop"); #2, #3... are the spawned siblings,
+        // each clickable through to its own (separately processing) garment page.
+        const allCropUrls = arts.all_crop_urls || [];
+        const allCropsEl = document.getElementById('stage2-all-crops');
+        if (allCropUrls.length > 1) {
+          allCropsEl.classList.remove('hidden');
+          allCropsEl.innerHTML = allCropUrls.map((url, i) => {
+            const label = i === 0 ? 'this garment' : `#${i + 1}`;
+            const href = i === 0 ? null : (spawnedIds[i - 1] ? `/garment?id=${encodeURIComponent(spawnedIds[i - 1])}` : null);
+            const inner = `<img src="${url}" class="w-full h-16 object-cover rounded-lg border border-slate-800" alt="${label}">
+                           <span class="text-[8px] text-slate-500 font-mono block text-center mt-0.5">${label}</span>`;
+            return href
+              ? `<a href="${href}" target="_blank">${inner}</a>`
+              : `<div>${inner}</div>`;
+          }).join("");
+        } else {
+          allCropsEl.classList.add('hidden');
+        }
       }
       else if (stageKey === "STAGE_03_ATTRIBUTES") {
         const out = data.output_data;

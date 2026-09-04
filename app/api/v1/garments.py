@@ -387,6 +387,13 @@ async def execute_single_pipeline_step(
         clean_ann = result.output_refs["annotated_overlay_uri"].replace(f"object://{settings.S3_BUCKET_NAME}/", "").lstrip("/")
         overlay_url = f"/api/v1/wardrobe/images/media/{clean_ann}"
 
+    # Every region Stage 2 detected (not just this garment's own kept crop) — lets the demo
+    # UI show all garments found in the photo, not just the primary's single thumbnail.
+    all_crop_urls = [
+        f"/api/v1/wardrobe/images/media/{ref.replace(f'object://{settings.S3_BUCKET_NAME}/', '').lstrip('/')}"
+        for ref in result.output_refs.get("garment_crop_refs", [])
+    ]
+
     canonical_url = None
     if garment.canonical_image_id:
         canonical_url = f"/api/v1/wardrobe/images/{garment.canonical_image_id}/bytes"
@@ -408,6 +415,7 @@ async def execute_single_pipeline_step(
             "raw_image_url": raw_url,
             "annotated_overlay_url": overlay_url or raw_url,
             "crop_image_url": crop_url or raw_url,
+            "all_crop_urls": all_crop_urls,
             "canonical_image_url": canonical_url or crop_url or raw_url,
         },
     }
