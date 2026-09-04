@@ -8,6 +8,8 @@ from app.models.image_asset import ImageAsset
 from app.models.pipeline_stage import PipelineStageRun
 from app.pipeline.orchestrator import PipelineOrchestrator
 from app.pipeline.state_machine import GarmentState, PipelineStage
+from app.providers.attributes.mock import MockAttributeExtractorProvider
+from app.providers.digitisation.mock import MockDigitisationProvider
 
 
 @pytest.mark.asyncio
@@ -15,7 +17,31 @@ async def test_full_pipeline_run_to_completion(
     db_session,
     test_storage,
     sample_catalog_image_bytes,
+    monkeypatch,
 ):
+    # This test exercises orchestrator MECHANICS (stage sequencing, commits, idempotency) —
+    # not real vision-model accuracy. The fixture image is a synthetic blank square, not an
+    # actual garment photo, so Stage 3/4's real vision providers (and Stage 3's independent
+    # verifier, which genuinely inspects the image) correctly refuse to accept it. Force
+    # deterministic Mock providers for those two stages so the test stays meaningful without
+    # depending on live model judgment of a fake image.
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_03_attributes.get_attribute_provider",
+        lambda: MockAttributeExtractorProvider(),
+    )
+
+    async def _mock_verify_attributes(image_bytes, attributes, api_key=None, model=None):
+        return True, 1.0, "Mocked verifier: orchestrator-mechanics test, not vision accuracy.", []
+
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_03_attributes.verify_attributes_against_image",
+        _mock_verify_attributes,
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_04_digitise.get_digitisation_provider",
+        lambda: MockDigitisationProvider(),
+    )
+
     # 1. Store raw image asset
     uri = await test_storage.put_object("raw/tenant_1/test_item.jpg", sample_catalog_image_bytes)
     raw_asset = ImageAsset(

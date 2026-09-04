@@ -5,7 +5,28 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_step_by_step_execution_flow(client: AsyncClient, auth_headers, sample_catalog_image_bytes):
+async def test_step_by_step_execution_flow(client: AsyncClient, auth_headers, sample_catalog_image_bytes, monkeypatch):
+    # This test exercises the /step API's wiring (upload -> ingest -> per-stage execution) —
+    # not real vision-model accuracy. The fixture image is a synthetic blank square, not an
+    # actual garment photo, so Stage 3's real attribute provider (and its independent verifier,
+    # which genuinely inspects the image) correctly refuse to accept it. Force a deterministic
+    # Mock provider + verifier for Stage 3 so the test stays meaningful without depending on
+    # live model judgment of a fake image.
+    from app.providers.attributes.mock import MockAttributeExtractorProvider
+
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_03_attributes.get_attribute_provider",
+        lambda: MockAttributeExtractorProvider(),
+    )
+
+    async def _mock_verify_attributes(image_bytes, attributes, api_key=None, model=None):
+        return True, 1.0, "Mocked verifier: API wiring test, not vision accuracy.", []
+
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_03_attributes.verify_attributes_against_image",
+        _mock_verify_attributes,
+    )
+
     # 1. Upload
     files = {"file": ("item.jpg", sample_catalog_image_bytes, "image/jpeg")}
     up_resp = await client.post("/api/v1/wardrobe/images", files=files, headers=auth_headers)
