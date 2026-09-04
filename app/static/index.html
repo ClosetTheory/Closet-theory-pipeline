@@ -216,6 +216,15 @@
             </div>
           </div>
 
+          <!-- Other garments found in the same photo (multi-garment split) -->
+          <div id="card-other-garments" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 col-span-2 lg:col-span-3">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <span class="text-xs font-bold text-purple-400">Other Garments Detected in This Photo</span>
+              <span class="text-[10px] font-mono text-slate-500">processing independently in the background</span>
+            </div>
+            <div id="other-garments-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+          </div>
+
           <!-- Card 5: Embedding (MODA SigLIP 768d) -->
           <div id="card-stage-5" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
             <div class="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -778,6 +787,11 @@
         } else {
           allCropsEl.classList.add('hidden');
         }
+
+        if (spawnedIds.length) {
+          document.getElementById('card-other-garments').classList.remove('hidden');
+          pollOtherGarments(spawnedIds);
+        }
       }
       else if (stageKey === "STAGE_03_ATTRIBUTES") {
         const out = data.output_data;
@@ -864,6 +878,60 @@
         document.getElementById('stage9-pattern').innerText = (out.pattern || 'solid').toUpperCase();
         document.getElementById('stage9-versatility').innerText = `${out.versatility || 0.85} / 1.0`;
         document.getElementById('stage9-occasions').innerText = (out.occasions || []).join(', ') || 'General';
+      }
+    }
+
+    // Siblings spawned by a multi-garment photo process through the full pipeline
+    // asynchronously in the background worker — poll each one and render its status/crop/
+    // canonical image as it becomes available, right here, instead of requiring a manual
+    // visit to each garment's own page to see the result.
+    const TERMINAL_QUALITY_STATES = new Set(["REVIEW_REQUIRED", "REJECTED"]);
+
+    async function pollOtherGarments(garmentIds, attemptsLeft = 40) {
+      const grid = document.getElementById('other-garments-grid');
+      let allTerminal = true;
+
+      const cards = await Promise.all(garmentIds.map(async (id) => {
+        try {
+          const res = await ctFetch(`/api/v1/wardrobe/garments/${encodeURIComponent(id)}`);
+          const g = await res.json();
+          // CanonicalGarment has no pipeline "status" field — quality_status plus whether a
+          // canonical image exists yet is what's actually available to infer progress from.
+          const status = g.canonical_image_ref ? "COMPLETED" : (g.quality_status || "PROCESSING");
+          if (status === "COMPLETED" || TERMINAL_QUALITY_STATES.has(status)) {
+            // terminal — stop polling this one
+          } else {
+            allTerminal = false;
+          }
+
+          const canonicalUrl = g.canonical_image_ref
+            ? `/api/v1/wardrobe/images/media/${g.canonical_image_ref.replace(/^object:\/\/[^/]+\//, "")}`
+            : null;
+          const cropUrl = (g.garment_crop_refs && g.garment_crop_refs[0])
+            ? `/api/v1/wardrobe/images/media/${g.garment_crop_refs[0].replace(/^object:\/\/[^/]+\//, "")}`
+            : null;
+          const imgUrl = canonicalUrl || cropUrl;
+          const label = canonicalUrl ? "digitised" : (cropUrl ? "crop only — still processing" : "processing…");
+          const statusColor = status === "COMPLETED" ? "emerald" : status === "REVIEW_REQUIRED" ? "amber" : status === "FAILED" ? "red" : "blue";
+
+          return `<a href="/garment?id=${encodeURIComponent(id)}" target="_blank" class="block bg-slate-950 rounded-xl border border-slate-800 overflow-hidden hover:border-purple-500/50 transition">
+            <div class="h-28 flex items-center justify-center overflow-hidden">
+              ${imgUrl ? `<img src="${imgUrl}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-slate-600 font-mono">no image yet</span>`}
+            </div>
+            <div class="p-1.5 space-y-0.5">
+              <div class="text-[9px] font-mono text-${statusColor}-400">${status}</div>
+              <div class="text-[8px] text-slate-500">${label}</div>
+            </div>
+          </a>`;
+        } catch (e) {
+          return `<div class="bg-slate-950 rounded-xl border border-slate-800 p-2 text-[9px] text-red-400 font-mono">error loading</div>`;
+        }
+      }));
+
+      grid.innerHTML = cards.join("");
+
+      if (!allTerminal && attemptsLeft > 0) {
+        setTimeout(() => pollOtherGarments(garmentIds, attemptsLeft - 1), 4000);
       }
     }
 
