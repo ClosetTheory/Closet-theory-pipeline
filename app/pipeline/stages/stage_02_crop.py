@@ -73,10 +73,15 @@ class Stage02Crop(BaseStage):
             if detection.garment_regions:
                 for idx, region in enumerate(detection.garment_regions):
                     box = region.box  # [x1, y1, x2, y2]
-                    x1 = max(0, min(box[0], img_w - 1))
-                    y1 = max(0, min(box[1], img_h - 1))
-                    x2 = max(x1 + 1, min(box[2], img_w))
-                    y2 = max(y1 + 1, min(box[3], img_h))
+                    # Pad a little beyond the model's predicted box — a tight/exact box
+                    # routinely clips a sleeve edge, hem, or shoe tip, and the digitisation
+                    # stage then has to draw that missing part from nothing.
+                    box_w, box_h = box[2] - box[0], box[3] - box[1]
+                    pad_x, pad_y = max(4, int(box_w * 0.06)), max(4, int(box_h * 0.06))
+                    x1 = max(0, min(box[0] - pad_x, img_w - 1))
+                    y1 = max(0, min(box[1] - pad_y, img_h - 1))
+                    x2 = max(x1 + 1, min(box[2] + pad_x, img_w))
+                    y2 = max(y1 + 1, min(box[3] + pad_y, img_h))
 
                     # Crop the isolated garment region
                     cropped = pil_img.crop((x1, y1, x2, y2))
