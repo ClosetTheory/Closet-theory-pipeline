@@ -85,10 +85,17 @@ def build_outfit_combinations(
             slot_groups_with_shoes = slot_groups_with_shoes + [footwear_options]
 
         for combo in product(*slot_groups_with_shoes):
-            score_sum = sum(s for _g, s in combo)
+            # Average, not sum: a ONE_PIECE+FOOTWEAR combo has fewer terms than a
+            # TOP+BOTTOM+FOOTWEAR one, so summing systematically ranks it lower regardless of
+            # how well each individual item scores — confirmed live: with a real 6-item
+            # ONE_PIECE retrieval pool available, zero ONE_PIECE combos survived into the
+            # diversity-capped 60 because they could never out-sum a 3-term combo. Averaging
+            # makes combos with different slot counts directly comparable.
+            scores = [s for _g, s in combo]
+            avg_score = sum(scores) / len(scores)
             garments = [g for g, _s in combo]
             base_key = frozenset(g.id for g in garments)
-            raw_combos.append((garments, score_sum, None))
+            raw_combos.append((garments, avg_score, None))
 
             if outerwear_options:
                 # Vary the outerwear layer across the top few options (not just the single
@@ -98,7 +105,7 @@ def build_outfit_combinations(
                 # than the base combo — otherwise it's dropped (see ranking.py).
                 top_outers = sorted(outerwear_options, key=lambda pair: pair[1], reverse=True)[:3]
                 for outer_garment, outer_score in top_outers:
-                    raw_combos.append((garments + [outer_garment], score_sum + outer_score, base_key))
+                    raw_combos.append((garments + [outer_garment], (sum(scores) + outer_score) / (len(scores) + 1), base_key))
 
     # Dedup by garment-id set (anchors + limited options can otherwise repeat). Base combos are
     # deduped first so a base combo is never dropped in favor of a layered variant sharing the
