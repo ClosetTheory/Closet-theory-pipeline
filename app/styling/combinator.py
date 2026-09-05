@@ -10,9 +10,22 @@ from itertools import product
 from typing import Dict, FrozenSet, List, Optional, Tuple
 from app.models.garment import Garment
 from app.rules.scoring import _garment_set_similarity
+from app.schemas.styling import StylingIntent
 from app.styling.retrieval import RoleCandidates, resolve_role
 
 MAX_COMBOS_TO_EVALUATE = 60
+
+# Occasions/formality levels where an added outerwear layer reads as "outfit plus a coat"
+# rather than as the actual look — a dressy party/formal/evening request should never have a
+# jacket layered on top of it just because the wardrobe has a well-matching one available.
+NO_OUTERWEAR_CONTEXTS = {"party", "formal", "evening"}
+
+
+def _occasion_prefers_no_outerwear(intent: Optional[StylingIntent]) -> bool:
+    if intent is None:
+        return False
+    signals = {(intent.occasion or "").lower(), (intent.formality or "").lower()}
+    return bool(signals & NO_OUTERWEAR_CONTEXTS)
 
 # (garments, retrieval_score_sum, base_combo_key) — base_combo_key is set only for a
 # "base combo + optional outerwear layer" variant, pointing at the frozenset of garment
@@ -28,13 +41,16 @@ def _role_options(role_candidates: RoleCandidates, role: str) -> List[Tuple[Garm
 def build_outfit_combinations(
     role_candidates: RoleCandidates,
     anchors: List[Garment],
+    intent: Optional[StylingIntent] = None,
 ) -> List[ComboEntry]:
     """
     Returns a capped list of (garments, retrieval_score_sum, base_combo_key) candidate outfit
     combinations. Body coverage: TOP+BOTTOM or ONE_PIECE (whichever the wardrobe/anchors
     support). FOOTWEAR: included when available. OUTERWEAR: an additional layered variant per
-    base combo, only ever *suggested* by the ranking stage if it improves the outfit's score.
-    ACCESSORY: only included via anchors (not auto-added in V1).
+    base combo, only ever *suggested* by the ranking stage if it improves the outfit's score —
+    skipped entirely for party/formal/evening requests, where a layered coat reads as "outfit
+    plus a coat" rather than the actual look. ACCESSORY: only included via anchors (not
+    auto-added in V1).
     """
     anchors_by_role: Dict[str, List[Garment]] = {}
     for anchor in anchors:
@@ -60,7 +76,7 @@ def build_outfit_combinations(
         return []
 
     footwear_options = options_for("FOOTWEAR")
-    outerwear_options = options_for("OUTERWEAR")
+    outerwear_options = [] if _occasion_prefers_no_outerwear(intent) else options_for("OUTERWEAR")
 
     raw_combos: List[ComboEntry] = []
     for slot_groups in body_options:

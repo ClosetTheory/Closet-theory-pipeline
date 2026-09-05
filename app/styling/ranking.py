@@ -44,9 +44,27 @@ def _request_match(garments: List[Garment], intent: StylingIntent) -> float:
     return max(0.0, min(1.0, score))
 
 
+DRESSY_CONTEXTS = {"party", "formal", "evening"}
+
+
 def _occasion_fit(garments: List[Garment], intent: StylingIntent) -> float:
-    if not intent.formality:
+    signals = {(intent.occasion or "").lower(), (intent.formality or "").lower()}
+    is_dressy_request = bool(signals & DRESSY_CONTEXTS)
+
+    if not intent.formality and not is_dressy_request:
         return 0.7
+
+    # A dressy request (party/formal/evening) reads as an actual "look" when it's a single
+    # cohesive ONE_PIECE garment, not a separately-matched top+bottom — reward that directly,
+    # independent of the formality-score averaging below, which alone can't distinguish a
+    # well-matched top+bottom pairing from a genuine dress/jumpsuit silhouette.
+    silhouette_bonus = 0.0
+    if is_dressy_request:
+        roles = {resolve_role(g) for g in garments}
+        silhouette_bonus = 0.15 if "ONE_PIECE" in roles else 0.0
+
+    if not intent.formality:
+        return max(0.0, min(1.0, 0.7 + silhouette_bonus))
 
     target_score = FORMALITY_SCORES.get(intent.formality.lower(), 3)
     garment_scores = [
@@ -55,7 +73,8 @@ def _occasion_fit(garments: List[Garment], intent: StylingIntent) -> float:
     if not garment_scores:
         return 0.5
     avg_diff = sum(abs(target_score - s) for s in garment_scores) / len(garment_scores)
-    return max(0.0, 1.0 - (avg_diff / 5.0))
+    base = max(0.0, 1.0 - (avg_diff / 5.0))
+    return max(0.0, min(1.0, base + silhouette_bonus))
 
 
 # Target warmth (0=lightest, 1=warmest) implied by each recognised weather term. Garments

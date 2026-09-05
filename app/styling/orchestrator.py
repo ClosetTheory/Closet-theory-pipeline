@@ -236,7 +236,7 @@ class StylingOrchestrator:
 
         # Stage 6 + 7: Combination assembly, compatibility rules + VLM fallback, weighted ranking
         t5 = time.perf_counter()
-        combos = build_outfit_combinations(role_candidates, anchors)
+        combos = build_outfit_combinations(role_candidates, anchors, intent)
         ranking_trace = await rank_combinations(combos, intent, context, top_k=max(request.top_k * 2, request.top_k + 2))
         rejected_incompatible = ranking_trace.total_evaluated - ranking_trace.total_compatible
         await self._record(
