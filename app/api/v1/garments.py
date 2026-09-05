@@ -39,6 +39,20 @@ from app.worker.queue import enqueue_garment_pipeline
 
 router = APIRouter(prefix="/wardrobe/garments", tags=["Garments"])
 
+# Linear pipeline progress order (excludes FAILED/REVIEW_REQUIRED, which aren't part of forward
+# progress) — used so a single-stage re-run can only ever advance garment.status, never regress
+# it. Declaration order in GarmentState already matches pipeline progress.
+_GARMENT_STATE_ORDER = {
+    s.value: i for i, s in enumerate(GarmentState)
+    if s not in (GarmentState.FAILED, GarmentState.REVIEW_REQUIRED)
+}
+
+
+def _garment_state_order(status_value: str) -> int:
+    """-1 for REVIEW_REQUIRED/FAILED/unknown so a fresh success can always move a garment
+    forward out of those states, same as landing there from any earlier successful stage."""
+    return _GARMENT_STATE_ORDER.get(status_value, -1)
+
 
 class StepRequest(BaseModel):
     stage: Optional[str] = Field(default=None, description="Specific stage to execute")
@@ -353,10 +367,16 @@ async def execute_single_pipeline_step(
     )
     session.add(stage_run)
 
-    # State transition
+    # State transition. Only ever ADVANCES garment.status, never regresses it — re-running an
+    # earlier stage in isolation (e.g. force-refreshing Stage 3 attributes on a garment that
+    # already completed the full pipeline) must not knock status backward from COMPLETED to
+    # whatever that one stage's own next-state is, since stages 4-9's real output (canonical
+    # image, embedding, compatibility scores) are all still intact and untouched. Confirmed live:
+    # a bulk Stage-3-only re-run once demoted 1451 already-COMPLETED garments back to
+    # ATTRIBUTES_EXTRACTED/REVIEW_REQUIRED this way, emptying the styling catalog.
     if result.status == "SUCCEEDED":
         next_state = STAGE_TO_GARMENT_STATE.get(stage_enum)
-        if next_state:
+        if next_state and _garment_state_order(next_state.value) > _garment_state_order(garment.status):
             garment.status = next_state.value
         if result.quality_status:
             garment.quality_status = result.quality_status
