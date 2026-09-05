@@ -38,6 +38,13 @@ async def filter_candidates(
                 if not wanted.isdisjoint({c.lower() for c in (g.attributes_json or {}).get("colour", [])})
             ] or candidates  # never over-filter to zero on a soft preference
 
+    if intent.gender:
+        wanted_gender = intent.gender.lower()
+        candidates = [
+            g for g in candidates
+            if (g.gender or "unisex").lower() in (wanted_gender, "unisex")
+        ] or candidates  # never over-filter to zero — a wardrobe with incomplete gender data should still return something
+
     return candidates
 
 

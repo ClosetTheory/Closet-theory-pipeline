@@ -19,6 +19,7 @@ class StylingIntent(BaseModel):
     formality: Optional[str] = None
     colors: List[str] = Field(default_factory=list)
     style_direction: Optional[str] = None
+    gender: Optional[str] = None
     weather: Optional[str] = None
     time_context: Optional[str] = None
     anchor_garment_id: Optional[str] = None
