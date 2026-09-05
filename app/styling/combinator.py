@@ -9,6 +9,7 @@ evaluation runs on each one.
 from itertools import product
 from typing import Dict, FrozenSet, List, Optional, Tuple
 from app.models.garment import Garment
+from app.rules.scoring import _garment_set_similarity
 from app.styling.retrieval import RoleCandidates, resolve_role
 
 MAX_COMBOS_TO_EVALUATE = 60
@@ -95,5 +96,43 @@ def build_outfit_combinations(
         seen.add(key)
         deduped.append((garments, score, base_key))
 
-    deduped.sort(key=lambda entry: entry[1], reverse=True)
-    return deduped[:MAX_COMBOS_TO_EVALUATE]
+    return _diversity_capped(deduped, MAX_COMBOS_TO_EVALUATE)
+
+
+def _diversity_capped(combos: List[ComboEntry], cap: int) -> List[ComboEntry]:
+    """
+    A flat sort-by-score cap collapses onto whichever single item happens to score highest in
+    each role (e.g. one "best" bottom + one "best" pair of shoes dominating almost every
+    surviving combo, with only the top/outerwear slot actually varying) — confirmed live: of
+    60 combos kept by raw score alone, effectively all of them shared the same bottom AND the
+    same footwear. The later ranking-stage diversity penalty (apply_diversity_penalty) can only
+    reshuffle among whatever survives this cap, so if real variety never gets this far, no
+    amount of re-ranking can recover it. Greedily cap the same way ranking already diversifies
+    its final shortlist — same Jaccard-similarity approach, applied one stage earlier — so a
+    genuinely varied set of combinations survives into compatibility evaluation and ranking.
+    """
+    if len(combos) <= cap:
+        return sorted(combos, key=lambda entry: entry[1], reverse=True)
+
+    remaining = sorted(combos, key=lambda entry: entry[1], reverse=True)
+    selected: List[ComboEntry] = []
+    selected_id_sets: List[set] = []
+
+    while remaining and len(selected) < cap:
+        if not selected:
+            chosen = remaining.pop(0)
+        else:
+            best_idx, best_adjusted = 0, -1.0
+            for idx, (garments, score, _base_key) in enumerate(remaining):
+                ids = [g.id for g in garments]
+                max_similarity = max(
+                    _garment_set_similarity(ids, list(s)) for s in selected_id_sets
+                )
+                adjusted = score - max_similarity
+                if adjusted > best_adjusted:
+                    best_idx, best_adjusted = idx, adjusted
+            chosen = remaining.pop(best_idx)
+        selected.append(chosen)
+        selected_id_sets.append({g.id for g in chosen[0]})
+
+    return selected
