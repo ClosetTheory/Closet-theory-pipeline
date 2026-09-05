@@ -60,6 +60,7 @@ class GeminiAttributeExtractorProvider(BaseAttributeExtractorProvider):
 - occasion: list of casual | smart_casual | business_casual | formal | work | lounge | activewear | evening | party
 - season: list of spring | summer | fall | winter | all_season
 - layering_role: base | mid | outer | standalone | accessory | footwear
+- gender: women | men | unisex — classify by the garment's actual cut/styling, not by assuming from context
 - warmth: float 0.0 to 1.0
 - versatility: float 0.0 to 1.0
 - confidence: float 0.0 to 1.0"""

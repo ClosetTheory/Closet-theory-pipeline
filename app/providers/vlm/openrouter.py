@@ -105,6 +105,7 @@ class OpenRouterGPTProvider(
   "occasion": ["casual | smart_casual | business_casual | formal | work | lounge | activewear | evening | party"],
   "season": ["spring | summer | fall | winter | all_season"],
   "layering_role": "base | mid | outer | standalone | accessory | footwear",
+  "gender": "women | men | unisex — classify by the garment's actual cut/styling, not by assuming from context (e.g. a floral wrap dress is women, a plain crewneck tee is usually unisex unless clearly cut/marketed for one gender)",
   "warmth": 0.25,
   "versatility": 0.85,
   "confidence": 0.95
@@ -258,6 +259,7 @@ class OpenRouterGPTProvider(
   "formality": "string or null (e.g. CASUAL, SMART_CASUAL, BUSINESS_CASUAL, FORMAL)",
   "colors": ["list of requested colors, empty if none mentioned"],
   "style_direction": "string or null (e.g. MINIMAL, CLASSIC, EXPRESSIVE, RELAXED)",
+  "gender": "women | men | unisex | null — only set this when the request explicitly names a gender (e.g. 'female', 'women's', 'male', 'men's', 'her', 'his'); leave null otherwise, never guess",
   "weather": "string or null (e.g. WARM, COLD, RAINY)",
   "time_context": "string or null (e.g. TONIGHT, TOMORROW, MORNING)",
   "constraints": ["list of hard constraints mentioned, e.g. 'no jeans'"]

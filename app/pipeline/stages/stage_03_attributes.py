@@ -103,6 +103,7 @@ class Stage03Attributes(BaseStage):
             # Persist canonical attributes to garment entity
             ctx.garment.attributes_json = attributes.model_dump(mode="json")
             ctx.garment.subcategory = attributes.subcategory
+            ctx.garment.gender = attributes.gender.value
 
             last_check = verification_history[-1]
             status = "SUCCEEDED" if (last_check["is_valid"] and last_check["score"] >= settings.ATTRIBUTE_VERIFICATION_THRESHOLD) else "REVIEW_REQUIRED"

@@ -83,6 +83,12 @@ class LayeringRoleEnum(str, Enum):
     FOOTWEAR = "footwear"
 
 
+class GenderEnum(str, Enum):
+    WOMEN = "women"
+    MEN = "men"
+    UNISEX = "unisex"
+
+
 # Canonical taxonomy subcategory dictionary for taxonomy validation
 KNOWN_SUBCATEGORIES = {
     # Tops
@@ -150,6 +156,10 @@ class GarmentAttributes(BaseModel):
     occasion: List[OccasionEnum] = Field(..., min_length=1, description="Applicable dress codes")
     season: List[SeasonEnum] = Field(..., min_length=1, description="Suitable seasons")
     layering_role: LayeringRoleEnum = Field(..., description="Layering tier")
+    gender: GenderEnum = Field(
+        default=GenderEnum.UNISEX,
+        description="Gendered styling association — women/men/unisex, by cut/styling not assumption",
+    )
     warmth: float = Field(..., ge=0.0, le=1.0, description="Normalized thermal rating 0.0-1.0")
     versatility: float = Field(..., ge=0.0, le=1.0, description="Mix-and-match versatility rating 0.0-1.0")
     confidence: Optional[float] = Field(default=1.0, ge=0.0, le=1.0, description="Extraction confidence score")

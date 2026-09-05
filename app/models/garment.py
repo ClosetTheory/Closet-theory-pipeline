@@ -42,6 +42,11 @@ class Garment(Base, TimestampMixin):
     # None for catalog/single-garment images, where there's no ambiguity to resolve.
     detected_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
+    # Gendered styling association ("women" | "men" | "unisex"), from Stage 3's attribute
+    # extraction. Mirrors category/subcategory's dedicated-column pattern for fast SQL filtering
+    # in styling (see app/styling/filtering.py) rather than requiring a JSON path query.
+    gender: Mapped[Optional[str]] = mapped_column(String(16), nullable=True, index=True)
+
     category: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     subcategory: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     garment_class: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
