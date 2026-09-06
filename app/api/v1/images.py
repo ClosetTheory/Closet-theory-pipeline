@@ -19,16 +19,16 @@ router = APIRouter(prefix="/wardrobe/images", tags=["Images"])
 Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
 
 
-@router.post("", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
-async def upload_image(
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-    storage: StorageClient = Depends(get_storage),
-):
+async def store_uploaded_image(
+    file: UploadFile,
+    current_user: User,
+    session: AsyncSession,
+    storage: StorageClient,
+) -> ImageAsset:
     """
-    Securely uploads a raw wardrobe/catalog image.
-    Validates MIME type, byte size, decompression limits, generates immutable SHA256 key.
+    Securely validates and stores a raw wardrobe/catalog image, shared by both the single-image
+    (`upload_image`) and bulk (`POST /garments/bulk`) upload paths so there's exactly one place
+    that enforces MIME type, byte size, and decompression-bomb limits.
     """
     # 1. MIME type validation
     if file.content_type not in settings.ALLOWED_MIME_TYPES:
@@ -79,6 +79,21 @@ async def upload_image(
     session.add(image_asset)
     await session.commit()
     await session.refresh(image_asset)
+    return image_asset
+
+
+@router.post("", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
+):
+    """
+    Securely uploads a raw wardrobe/catalog image.
+    Validates MIME type, byte size, decompression limits, generates immutable SHA256 key.
+    """
+    image_asset = await store_uploaded_image(file, current_user, session, storage)
 
     return ImageUploadResponse(
         image_id=image_asset.id,
