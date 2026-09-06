@@ -47,6 +47,9 @@
         <button onclick="switchTab('principles')" id="tab-principles" class="tab-btn px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
           Engineering Rationale
         </button>
+        <button onclick="switchTab('bulk')" id="tab-bulk" class="tab-btn px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+          📦 Bulk Ingestion
+        </button>
         <a href="/" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
         <a href="/styling" class="px-3.5 py-1.5 rounded-lg text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/30 transition font-semibold">Styling Pipeline</a>
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1.5 transition font-semibold" title="Open Interactive Swagger UI">
@@ -524,11 +527,59 @@
       </div>
     </section>
 
+    <!-- ============================================================= -->
+    <!-- TAB: BULK INGESTION -->
+    <!-- ============================================================= -->
+    <section id="section-bulk" class="tab-content hidden space-y-6">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/30 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-400">Select Many Garment Photos at Once</span>
+          <p class="text-xs text-slate-400 mt-1">Each photo is queued independently and processed in the background by the worker pool (several run concurrently) — no need to wait for one to finish before the next starts. Max 50 files per batch.</p>
+        </div>
+        <div id="bulk-drop-zone" onclick="document.getElementById('bulk-file-input').click()" class="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-2xl p-6 bg-slate-950/60 transition cursor-pointer text-center group">
+          <input type="file" id="bulk-file-input" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="handleBulkFileSelect(event)">
+          <div id="bulk-upload-prompt" class="space-y-2">
+            <div class="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 mx-auto flex items-center justify-center text-2xl group-hover:scale-110 transition">📦</div>
+            <div class="text-sm font-semibold text-white">Click or drag multiple images here</div>
+            <div class="text-xs text-slate-400">JPEG, PNG, or WebP — up to 50 at once</div>
+          </div>
+          <div id="bulk-selected-info" class="hidden text-sm text-slate-300"></div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="bulk-upload-btn" onclick="uploadBulkFiles()" disabled class="flex-1 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition flex items-center justify-center gap-2">
+            <span>🚀</span> Upload &amp; Queue All
+          </button>
+          <button type="button" onclick="resetBulkUpload()" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition">Clear</button>
+        </div>
+      </div>
+
+      <div id="bulk-results-section" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold text-white">Batch Progress</h2>
+          <span id="bulk-summary-line" class="text-xs font-mono text-slate-400">—</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-slate-500 border-b border-slate-800">
+                <th class="pb-2 pr-3">Preview</th>
+                <th class="pb-2 pr-3">Filename</th>
+                <th class="pb-2 pr-3">Status</th>
+                <th class="pb-2">Link</th>
+              </tr>
+            </thead>
+            <tbody id="bulk-results-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <script>
     let selectedFile = null;
     let createdGarmentId = null;
+    let bulkSelectedFiles = [];
 
     if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
     async function ctFetch(url, opts = {}) {
@@ -1021,6 +1072,145 @@
 
       if (!allTerminal && attemptsLeft > 0) {
         setTimeout(() => pollOtherGarments(garmentIds, attemptsLeft - 1), 4000);
+      }
+    }
+
+    // ============================================================
+    // BULK INGESTION
+    // ============================================================
+    function handleBulkFileSelect(e) {
+      bulkSelectedFiles = Array.from(e.target.files || []);
+      const info = document.getElementById('bulk-selected-info');
+      const prompt = document.getElementById('bulk-upload-prompt');
+      const uploadBtn = document.getElementById('bulk-upload-btn');
+
+      if (bulkSelectedFiles.length === 0) {
+        prompt.classList.remove('hidden');
+        info.classList.add('hidden');
+        uploadBtn.disabled = true;
+        return;
+      }
+      prompt.classList.add('hidden');
+      info.classList.remove('hidden');
+      const totalKb = bulkSelectedFiles.reduce((sum, f) => sum + f.size, 0) / 1024;
+      info.innerText = `${bulkSelectedFiles.length} file(s) selected — ${totalKb.toFixed(0)} KB total`;
+      uploadBtn.disabled = bulkSelectedFiles.length > 50;
+      if (bulkSelectedFiles.length > 50) {
+        info.innerText += ' — exceeds the 50-file limit, remove some before uploading.';
+        info.className = "text-sm text-red-400";
+      } else {
+        info.className = "text-sm text-slate-300";
+      }
+    }
+
+    function resetBulkUpload() {
+      bulkSelectedFiles = [];
+      document.getElementById('bulk-file-input').value = '';
+      document.getElementById('bulk-upload-prompt').classList.remove('hidden');
+      document.getElementById('bulk-selected-info').classList.add('hidden');
+      document.getElementById('bulk-upload-btn').disabled = true;
+      document.getElementById('bulk-results-section').classList.add('hidden');
+      document.getElementById('bulk-results-tbody').innerHTML = '';
+    }
+
+    const BULK_TERMINAL_STATES = new Set(["COMPLETED", "REVIEW_REQUIRED", "FAILED"]);
+
+    async function uploadBulkFiles() {
+      if (bulkSelectedFiles.length === 0) return;
+      const uploadBtn = document.getElementById('bulk-upload-btn');
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = `<span>⏳</span> Uploading & queuing...`;
+
+      const formData = new FormData();
+      for (const f of bulkSelectedFiles) formData.append('files', f);
+
+      try {
+        const resp = await ctFetch('/api/v1/wardrobe/garments/bulk', { method: 'POST', body: formData });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+
+        const resultsSection = document.getElementById('bulk-results-section');
+        const tbody = document.getElementById('bulk-results-tbody');
+        resultsSection.classList.remove('hidden');
+
+        // Build one row per file, using the local selected File for an instant thumbnail
+        // (no server round-trip needed just to preview what was already picked locally).
+        const filesByName = {};
+        bulkSelectedFiles.forEach(f => { filesByName[f.name] = f; });
+
+        tbody.innerHTML = data.results.map((r, i) => {
+          const file = filesByName[r.filename];
+          const previewUrl = file ? URL.createObjectURL(file) : '';
+          const rowId = `bulk-row-${i}`;
+          const initialStatus = r.status === "error" ? "ERROR" : "QUEUED";
+          return `<tr id="${rowId}" data-garment-id="${r.garment_id || ''}" class="border-b border-slate-800/60">
+            <td class="py-2 pr-3"><img src="${previewUrl}" class="w-10 h-10 object-cover rounded-lg border border-slate-800"></td>
+            <td class="py-2 pr-3 text-slate-300 truncate max-w-[160px]">${r.filename}</td>
+            <td class="py-2 pr-3"><span class="bulk-status-badge text-[10px] font-mono px-2 py-0.5 rounded ${initialStatus === 'ERROR' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}">${r.error ? r.error : initialStatus}</span></td>
+            <td class="py-2">${r.garment_id ? `<a href="/garment?id=${encodeURIComponent(r.garment_id)}" target="_blank" class="text-blue-400 hover:underline">view →</a>` : '—'}</td>
+          </tr>`;
+        }).join('');
+
+        updateBulkSummary(data.queued_count, data.failed_count, 0, 0, 0);
+
+        const queuedIds = data.results.filter(r => r.garment_id).map((r, _i) => r.garment_id);
+        // Map row index -> garment_id for polling (skip error rows, they have no garment_id)
+        const idToRowIndex = {};
+        data.results.forEach((r, i) => { if (r.garment_id) idToRowIndex[r.garment_id] = i; });
+
+        if (queuedIds.length > 0) {
+          pollBulkGarments(queuedIds, idToRowIndex, data.failed_count);
+        }
+      } catch (e) {
+        alert("Bulk upload failed: " + e.message);
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = `<span>🚀</span> Upload &amp; Queue All`;
+      }
+    }
+
+    function updateBulkSummary(queued, failedUpload, completed, reviewRequired, pipelineFailed) {
+      const stillProcessing = queued - completed - reviewRequired - pipelineFailed;
+      document.getElementById('bulk-summary-line').innerText =
+        `${completed} completed · ${reviewRequired} review required · ${pipelineFailed + failedUpload} failed · ${Math.max(0, stillProcessing)} processing`;
+    }
+
+    async function pollBulkGarments(garmentIds, idToRowIndex, failedUploadCount, attemptsLeft = 60) {
+      let completed = 0, reviewRequired = 0, pipelineFailed = 0;
+      let allTerminal = true;
+
+      await Promise.all(garmentIds.map(async (id) => {
+        try {
+          const res = await ctFetch(`/api/v1/wardrobe/garments/${encodeURIComponent(id)}`);
+          const g = await res.json();
+          const status = g.canonical_image_ref ? "COMPLETED" : (g.quality_status === "REJECTED" ? "FAILED" : (g.quality_status || "PROCESSING"));
+
+          if (status === "COMPLETED") completed++;
+          else if (status === "REVIEW_REQUIRED") reviewRequired++;
+          else if (status === "FAILED") pipelineFailed++;
+          else allTerminal = false;
+
+          const rowIdx = idToRowIndex[id];
+          const row = document.getElementById(`bulk-row-${rowIdx}`);
+          if (row) {
+            const badge = row.querySelector('.bulk-status-badge');
+            const color = status === "COMPLETED" ? "emerald" : status === "REVIEW_REQUIRED" ? "amber" : status === "FAILED" ? "red" : "blue";
+            badge.className = `bulk-status-badge text-[10px] font-mono px-2 py-0.5 rounded bg-${color}-500/20 text-${color}-400`;
+            badge.innerText = status;
+            const thumb = row.querySelector('img');
+            if (status === "COMPLETED" && g.canonical_image_ref && thumb) {
+              thumb.src = `/api/v1/wardrobe/images/media/${g.canonical_image_ref.replace(/^object:\/\/[^/]+\//, "")}`;
+            }
+          }
+        } catch (e) {
+          allTerminal = false;
+        }
+      }));
+
+      updateBulkSummary(garmentIds.length, failedUploadCount, completed, reviewRequired, pipelineFailed);
+
+      if (!allTerminal && attemptsLeft > 0) {
+        setTimeout(() => pollBulkGarments(garmentIds, idToRowIndex, failedUploadCount, attemptsLeft - 1), 4000);
       }
     }
 
