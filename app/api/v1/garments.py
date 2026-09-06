@@ -2,7 +2,7 @@
 
 import time
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,8 +24,9 @@ from app.pipeline.state_machine import (
     GarmentState,
     PipelineStage,
 )
+from app.api.v1.images import store_uploaded_image
 from app.schemas.attributes import validate_extracted_attributes
-from app.schemas.garment import CanonicalGarment, GarmentCreateRequest
+from app.schemas.garment import BulkGarmentUploadResponse, BulkGarmentUploadResult, CanonicalGarment, GarmentCreateRequest
 from app.schemas.styling import GarmentSummary
 from app.schemas.pipeline import (
     PipelineStageRunRead,
@@ -107,6 +108,60 @@ async def create_garment(
         quality_status=garment.quality_status,
         provenance=garment.provenance,
         pipeline_version=garment.pipeline_version,
+    )
+
+
+@router.post("/bulk", response_model=BulkGarmentUploadResponse, status_code=status.HTTP_202_ACCEPTED)
+async def bulk_create_garments(
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
+):
+    """
+    Bulk ingestion: uploads and queues many garment photos in one request. Each file is
+    validated and enqueued independently via the SAME background worker queue single uploads
+    use (app/worker/queue.py::enqueue_garment_pipeline) — the existing Redis-backed worker pool
+    (settings.WORKER_CONCURRENCY concurrent loops, see app/worker/runner.py) then processes them
+    in parallel. A bad file (wrong MIME type, corrupt, oversized) is recorded as a per-file error
+    and does not abort the rest of the batch.
+    """
+    if len(files) > settings.MAX_BULK_UPLOAD_FILES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Batch of {len(files)} files exceeds the maximum of {settings.MAX_BULK_UPLOAD_FILES} per request.",
+        )
+
+    results: List[BulkGarmentUploadResult] = []
+    for file in files:
+        filename = file.filename or "unnamed"
+        try:
+            image_asset = await store_uploaded_image(file, current_user, session, storage)
+        except HTTPException as e:
+            results.append(BulkGarmentUploadResult(filename=filename, status="error", error=e.detail))
+            continue
+
+        garment = Garment(
+            tenant_id=current_user.tenant_id,
+            member_id=current_user.member_id,
+            source_image_id=image_asset.id,
+            status=GarmentState.RECEIVED.value,
+            quality_status="PENDING",
+        )
+        session.add(garment)
+        await session.commit()
+        await session.refresh(garment)
+
+        await enqueue_garment_pipeline(garment.id)
+        results.append(BulkGarmentUploadResult(
+            filename=filename, garment_id=garment.id, image_id=image_asset.id, status="queued",
+        ))
+
+    queued_count = sum(1 for r in results if r.status == "queued")
+    return BulkGarmentUploadResponse(
+        results=results,
+        queued_count=queued_count,
+        failed_count=len(results) - queued_count,
     )
 
 

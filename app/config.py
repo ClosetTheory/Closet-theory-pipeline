@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     MAX_IMAGE_SIZE_BYTES: int = 25 * 1024 * 1024  # 25 MB
     MAX_IMAGE_PIXELS: int = 89_478_485  # Pillow default decompression bomb ceiling
     ALLOWED_MIME_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
+    MAX_BULK_UPLOAD_FILES: int = 50
 
     # Stage 1: Classifier
     CLASSIFIER_PROVIDER: str = "openrouter"  # "openrouter" | "mobilenet" | "mock"

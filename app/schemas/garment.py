@@ -9,6 +9,23 @@ class GarmentCreateRequest(BaseModel):
     source_image_id: str
 
 
+class BulkGarmentUploadResult(BaseModel):
+    """Per-file outcome of a bulk ingestion request — either queued for background processing
+    or a validation failure, so one bad file doesn't abort the rest of the batch."""
+
+    filename: str
+    garment_id: Optional[str] = None
+    image_id: Optional[str] = None
+    status: str  # "queued" | "error"
+    error: Optional[str] = None
+
+
+class BulkGarmentUploadResponse(BaseModel):
+    results: List[BulkGarmentUploadResult]
+    queued_count: int
+    failed_count: int
+
+
 class CanonicalGarment(BaseModel):
     """The canonical product representation matching PRD Section 2."""
 
