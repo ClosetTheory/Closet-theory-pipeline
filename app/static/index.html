@@ -183,6 +183,13 @@
               <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Crop Verification (independent model)</span>
               <div id="stage2-verify-list" class="space-y-1"></div>
             </div>
+            <div id="stage2-prompt-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Detection Prompt (<span id="stage2-prompt-model">-</span>)</span>
+                <button type="button" onclick="copyPromptFrom('stage2-prompt-text')" class="text-[10px] text-blue-400 hover:text-blue-300 font-mono">📋 Copy</button>
+              </div>
+              <div id="stage2-prompt-text" class="text-[10px] text-slate-300 bg-slate-950 p-2 rounded border border-slate-800 max-h-20 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap"></div>
+            </div>
           </div>
 
           <!-- Card 3: Validated Attributes (NVIDIA NIM / MODA) -->
@@ -200,6 +207,13 @@
             <div id="stage3-verify-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
               <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Attribute Verification (independent model)</span>
               <div id="stage3-verify-list" class="space-y-1"></div>
+            </div>
+            <div id="stage3-prompt-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Extraction Prompt (<span id="stage3-prompt-model">-</span>)</span>
+                <button type="button" onclick="copyPromptFrom('stage3-prompt-text')" class="text-[10px] text-blue-400 hover:text-blue-300 font-mono">📋 Copy</button>
+              </div>
+              <div id="stage3-prompt-text" class="text-[10px] text-slate-300 bg-slate-950 p-2 rounded border border-slate-800 max-h-20 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap"></div>
             </div>
           </div>
 
@@ -840,10 +854,17 @@
           : "";
 
         document.getElementById('stage2-data').innerHTML = `
+          <div>Model: <span class="text-purple-300 font-bold">${data.model || 'unknown'}</span></div>
           <div>Person Detected: <span class="text-emerald-400 font-bold">${data.output_data.person_detected}</span></div>
           <div>Regions Detected: <span class="text-blue-400 font-bold">${(data.output_data.detected_labels || []).length} garment(s)</span> <span class="text-slate-500">(no pixel crop — full photo + label sent downstream)</span></div>
           ${spawnedLinks}
         `;
+
+        if (data.output_data.prompt) {
+          document.getElementById('stage2-prompt-container').classList.remove('hidden');
+          document.getElementById('stage2-prompt-model').innerText = data.model || 'unknown';
+          document.getElementById('stage2-prompt-text').innerText = data.output_data.prompt;
+        }
 
         // Every detected garment (this one + every spawned sibling) shares the SAME full
         // photo — no distinct crop image exists anymore (replaces the old per-region
@@ -901,9 +922,18 @@
         } else {
           document.getElementById('stage3-attr-list').innerHTML = `<div class="text-red-400">${data.error || 'Attribute extraction failed schema validation.'}</div>`;
         }
-        document.getElementById('stage3-data').innerHTML = data.status === "SUCCEEDED"
-          ? `Validation: <span class="text-emerald-400 font-bold">Passed All 7 Gates + Independent Verification</span>`
-          : `Validation: <span class="text-amber-400 font-bold">${data.status}</span>`;
+        document.getElementById('stage3-data').innerHTML = `
+          <div>Model: <span class="text-purple-300 font-bold">${data.model || 'unknown'}</span></div>
+          <div>${data.status === "SUCCEEDED"
+            ? `Validation: <span class="text-emerald-400 font-bold">Passed All 7 Gates + Independent Verification</span>`
+            : `Validation: <span class="text-amber-400 font-bold">${data.status}</span>`}</div>
+        `;
+
+        if (out.prompt) {
+          document.getElementById('stage3-prompt-container').classList.remove('hidden');
+          document.getElementById('stage3-prompt-model').innerText = data.model || 'unknown';
+          document.getElementById('stage3-prompt-text').innerText = out.prompt;
+        }
 
         const attrVerifications = out.verification_history || [];
         if (attrVerifications.length) {
@@ -914,7 +944,7 @@
                 <span class="font-mono ${v.is_valid ? 'text-emerald-400' : 'text-red-400'} font-bold">
                   Attempt ${v.attempt}: ${v.is_valid ? 'PASSED' : 'FAILED'} (${(v.score * 100).toFixed(0)}%)
                 </span>
-                <span class="text-slate-500 font-mono">${v.verifier_model}</span>
+                <span class="text-slate-500 font-mono">extracted by ${v.extractor_model || 'unknown'} · verified by ${v.verifier_model}</span>
               </div>
               <div class="text-slate-400 mt-0.5">${v.reason}</div>
               ${(v.mismatches && v.mismatches.length) ? `<div class="text-amber-400 mt-0.5">Mismatches: ${v.mismatches.join(', ')}</div>` : ''}
@@ -1264,6 +1294,13 @@
       alert("GPT Studio prompt copied to clipboard!");
     }
     const copyFluxPrompt = copyGptPrompt;
+
+    function copyPromptFrom(elementId) {
+      const el = document.getElementById(elementId);
+      if (!el || !el.innerText) return;
+      navigator.clipboard.writeText(el.innerText);
+      alert("Prompt copied to clipboard!");
+    }
 
     function copyEmbeddingVector() {
       if (window._lastEmbeddingVector && window._lastEmbeddingVector.length) {
