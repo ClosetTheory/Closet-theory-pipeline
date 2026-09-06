@@ -1054,6 +1054,22 @@
           const label = canonicalUrl ? "digitised" : (cropUrl ? "crop only — still processing" : "processing…");
           const statusColor = status === "COMPLETED" ? "emerald" : status === "REVIEW_REQUIRED" ? "amber" : status === "FAILED" ? "red" : "blue";
 
+          // Each garment (including siblings split from the same photo) gets its own distinct
+          // embedding, computed from ITS OWN canonical image, not shared with anything else —
+          // shown here as a small heatmap strip so that's visible per-garment, not just for
+          // whichever garment happens to be the primary one in the live runner above.
+          const vec = g.image_embedding || [];
+          const embeddingStrip = vec.length > 0
+            ? `<div class="h-2.5 w-full rounded overflow-hidden flex border border-slate-800/60 mt-1">
+                ${vec.slice(0, 24).map((val) => {
+                  const hue = val >= 0 ? 275 : 190;
+                  const lightness = Math.min(80, Math.max(25, 50 + val * 120));
+                  return `<div style="flex:1;height:100%;background:hsl(${hue},85%,${lightness}%);"></div>`;
+                }).join('')}
+              </div>
+              <div class="text-[7px] text-slate-600 font-mono mt-0.5">${vec.length}-dim embedding</div>`
+            : `<div class="text-[7px] text-slate-700 font-mono mt-1.5">no embedding yet</div>`;
+
           return `<a href="/garment?id=${encodeURIComponent(id)}" target="_blank" class="block bg-slate-950 rounded-xl border border-slate-800 overflow-hidden hover:border-purple-500/50 transition">
             <div class="h-28 flex items-center justify-center overflow-hidden">
               ${imgUrl ? `<img src="${imgUrl}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-slate-600 font-mono">no image yet</span>`}
@@ -1061,6 +1077,7 @@
             <div class="p-1.5 space-y-0.5">
               <div class="text-[9px] font-mono text-${statusColor}-400">${status}</div>
               <div class="text-[8px] text-slate-500">${label}</div>
+              ${embeddingStrip}
             </div>
           </a>`;
         } catch (e) {
