@@ -99,14 +99,71 @@
               <button id="style-btn" onclick="styleThis()" class="flex-1 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
                 ✨ Style this garment
               </button>
+              <button id="retry-btn" onclick="retryPipeline()" class="px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition whitespace-nowrap">
+                🔄 Retry pipeline
+              </button>
               <a id="style-pipeline-link" href="#" class="px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition whitespace-nowrap">
                 View pipeline →
               </a>
             </div>
+            <div id="retry-status" class="mt-2 text-xs text-slate-500"></div>
             <div id="style-results" class="mt-5 space-y-4"></div>
           </div>`;
       } catch (e) {
         content.innerHTML = `<p class="text-red-400 col-span-full">Failed to load garment: ${e}</p>`;
+      }
+    }
+
+    async function retryPipeline() {
+      const btn = document.getElementById('retry-btn');
+      const statusEl = document.getElementById('retry-status');
+      btn.disabled = true;
+      btn.innerText = '⏳ Retrying...';
+      // force + resume from Stage 1: a plain retry (no force) would just re-confirm whatever
+      // already "succeeded" via the idempotency check, even if that result was wrong (e.g. a
+      // full-body photo that got misclassified) — force redoes the whole pipeline for real.
+      statusEl.innerText = 'Re-running the full pipeline from Stage 1 (classification) — this can take a minute or two...';
+
+      try {
+        const res = await ctFetch(`${API_BASE}/garments/${encodeURIComponent(garmentId)}/retry`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ stage: "STAGE_01_CLASSIFY", force: true }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        statusEl.innerText = 'Queued — processing in the background...';
+        pollRetryStatus(0);
+      } catch (e) {
+        statusEl.innerText = `Retry failed to queue: ${e.message}`;
+        btn.disabled = false;
+        btn.innerText = '🔄 Retry pipeline';
+      }
+    }
+
+    async function pollRetryStatus(attempt) {
+      const statusEl = document.getElementById('retry-status');
+      const btn = document.getElementById('retry-btn');
+      const TERMINAL = new Set(["COMPLETED", "REVIEW_REQUIRED", "REJECTED"]);
+      try {
+        const res = await ctFetch(`${API_BASE}/garments/${encodeURIComponent(garmentId)}`);
+        const g = await res.json();
+        const status = g.quality_status || "PROCESSING";
+        if (g.canonical_image_ref || TERMINAL.has(status)) {
+          statusEl.innerText = `Done — ${g.quality_status}. Reloading...`;
+          btn.disabled = false;
+          btn.innerText = '🔄 Retry pipeline';
+          load();
+          return;
+        }
+      } catch (e) {
+        // keep polling — a transient fetch error mid-retry shouldn't stop the poll loop
+      }
+      if (attempt < 40) {
+        setTimeout(() => pollRetryStatus(attempt + 1), 4000);
+      } else {
+        statusEl.innerText = 'Still processing — check back shortly.';
+        btn.disabled = false;
+        btn.innerText = '🔄 Retry pipeline';
       }
     }
 
