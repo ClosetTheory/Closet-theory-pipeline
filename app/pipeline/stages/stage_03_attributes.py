@@ -109,6 +109,7 @@ class Stage03Attributes(BaseStage):
             status = "SUCCEEDED" if (last_check["is_valid"] and last_check["score"] >= settings.ATTRIBUTE_VERIFICATION_THRESHOLD) else "REVIEW_REQUIRED"
             output_data = attributes.model_dump(mode="json")
             output_data["verification_history"] = verification_history
+            output_data["prompt"] = getattr(last_provider, "_last_prompt", "")
 
             return StageExecutionResult(
                 status=status,

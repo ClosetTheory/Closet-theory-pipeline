@@ -60,6 +60,7 @@ class OpenRouterGPTProvider(
         self.model_name = model_name
         self.base_url = base_url.rstrip("/")
         self.model_version = "v1"
+        self._last_prompt: str = ""  # set by whichever method last ran, for frontend visibility
 
     async def extract_attributes(
         self, image_bytes: bytes, image_type: Optional[str] = None, garment_label: Optional[str] = None
@@ -110,6 +111,7 @@ class OpenRouterGPTProvider(
   "versatility": 0.85,
   "confidence": 0.95
 }}"""
+        self._last_prompt = prompt
 
         b64_image = base64.b64encode(image_bytes).decode("utf-8")
         payload = {
@@ -381,6 +383,7 @@ Compatibility note: {outfit.compatibility_reason or "n/a"}"""
 CATALOG: a clean, garment-only product shot (flat lay, ghost mannequin, or plain background), no visible person.
 CROP: a close-up crop showing only part of a garment on a person (no full body, no face necessarily visible).
 FULL_BODY: a person wearing the garment is visible, showing most/all of their body or a clear face."""
+        self._last_prompt = prompt_text
 
         attempts = [
             (self.model_name, self.model_version),
@@ -448,6 +451,7 @@ beyond the overlap. Be honest about confidence: if a body part (e.g. feet, waist
 visible, cropped out of frame, in shadow, or obscured, give that entry LOW confidence (below
 0.5) rather than guessing a specific garment type for something you can't actually see clearly
 — do not report a garment "for completeness" if you aren't actually confident it's there."""
+        self._last_prompt = prompt_text
 
         try:
             with Image.open(io.BytesIO(image_bytes)) as img:

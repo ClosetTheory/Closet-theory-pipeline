@@ -33,6 +33,7 @@ class GeminiAttributeExtractorProvider(BaseAttributeExtractorProvider):
         self.model_name = model_name
         self.model_version = model_version
         self._fallback = MockAttributeExtractorProvider(model_name=model_name, model_version=model_version)
+        self._last_prompt: str = ""  # for frontend visibility of which prompt actually produced the result
 
     async def extract_attributes(
         self, image_bytes: bytes, image_type: Optional[str] = None, garment_label: Optional[str] = None
@@ -64,6 +65,7 @@ class GeminiAttributeExtractorProvider(BaseAttributeExtractorProvider):
 - warmth: float 0.0 to 1.0
 - versatility: float 0.0 to 1.0
 - confidence: float 0.0 to 1.0"""
+        self._last_prompt = prompt
 
         b64_image = base64.b64encode(image_bytes).decode("utf-8")
         payload = {
