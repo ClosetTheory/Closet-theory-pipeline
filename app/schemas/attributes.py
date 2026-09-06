@@ -134,6 +134,17 @@ SUBCATEGORY_ALIASES = {
     "tote_bag": "bag",
 }
 
+# Common cases where a model answers the "fit" question with a silhouette word instead —
+# "fitted" describes how a garment follows the body's shape (a silhouette concept), not one of
+# FitEnum's actual values, but models conflate the two constantly.
+FIT_ALIASES = {
+    "fitted": "tailored",
+    "form_fitting": "slim",
+    "body_fitting": "slim",
+    "snug": "slim",
+    "baggy": "loose",
+}
+
 
 class GarmentAttributes(BaseModel):
     """Canonical, strongly validated garment attributes."""
@@ -187,6 +198,19 @@ class GarmentAttributes(BaseModel):
         default=None,
         description="Visible brand label or text",
     )
+
+    @field_validator("fit", mode="before")
+    @classmethod
+    def normalize_fit(cls, v):
+        # A vision model asked for "fit" will sometimes answer with a SilhouetteEnum word
+        # instead (most commonly "fitted", which isn't a valid FitEnum value — it describes
+        # silhouette, not fit) — confirmed live this recurring mismatch was crashing extraction
+        # outright (a hard schema error) rather than routing to a sensible fit value, which
+        # then aborted a cross-model retry before the second model even got a chance to answer.
+        if isinstance(v, str):
+            clean_v = v.lower().strip().replace(" ", "_").replace("-", "_")
+            return FIT_ALIASES.get(clean_v, clean_v)
+        return v
 
     @field_validator("subcategory")
     @classmethod
