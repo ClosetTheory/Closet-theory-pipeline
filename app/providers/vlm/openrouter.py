@@ -321,7 +321,9 @@ Compatibility note: {outfit.compatibility_reason or "n/a"}"""
             for g in garments
         )
 
-    async def _vision_chat_json(self, prompt_text: str, image_bytes: bytes, max_tokens: int = 400) -> Optional[str]:
+    async def _vision_chat_json(
+        self, prompt_text: str, image_bytes: bytes, max_tokens: int = 400, model_override: Optional[str] = None
+    ) -> Optional[str]:
         """Shared helper: single-turn JSON-mode vision chat completion. Returns raw content or None on failure."""
         if not self.api_key:
             return None
@@ -333,7 +335,7 @@ Compatibility note: {outfit.compatibility_reason or "n/a"}"""
             "Content-Type": "application/json",
         }
         payload = {
-            "model": self.model_name,
+            "model": model_override or self.model_name,
             "messages": [
                 {
                     "role": "user",
@@ -359,9 +361,17 @@ Compatibility note: {outfit.compatibility_reason or "n/a"}"""
             return None
 
     async def classify(self, image_bytes: bytes) -> ClassificationResult:
-        """Stage 1: real vision-model classification (replaces the aspect-ratio/face-detection
-        heuristic in app/providers/classifier/mock.py — that heuristic is still used as the
-        fallback here when no API key is configured or the call fails)."""
+        """Stage 1: real vision-model classification, with the same cross-model resilience
+        pattern used for Stage 3 attribute extraction — a single transient OpenRouter failure
+        (confirmed live during a concurrent bulk-ingestion burst) must not silently degrade to
+        the crude aspect-ratio/face-detection heuristic in app/providers/classifier/mock.py,
+        since that heuristic's hardcoded confidence (0.85-0.96) sails straight past the 0.70
+        review threshold and gets treated as a trustworthy result — it isn't one. Order:
+        1) real call with the primary model, 2) one retry on the same model (transient errors
+        often clear up immediately), 3) a genuinely different vendor
+        (settings.VISION_VERIFIER_MODEL) as a real second opinion, 4) only then the heuristic —
+        reported with an honestly low confidence so it correctly routes to REVIEW_REQUIRED
+        instead of masquerading as a confident model result."""
         prompt_text = """Classify this garment/fashion photo. Output ONLY JSON:
 {
   "image_type": "CATALOG" | "CROP" | "FULL_BODY",
@@ -372,8 +382,15 @@ CATALOG: a clean, garment-only product shot (flat lay, ghost mannequin, or plain
 CROP: a close-up crop showing only part of a garment on a person (no full body, no face necessarily visible).
 FULL_BODY: a person wearing the garment is visible, showing most/all of their body or a clear face."""
 
-        content = await self._vision_chat_json(prompt_text, image_bytes, max_tokens=100)
-        if content:
+        attempts = [
+            (self.model_name, self.model_version),
+            (self.model_name, self.model_version),
+            (settings.VISION_VERIFIER_MODEL, "v1"),
+        ]
+        for model_id, model_version in attempts:
+            content = await self._vision_chat_json(prompt_text, image_bytes, max_tokens=100, model_override=model_id)
+            if not content:
+                continue
             try:
                 data = json.loads(content)
                 image_type = ImageType(data["image_type"])
@@ -381,14 +398,24 @@ FULL_BODY: a person wearing the garment is visible, showing most/all of their bo
                 return ClassificationResult(
                     image_type=image_type,
                     confidence=confidence,
-                    model=self.model_name,
-                    model_version=self.model_version,
+                    model=model_id,
+                    model_version=model_version,
                 )
             except Exception as e:
-                logger.warning(f"Classifier result parse failed: {e}. Falling back to heuristic.")
+                logger.warning(f"Classifier result parse failed ({model_id}): {e}.")
 
+        logger.warning("All classifier model attempts failed — falling back to heuristic with a capped low confidence.")
         from app.providers.classifier.mock import MockClassifierProvider
-        return await MockClassifierProvider(model_name=self.model_name, model_version=self.model_version).classify(image_bytes)
+        heuristic_result = await MockClassifierProvider(model_name=self.model_name, model_version=self.model_version).classify(image_bytes)
+        return ClassificationResult(
+            image_type=heuristic_result.image_type,
+            # Deliberately capped below CLASSIFIER_CONFIDENCE_THRESHOLD (0.70) — this is a
+            # last-resort ratio/face-detection guess, not a real vision judgment, and must
+            # route to human review rather than being silently trusted.
+            confidence=min(heuristic_result.confidence, 0.4),
+            model="heuristic-fallback (all vision models failed)",
+            model_version="v1",
+        )
 
     async def detect_and_crop(self, image_bytes: bytes) -> DetectionResult:
         """Stage 2: real vision-model person/garment detection (replaces the Haar-cascade
@@ -437,8 +464,16 @@ visible, cropped out of frame, in shadow, or obscured, give that entry LOW confi
                 max(0, min(img_h, int(y2 * img_h))),
             ]
 
-        content = await self._vision_chat_json(prompt_text, image_bytes, max_tokens=500)
-        if content:
+        # Same cross-model resilience pattern as classify()/Stage 3 — confirmed live that a
+        # concurrent bulk-ingestion burst can transiently fail real OpenRouter calls, and this
+        # method used to fall straight through to a crude Haar-cascade heuristic (1-2 crude
+        # anatomical boxes, never a real multi-garment split) on the very first failure, with
+        # no retry and no honest record of which model actually produced the result.
+        attempts = [self.model_name, self.model_name, settings.VISION_VERIFIER_MODEL]
+        for model_id in attempts:
+            content = await self._vision_chat_json(prompt_text, image_bytes, max_tokens=500, model_override=model_id)
+            if not content:
+                continue
             try:
                 data = json.loads(content)
                 garments_raw = data.get("garments") or []
@@ -460,7 +495,7 @@ visible, cropped out of frame, in shadow, or obscured, give that entry LOW confi
                         person_detected=person_detected,
                         face_box=face_box,
                         garment_regions=regions,
-                        model=self.model_name,
+                        model=model_id,
                         model_version=self.model_version,
                     )
                 if not person_detected:
@@ -470,17 +505,24 @@ visible, cropped out of frame, in shadow, or obscured, give that entry LOW confi
                         person_detected=False,
                         face_box=None,
                         garment_regions=[],
-                        model=self.model_name,
+                        model=model_id,
                         model_version=self.model_version,
                     )
-                # Model saw a person but couldn't segment individual garments — fall through
-                # to the heuristic below, which can still derive a reasonable region from a
-                # detected face.
+                # Model saw a person but couldn't segment individual garments — try the next
+                # model attempt rather than immediately falling back to the crude heuristic.
             except Exception as e:
-                logger.warning(f"Detection result parse failed: {e}. Falling back to heuristic.")
+                logger.warning(f"Detection result parse failed ({model_id}): {e}.")
 
+        logger.warning("All detection model attempts failed or found no segmentable garments — falling back to Haar-cascade heuristic.")
         from app.providers.detection.opencv_detector import OpenCVDetectorProvider
-        return await OpenCVDetectorProvider(model_name=self.model_name, model_version=self.model_version).detect_and_crop(image_bytes)
+        heuristic_result = await OpenCVDetectorProvider(model_name=self.model_name, model_version=self.model_version).detect_and_crop(image_bytes)
+        return DetectionResult(
+            person_detected=heuristic_result.person_detected,
+            face_box=heuristic_result.face_box,
+            garment_regions=heuristic_result.garment_regions,
+            model="heuristic-fallback (all vision models failed/found nothing)",
+            model_version="v1",
+        )
 
     async def validate_image(
         self,
