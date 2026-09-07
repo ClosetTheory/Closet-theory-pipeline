@@ -603,6 +603,10 @@
             <div class="text-xs font-bold text-slate-300 mb-2">Or browse and pick a specific replacement:</div>
             <div class="flex flex-wrap gap-2">${roleButtons}</div>
             <div id="swap-candidates-grid" class="grid grid-cols-3 gap-2 mt-3"></div>
+            <button id="swap-apply-btn" onclick="applySelectedSwap()" disabled
+                    class="hidden mt-3 w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition">
+              Apply swap
+            </button>
           </div>
           <div id="swap-status" class="text-xs text-slate-500"></div>
         </div>`;
@@ -612,15 +616,20 @@
     async function loadSwapCandidates(role) {
       const grid = document.getElementById("swap-candidates-grid");
       const statusEl = document.getElementById("swap-status");
+      const applyBtn = document.getElementById("swap-apply-btn");
       grid.innerHTML = "";
+      applyBtn.classList.add("hidden");
+      applyBtn.disabled = true;
+      _swapContext.selectedRole = null;
+      _swapContext.selectedGarmentId = null;
       statusEl.textContent = `Loading ${role.toLowerCase()} options…`;
       try {
         const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(_swapContext.outfitId)}/swap/candidates?role=${encodeURIComponent(role)}`);
         if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
         const candidates = await res.json();
-        statusEl.textContent = candidates.length ? `${candidates.length} option(s) — click one to swap in:` : "No other options found for this role in the wardrobe.";
+        statusEl.textContent = candidates.length ? `${candidates.length} option(s) — click one to select it, then hit Apply swap.` : "No other options found for this role in the wardrobe.";
         grid.innerHTML = candidates.map(c => `
-          <button onclick="applyDirectSwap('${role}', '${c.garment_id}', this)" class="swap-candidate-btn text-left bg-slate-950 border-2 border-slate-800 hover:border-purple-500 rounded-lg overflow-hidden transition">
+          <button onclick="selectSwapCandidate('${role}', '${c.garment_id}', this)" class="swap-candidate-btn text-left bg-slate-950 border-2 border-slate-800 hover:border-purple-500 rounded-lg overflow-hidden transition">
             ${c.canonical_image_url ? `<img src="${c.canonical_image_url}" class="w-full aspect-square object-cover">` : `<div class="w-full aspect-square flex items-center justify-center text-[9px] text-slate-600">no image</div>`}
             <div class="p-1.5 text-[10px] text-slate-300 truncate">${(c.subcategory || '').replace(/_/g,' ')}</div>
           </button>
@@ -630,28 +639,41 @@
       }
     }
 
-    async function applyDirectSwap(role, newGarmentId, btnEl) {
-      const statusEl = document.getElementById("swap-status");
+    function selectSwapCandidate(role, newGarmentId, btnEl) {
       const grid = document.getElementById("swap-candidates-grid");
-      if (grid) {
-        grid.querySelectorAll(".swap-candidate-btn").forEach(b => b.classList.remove("border-emerald-400", "ring-2", "ring-emerald-400/60", "shadow-[0_0_12px_rgba(52,211,153,0.6)]"));
+      const statusEl = document.getElementById("swap-status");
+      const applyBtn = document.getElementById("swap-apply-btn");
+      grid.querySelectorAll(".swap-candidate-btn").forEach(b => b.classList.remove("border-emerald-400", "ring-2", "ring-emerald-400/60", "shadow-[0_0_12px_rgba(52,211,153,0.6)]"));
+      btnEl.classList.add("border-emerald-400", "ring-2", "ring-emerald-400/60", "shadow-[0_0_12px_rgba(52,211,153,0.6)]");
+      _swapContext.selectedRole = role;
+      _swapContext.selectedGarmentId = newGarmentId;
+      applyBtn.classList.remove("hidden");
+      applyBtn.disabled = false;
+      statusEl.textContent = "Selected — click Apply swap to confirm and regenerate the outfit image.";
+    }
+
+    async function applySelectedSwap() {
+      const { selectedRole, selectedGarmentId } = _swapContext;
+      const statusEl = document.getElementById("swap-status");
+      const applyBtn = document.getElementById("swap-apply-btn");
+      if (!selectedRole || !selectedGarmentId) {
+        statusEl.innerHTML = '<span class="text-amber-400">Pick a replacement first.</span>';
+        return;
       }
-      if (btnEl) {
-        btnEl.classList.add("border-emerald-400", "ring-2", "ring-emerald-400/60", "shadow-[0_0_12px_rgba(52,211,153,0.6)]");
-      }
+      applyBtn.disabled = true;
       statusEl.textContent = "Swapping and regenerating the outfit image…";
       try {
         const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(_swapContext.outfitId)}/swap`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role, new_garment_id: newGarmentId }),
+          body: JSON.stringify({ role: selectedRole, new_garment_id: selectedGarmentId }),
         });
         if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
         _replaceOutfitCard(await res.json());
         closeStageModal();
       } catch (e) {
         statusEl.innerHTML = `<span class="text-red-400">${e.message}</span>`;
-        if (btnEl) btnEl.classList.remove("border-emerald-400", "ring-2", "ring-emerald-400/60", "shadow-[0_0_12px_rgba(52,211,153,0.6)]");
+        applyBtn.disabled = false;
       }
     }
 
