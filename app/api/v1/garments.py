@@ -99,8 +99,11 @@ async def create_garment(
     await session.commit()
     await session.refresh(garment)
 
-    # Enqueue pipeline execution asynchronously
-    await enqueue_garment_pipeline(garment.id)
+    # Enqueue pipeline execution asynchronously — unless the caller intends to drive every
+    # stage itself (the interactive demo UI), in which case auto-enqueuing here would race the
+    # background worker against the caller's own manual /step calls on the same garment.
+    if request.auto_process:
+        await enqueue_garment_pipeline(garment.id)
 
     return CanonicalGarment(
         garment_id=garment.id,

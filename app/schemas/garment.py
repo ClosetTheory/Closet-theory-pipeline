@@ -7,6 +7,13 @@ from app.schemas.attributes import GarmentAttributes
 
 class GarmentCreateRequest(BaseModel):
     source_image_id: str
+    # False for the interactive step-by-step demo UI (app/static/index.html), which drives
+    # every stage itself via POST /garments/{id}/step — auto-enqueuing a background run too
+    # raced the two against each other (confirmed live: a background-worker Stage 1 run and
+    # the demo's own manual Stage 1 call both fired within milliseconds of each other on the
+    # same garment). True (default) preserves the documented "create and let it process
+    # automatically" behavior for any other real caller.
+    auto_process: bool = True
 
 
 class BulkGarmentUploadResult(BaseModel):

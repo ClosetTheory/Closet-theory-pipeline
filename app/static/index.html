@@ -714,6 +714,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             source_image_id: imageId,
+            auto_process: false,
           }),
         });
 
@@ -752,6 +753,19 @@
           });
 
           const stepData = await stepResp.json();
+
+          // A non-2xx response (e.g. 409 "already being processed by another pipeline run",
+          // or any other error) has no `status`/`output_data` shape at all — surface it as a
+          // halt instead of crashing trying to read fields that don't exist.
+          if (!stepResp.ok) {
+            document.getElementById(st.badge).innerText = `ERROR ${stepResp.status}`;
+            document.getElementById(st.badge).className = "text-[10px] font-mono bg-red-500/20 text-red-400 px-2 py-0.5 rounded";
+            document.getElementById(st.card).classList.remove('glow-active');
+            document.getElementById('live-spinner').classList.add('hidden');
+            const msg = (stepData && stepData.detail) ? JSON.stringify(stepData.detail) : `HTTP ${stepResp.status}`;
+            document.getElementById('live-stage-status-title').innerText = `Halted at ${st.title}: ${msg}`;
+            return;
+          }
 
           const isOk = stepData.status === "SUCCEEDED";
           document.getElementById(st.badge).innerText = `${stepData.status} (${stepData.duration_ms}ms)`;
