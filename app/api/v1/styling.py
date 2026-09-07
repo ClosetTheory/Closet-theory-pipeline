@@ -33,7 +33,7 @@ from app.schemas.styling import (
     StylingRecommendationResponse,
 )
 from app.storage.base import StorageClient
-from app.styling.ootd import DEFAULT_PERSONA, get_or_generate_ootd
+from app.styling.ootd import get_or_generate_ootd
 from app.styling.orchestrator import StylingOrchestrator
 from app.styling.replay import replay_styling_request
 
@@ -223,14 +223,16 @@ async def generate_outfit_of_the_day(
     storage: StorageClient = Depends(get_storage),
 ):
     """
-    Today's weather-aware, persona-aware outfit pick (3 ranked options) — runs the exact same
+    Today's weather-aware outfit pick (3 ranked options) — runs the exact same
     /recommendations pipeline under the hood with a synthesized request combining real current
-    weather (fetched live for `location`) and `persona` context, e.g. "office_going". Returns
-    the already-generated pick for today if one exists, unless force_regenerate is set.
+    weather (fetched live for `location`) and a context paragraph auto-derived from this
+    member's real styling history and wardrobe (no manual persona/preset needed — see
+    app/styling/member_context.py). Returns the already-generated pick for today if one
+    exists, unless force_regenerate is set.
     """
     return await get_or_generate_ootd(
         session, storage, current_user.tenant_id, current_user.member_id,
-        location=request.location, persona=request.persona, force=request.force_regenerate,
+        location=request.location, extra_hint=request.extra_hint, force=request.force_regenerate,
         generation_source="on_demand",
     )
 
@@ -238,7 +240,7 @@ async def generate_outfit_of_the_day(
 @router.get("/outfit-of-the-day", response_model=OutfitOfTheDayResponse)
 async def read_outfit_of_the_day(
     location: str,
-    persona: Optional[str] = None,
+    extra_hint: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
@@ -247,7 +249,7 @@ async def read_outfit_of_the_day(
     load a URL) — always returns today's cached pick if one exists; never force-regenerates."""
     return await get_or_generate_ootd(
         session, storage, current_user.tenant_id, current_user.member_id,
-        location=location, persona=persona, force=False, generation_source="on_demand",
+        location=location, extra_hint=extra_hint, force=False, generation_source="on_demand",
     )
 
 
@@ -271,10 +273,10 @@ async def set_ootd_subscription(
         sub = OOTDSubscription(tenant_id=current_user.tenant_id, member_id=current_user.member_id, location=request.location)
         session.add(sub)
     sub.location = request.location
-    sub.persona = request.persona or DEFAULT_PERSONA
+    sub.extra_hint = request.extra_hint
     sub.enabled = request.enabled
     await session.commit()
-    return OOTDSubscriptionResponse(location=sub.location, persona=sub.persona, enabled=sub.enabled)
+    return OOTDSubscriptionResponse(location=sub.location, extra_hint=sub.extra_hint, enabled=sub.enabled)
 
 
 @router.get("/outfit-of-the-day/subscription", response_model=OOTDSubscriptionResponse)
@@ -289,5 +291,5 @@ async def get_ootd_subscription(
     )
     sub = (await session.execute(stmt)).scalars().first()
     if not sub:
-        return OOTDSubscriptionResponse(location=None, persona=None, enabled=False)
-    return OOTDSubscriptionResponse(location=sub.location, persona=sub.persona, enabled=sub.enabled)
+        return OOTDSubscriptionResponse(location=None, extra_hint=None, enabled=False)
+    return OOTDSubscriptionResponse(location=sub.location, extra_hint=sub.extra_hint, enabled=sub.enabled)

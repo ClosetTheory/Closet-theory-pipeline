@@ -244,17 +244,20 @@ class StyleProfileResponse(BaseModel):
 
 
 # --- Outfit of the Day ---
-# A daily, weather-aware, persona-aware pick — wraps the existing /recommendations pipeline
-# with a synthesized request_text (see app/styling/ootd.py) rather than new recommendation
-# logic, cached per (member, calendar date, location) in app/models/ootd.py::OutfitOfTheDay.
+# A daily, weather-aware pick — wraps the existing /recommendations pipeline with a
+# synthesized request_text combining real weather and a context paragraph auto-derived from
+# the member's actual styling history and wardrobe (app/styling/member_context.py), rather
+# than a hand-picked "persona". Cached per (member, calendar date, location) in
+# app/models/ootd.py::OutfitOfTheDay.
 
 class OutfitOfTheDayRequest(BaseModel):
-    location: str = Field(..., description="Free-text place name for a real weather lookup, e.g. 'Mumbai'")
-    persona: Optional[str] = Field(
+    location: str = Field(..., description="Free-text place name for a real weather lookup, e.g. 'Mumbai' — can be anywhere")
+    extra_hint: Optional[str] = Field(
         default=None,
         description=(
-            "Lifestyle/context hint, e.g. 'office_going', 'wfh', 'student', 'outdoor_active', "
-            "'evening_out' — or any free-text description. Defaults to 'office_going'."
+            "Optional freeform addition on top of the auto-derived context, e.g. 'there's a "
+            "client meeting today'. Not required — the styling context is derived automatically "
+            "from this member's real styling history and wardrobe even if this is omitted."
         ),
     )
     force_regenerate: bool = Field(
@@ -266,7 +269,7 @@ class OutfitOfTheDayRequest(BaseModel):
 class OutfitOfTheDayResponse(BaseModel):
     date: str = Field(..., description="Calendar date (YYYY-MM-DD) this pick is for")
     location: str
-    persona: str
+    context_used: str = Field(..., description="The auto-derived member context (plus any extra_hint) actually used to generate this pick")
     weather: WeatherSnapshot
     styling: StylingRecommendationResponse
     cached: bool = Field(..., description="True if this was an already-generated pick for today, not a fresh run")
@@ -275,11 +278,11 @@ class OutfitOfTheDayResponse(BaseModel):
 
 class OOTDSubscriptionRequest(BaseModel):
     location: str
-    persona: Optional[str] = Field(default=None, description="Defaults to 'office_going'")
+    extra_hint: Optional[str] = Field(default=None, description="Optional recurring addition to the auto-derived context")
     enabled: bool = True
 
 
 class OOTDSubscriptionResponse(BaseModel):
     location: Optional[str] = None
-    persona: Optional[str] = None
+    extra_hint: Optional[str] = None
     enabled: bool = False

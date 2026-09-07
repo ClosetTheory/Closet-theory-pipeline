@@ -40,7 +40,7 @@ async def run_daily_ootd_generation() -> None:
             async with AsyncSessionLocal() as session:
                 await get_or_generate_ootd(
                     session, storage, sub.tenant_id, sub.member_id,
-                    location=sub.location, persona=sub.persona, force=False,
+                    location=sub.location, extra_hint=sub.extra_hint, force=False,
                     generation_source="scheduled",
                 )
             succeeded += 1

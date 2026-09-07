@@ -1,7 +1,9 @@
-"""Outfit-of-the-Day: a daily, weather-aware, persona-aware outfit pick.
+"""Outfit-of-the-Day: a daily, weather-aware outfit pick grounded in this specific member's
+real data — not a hand-picked "persona" from a fixed list.
 
 Deliberately NOT a new recommendation engine — it builds one synthesized request_text (real
-weather + persona framing) and runs it through the exact same StylingOrchestrator every
+weather + a context paragraph derived from this member's actual styling history and wardrobe,
+see app/styling/member_context.py) and runs it through the exact same StylingOrchestrator every
 /recommendations call already uses, then caches the result per (member, calendar date,
 location) so repeated checks the same day don't re-run the pipeline (and re-bill the
 underlying vision/LLM calls). This is the single function used by both the on-demand API
@@ -19,35 +21,23 @@ from app.providers.weather import get_weather_provider
 from app.schemas.styling import OutfitOfTheDayResponse, StylingRecommendationRequest
 from app.schemas.weather import WeatherSnapshot
 from app.storage.base import StorageClient
+from app.styling.member_context import derive_member_context
 from app.styling.orchestrator import StylingOrchestrator
 from app.styling.replay import replay_styling_request
 
-DEFAULT_PERSONA = "office_going"
 
-# Free-text hints an LLM can act on directly — not a rigid enum: an unrecognized persona
-# string is simply used as-is (see _build_request_text), so this only exists to phrase the
-# common cases a bit more concretely.
-_PERSONA_HINTS = {
-    "office_going": "a professional office-going day — smart and work-appropriate, comfortable for a full work day, not overly casual",
-    "wfh": "a relaxed work-from-home day — comfortable but presentable enough for video calls",
-    "student": "a casual college/student day — comfortable, easy to move around campus in",
-    "outdoor_active": "an active outdoor day — practical, breathable, suited for movement",
-    "evening_out": "an evening social outing — stylish, a bit more expressive than daytime wear",
-}
-
-
-def _build_request_text(weather: WeatherSnapshot, persona: str) -> str:
-    persona_hint = _PERSONA_HINTS.get(persona, persona)
+def _build_request_text(weather: WeatherSnapshot, member_context: str, extra_hint: Optional[str]) -> str:
     place = weather.resolved_place_name or weather.location
     feels_like = f" (feels like {weather.feels_like_c:.0f}°C)" if weather.feels_like_c is not None else ""
     humidity = f", humidity {weather.humidity_pct:.0f}%" if weather.humidity_pct is not None else ""
     rain_note = " There's a real chance of rain today, so factor that in." if weather.is_rainy else ""
+    extra = f" Additional context for today specifically: {extra_hint}." if extra_hint else ""
     return (
-        f"Suggest today's outfit for {persona_hint}. "
+        f"Suggest today's outfit. {member_context}{extra} "
         f"Current weather in {place}: {weather.temp_c:.0f}°C{feels_like}, {weather.condition}{humidity}."
-        f"{rain_note} Pick something genuinely appropriate for these real conditions, not just "
-        f"aesthetically nice — comfort and practicality for today's actual weather matter as much "
-        f"as looking good."
+        f"{rain_note} Pick something genuinely appropriate for this member and these real "
+        f"conditions, not just aesthetically nice — comfort and practicality for today's actual "
+        f"weather matter as much as looking good."
     )
 
 
@@ -57,11 +47,16 @@ async def get_or_generate_ootd(
     tenant_id: str,
     member_id: str,
     location: str,
-    persona: Optional[str] = None,
+    extra_hint: Optional[str] = None,
     force: bool = False,
     generation_source: str = "on_demand",
 ) -> OutfitOfTheDayResponse:
-    persona = persona or DEFAULT_PERSONA
+    """
+    `extra_hint`: optional free-text the caller can add on top of the auto-derived context
+    (e.g. "there's a client meeting today") — not a fixed set of choices, since a member's
+    real context can't be reduced to picking one of a handful of labels. Leave it out entirely
+    and this still works, fully automatically, from whatever real data exists for the member.
+    """
     today = datetime.now(timezone.utc).date()
 
     if not force:
@@ -78,7 +73,7 @@ async def get_or_generate_ootd(
             return OutfitOfTheDayResponse(
                 date=today.isoformat(),
                 location=location,
-                persona=existing.persona,
+                context_used=existing.context_used,
                 weather=WeatherSnapshot.model_validate(existing.weather_snapshot),
                 styling=styling_result,
                 cached=True,
@@ -87,11 +82,14 @@ async def get_or_generate_ootd(
 
     weather_provider = get_weather_provider()
     weather = await weather_provider.get_weather(location)
-    request_text = _build_request_text(weather, persona)
+    member_context = await derive_member_context(session, tenant_id, member_id)
+    request_text = _build_request_text(weather, member_context, extra_hint)
 
     orchestrator = StylingOrchestrator(session, storage)
     rec_request = StylingRecommendationRequest(request_text=request_text, top_k=3)
     styling_result = await orchestrator.run(rec_request, tenant_id, member_id)
+
+    context_used = member_context + (f" [extra: {extra_hint}]" if extra_hint else "")
 
     # Upsert: force_regenerate on an existing day replaces that day's cache entry rather than
     # violating the (tenant, member, date, location) uniqueness constraint.
@@ -103,7 +101,7 @@ async def get_or_generate_ootd(
     )
     existing_row = (await session.execute(existing_stmt)).scalars().first()
     if existing_row:
-        existing_row.persona = persona
+        existing_row.context_used = context_used
         existing_row.weather_snapshot = weather.model_dump(mode="json")
         existing_row.styling_request_id = styling_result.request_id
         existing_row.generation_source = generation_source
@@ -113,7 +111,7 @@ async def get_or_generate_ootd(
             member_id=member_id,
             for_date=today,
             location=location,
-            persona=persona,
+            context_used=context_used,
             weather_snapshot=weather.model_dump(mode="json"),
             styling_request_id=styling_result.request_id,
             generation_source=generation_source,
@@ -123,7 +121,7 @@ async def get_or_generate_ootd(
     return OutfitOfTheDayResponse(
         date=today.isoformat(),
         location=location,
-        persona=persona,
+        context_used=context_used,
         weather=weather,
         styling=styling_result,
         cached=False,

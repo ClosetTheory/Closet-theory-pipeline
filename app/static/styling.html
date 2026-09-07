@@ -65,20 +65,11 @@
     <!-- Outfit of the Day -->
     <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/30 border border-slate-800 rounded-2xl p-6 shadow-xl">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
-        <div class="lg:col-span-4 space-y-2">
+        <div class="lg:col-span-8 space-y-2">
           <span class="text-xs font-bold uppercase tracking-wider text-blue-400">☀️ Outfit of the Day — Location</span>
-          <input id="ootd-location" type="text" value="Mumbai"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div class="lg:col-span-4 space-y-2">
-          <span class="text-xs font-bold uppercase tracking-wider text-blue-400">Persona</span>
-          <select id="ootd-persona" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="office_going">Office going</option>
-            <option value="wfh">Work from home</option>
-            <option value="student">Student</option>
-            <option value="outdoor_active">Outdoor / active</option>
-            <option value="evening_out">Evening out</option>
-          </select>
+          <input id="ootd-location" type="text" placeholder="e.g. Mumbai, New York, London… (can be anywhere)"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <span class="text-[10px] text-slate-500 block">Styling context (occasion, formality, wardrobe style, learned preferences) is derived automatically from this member's real history — no persona to pick.</span>
         </div>
         <div class="lg:col-span-2">
           <button id="ootd-btn" onclick="loadOOTD(false)" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition">
@@ -553,8 +544,11 @@
       const btn = document.getElementById("ootd-btn");
       const weatherEl = document.getElementById("ootd-weather");
       const grid = document.getElementById("ootd-grid");
-      const location = document.getElementById("ootd-location").value.trim() || "Mumbai";
-      const persona = document.getElementById("ootd-persona").value;
+      const location = document.getElementById("ootd-location").value.trim();
+      if (!location) {
+        weatherEl.innerHTML = '<span class="text-amber-400">Enter a location first — it can be anywhere.</span>';
+        return;
+      }
 
       btn.disabled = true;
       weatherEl.textContent = forceRegenerate ? "Regenerating today's pick (real weather + full styling pipeline)…" : "Fetching today's pick…";
@@ -564,7 +558,7 @@
         const res = await ctFetch(`${API_BASE}/styling/outfit-of-the-day`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ location, persona, force_regenerate: forceRegenerate }),
+          body: JSON.stringify({ location, force_regenerate: forceRegenerate }),
         });
         if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
         const data = await res.json();
@@ -574,7 +568,7 @@
           ${w.temp_c.toFixed(0)}°C, ${w.condition}${w.humidity_pct != null ? `, humidity ${w.humidity_pct.toFixed(0)}%` : ""}
           ${w.model === "mock-weather-fallback" ? '<span class="text-amber-400">(estimated — real weather lookup unavailable)</span>' : ""}
           <span class="text-slate-600">·</span> ${data.cached ? "cached pick for today" : "freshly generated"}
-          <span class="text-slate-600">·</span> persona: ${data.persona}
+          <div class="mt-1 text-slate-500" title="${data.context_used.replace(/"/g, '&quot;')}">Context used: ${data.context_used}</div>
         `;
         grid.innerHTML = data.styling.outfits.map(outfitCard).join("") || `<p class="text-slate-500 text-sm col-span-full">No outfit could be assembled from the current wardrobe for today's conditions.</p>`;
       } catch (e) {
