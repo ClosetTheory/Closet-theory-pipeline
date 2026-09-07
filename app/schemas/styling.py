@@ -4,6 +4,7 @@ from enum import Enum
 import json
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
+from app.schemas.weather import WeatherSnapshot
 
 
 class ValidationStatus(str, Enum):
@@ -240,3 +241,45 @@ class StyleProfileResponse(BaseModel):
     boldness_preference: float
     vote_count: int
     attribute_affinities: Dict[str, List[AttributeAffinityValue]]
+
+
+# --- Outfit of the Day ---
+# A daily, weather-aware, persona-aware pick — wraps the existing /recommendations pipeline
+# with a synthesized request_text (see app/styling/ootd.py) rather than new recommendation
+# logic, cached per (member, calendar date, location) in app/models/ootd.py::OutfitOfTheDay.
+
+class OutfitOfTheDayRequest(BaseModel):
+    location: str = Field(..., description="Free-text place name for a real weather lookup, e.g. 'Mumbai'")
+    persona: Optional[str] = Field(
+        default=None,
+        description=(
+            "Lifestyle/context hint, e.g. 'office_going', 'wfh', 'student', 'outdoor_active', "
+            "'evening_out' — or any free-text description. Defaults to 'office_going'."
+        ),
+    )
+    force_regenerate: bool = Field(
+        default=False,
+        description="Re-run generation even if today's pick for this member/location already exists.",
+    )
+
+
+class OutfitOfTheDayResponse(BaseModel):
+    date: str = Field(..., description="Calendar date (YYYY-MM-DD) this pick is for")
+    location: str
+    persona: str
+    weather: WeatherSnapshot
+    styling: StylingRecommendationResponse
+    cached: bool = Field(..., description="True if this was an already-generated pick for today, not a fresh run")
+    generation_source: str = Field(default="on_demand", description="'on_demand' or 'scheduled'")
+
+
+class OOTDSubscriptionRequest(BaseModel):
+    location: str
+    persona: Optional[str] = Field(default=None, description="Defaults to 'office_going'")
+    enabled: bool = True
+
+
+class OOTDSubscriptionResponse(BaseModel):
+    location: Optional[str] = None
+    persona: Optional[str] = None
+    enabled: bool = False

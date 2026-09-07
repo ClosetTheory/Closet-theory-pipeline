@@ -13,6 +13,7 @@ from app.schemas.styling import (
     ValidationResult,
     VisualGateResult,
 )
+from app.schemas.weather import WeatherSnapshot
 
 
 class BaseClassifierProvider(ABC):
@@ -177,4 +178,14 @@ class BaseVisualValidatorProvider(ABC):
         garments: List[GarmentSummary],
     ) -> VisualGateResult:
         """Returns a 0-10 quality score + structured feedback. A quality score, not the styling decision."""
+        pass
+
+
+class BaseWeatherProvider(ABC):
+    """Outfit-of-the-Day: real current conditions for a named location, used to ground the
+    synthesized styling request_text (see app/styling/ootd.py) instead of guessing."""
+
+    @abstractmethod
+    async def get_weather(self, location: str) -> WeatherSnapshot:
+        """Returns a WeatherSnapshot for the given free-text location name (e.g. 'Mumbai')."""
         pass

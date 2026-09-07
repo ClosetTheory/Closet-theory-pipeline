@@ -144,5 +144,10 @@ class Settings(BaseSettings):
     AUTH_SECRET_KEY: str = "dev-insecure-secret-change-me"  # dev-only default, same convention as other local defaults above
     AUTH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # --- Outfit of the Day (daily, weather-aware, persona-aware pick — wraps the existing
+    # styling pipeline, see app/styling/ootd.py; no new recommendation logic) ---
+    WEATHER_PROVIDER: str = "open_meteo"  # "open_meteo" (real, unauthenticated) | "mock"
+    OOTD_DAILY_GENERATION_HOUR_UTC: int = 1  # ~6:30am IST; see app/worker/ootd_scheduler.py
+
 
 settings = Settings()

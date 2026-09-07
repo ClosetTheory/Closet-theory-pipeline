@@ -7,6 +7,7 @@ from app.models.pipeline_stage import PipelineStageRun
 from app.models.embedding import GarmentEmbedding, PortableVector
 from app.models.compatibility import CompatibilityResult
 from app.models.styling import StylingRequest, Outfit, OutfitGarment
+from app.models.ootd import OOTDSubscription, OutfitOfTheDay
 
 __all__ = [
     "Base",
@@ -22,4 +23,6 @@ __all__ = [
     "StylingRequest",
     "Outfit",
     "OutfitGarment",
+    "OOTDSubscription",
+    "OutfitOfTheDay",
 ]

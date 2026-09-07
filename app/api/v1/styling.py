@@ -2,12 +2,14 @@
 
 import asyncio
 import json
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_user, get_db_session, get_storage
 from app.models.garment import Garment
+from app.models.ootd import OOTDSubscription
 from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
 from app.models.user import User
@@ -19,21 +21,21 @@ from app.rules.style_profile import (
 )
 from app.schemas.styling import (
     AttributeAffinityValue,
-    OutfitResult,
+    OOTDSubscriptionRequest,
+    OOTDSubscriptionResponse,
+    OutfitOfTheDayRequest,
+    OutfitOfTheDayResponse,
     OutfitVoteRequest,
     OutfitVoteResponse,
-    ScoreBreakdown,
-    SemanticGateResult,
-    StageTrace,
     StyleProfileResponse,
     StylingIntent,
     StylingRecommendationRequest,
     StylingRecommendationResponse,
-    ValidationResult,
-    VisualGateResult,
 )
 from app.storage.base import StorageClient
-from app.styling.orchestrator import StylingOrchestrator, garment_to_summary
+from app.styling.ootd import DEFAULT_PERSONA, get_or_generate_ootd
+from app.styling.orchestrator import StylingOrchestrator
+from app.styling.replay import replay_styling_request
 
 router = APIRouter(prefix="/wardrobe/styling", tags=["Styling"])
 
@@ -123,54 +125,7 @@ async def get_styling_request(
     if styling_request.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This styling request belongs to another account")
 
-    stmt = (
-        select(Outfit)
-        .where(Outfit.request_id == request_id)
-        .order_by(Outfit.rank.asc())
-    )
-    res = await session.execute(stmt)
-    outfits = res.scalars().all()
-
-    outfit_results = []
-    for outfit in outfits:
-        og_res = await session.execute(select(OutfitGarment).where(OutfitGarment.outfit_id == outfit.id))
-        outfit_garments = og_res.scalars().all()
-
-        garment_ids = [og.garment_id for og in outfit_garments]
-        garments_stmt = select(Garment).where(Garment.id.in_(garment_ids))
-        garments_res = await session.execute(garments_stmt)
-        garments_by_id = {g.id: g for g in garments_res.scalars().all()}
-        roles = {og.garment_id: og.role for og in outfit_garments}
-
-        generated_image_url = (
-            f"/api/v1/wardrobe/images/{outfit.generated_image_id}/bytes" if outfit.generated_image_id else None
-        )
-
-        outfit_results.append(
-            OutfitResult(
-                outfit_id=outfit.id,
-                rank=outfit.rank,
-                garments=[
-                    garment_to_summary(garments_by_id[gid], roles.get(gid, ""))
-                    for gid in garment_ids
-                    if gid in garments_by_id
-                ],
-                roles=roles,
-                scores=ScoreBreakdown.model_validate(outfit.score_breakdown or {}),
-                compatibility_reason=outfit.compatibility_reason,
-                semantic_validation=ValidationResult.model_validate(outfit.semantic_validation) if outfit.semantic_validation else None,
-                generated_image_url=generated_image_url,
-                visual_gate=VisualGateResult.model_validate(outfit.visual_validation) if outfit.visual_validation else None,
-                generation_semantic_gate=SemanticGateResult.model_validate(outfit.generated_image_semantic_validation) if outfit.generated_image_semantic_validation else None,
-            )
-        )
-
-    return StylingRecommendationResponse(
-        request_id=styling_request.id,
-        intent=StylingIntent.model_validate(styling_request.normalized_intent or {}),
-        outfits=outfit_results,
-        trace=[StageTrace.model_validate(t) for t in (styling_request.trace or [])],
-    )
+    return await replay_styling_request(session, styling_request)
 
 
 @router.post("/outfits/{outfit_id}/vote", response_model=OutfitVoteResponse)
@@ -258,3 +213,81 @@ async def get_style_profile(
         vote_count=profile.vote_count,
         attribute_affinities=affinities,
     )
+
+
+@router.post("/outfit-of-the-day", response_model=OutfitOfTheDayResponse)
+async def generate_outfit_of_the_day(
+    request: OutfitOfTheDayRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
+):
+    """
+    Today's weather-aware, persona-aware outfit pick (3 ranked options) — runs the exact same
+    /recommendations pipeline under the hood with a synthesized request combining real current
+    weather (fetched live for `location`) and `persona` context, e.g. "office_going". Returns
+    the already-generated pick for today if one exists, unless force_regenerate is set.
+    """
+    return await get_or_generate_ootd(
+        session, storage, current_user.tenant_id, current_user.member_id,
+        location=request.location, persona=request.persona, force=request.force_regenerate,
+        generation_source="on_demand",
+    )
+
+
+@router.get("/outfit-of-the-day", response_model=OutfitOfTheDayResponse)
+async def read_outfit_of_the_day(
+    location: str,
+    persona: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
+):
+    """Convenience GET form of POST /outfit-of-the-day (e.g. for a browser/dashboard to just
+    load a URL) — always returns today's cached pick if one exists; never force-regenerates."""
+    return await get_or_generate_ootd(
+        session, storage, current_user.tenant_id, current_user.member_id,
+        location=location, persona=persona, force=False, generation_source="on_demand",
+    )
+
+
+@router.put("/outfit-of-the-day/subscription", response_model=OOTDSubscriptionResponse)
+async def set_ootd_subscription(
+    request: OOTDSubscriptionRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """
+    Opts this member into (or out of) fully automatic daily outfit-of-the-day generation — a
+    background loop (app/worker/ootd_scheduler.py) runs once a day for every enabled
+    subscription and pre-generates that day's pick, so it's already there before anyone checks.
+    """
+    stmt = select(OOTDSubscription).where(
+        OOTDSubscription.tenant_id == current_user.tenant_id,
+        OOTDSubscription.member_id == current_user.member_id,
+    )
+    sub = (await session.execute(stmt)).scalars().first()
+    if not sub:
+        sub = OOTDSubscription(tenant_id=current_user.tenant_id, member_id=current_user.member_id, location=request.location)
+        session.add(sub)
+    sub.location = request.location
+    sub.persona = request.persona or DEFAULT_PERSONA
+    sub.enabled = request.enabled
+    await session.commit()
+    return OOTDSubscriptionResponse(location=sub.location, persona=sub.persona, enabled=sub.enabled)
+
+
+@router.get("/outfit-of-the-day/subscription", response_model=OOTDSubscriptionResponse)
+async def get_ootd_subscription(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """This member's current outfit-of-the-day auto-generation settings, if any."""
+    stmt = select(OOTDSubscription).where(
+        OOTDSubscription.tenant_id == current_user.tenant_id,
+        OOTDSubscription.member_id == current_user.member_id,
+    )
+    sub = (await session.execute(stmt)).scalars().first()
+    if not sub:
+        return OOTDSubscriptionResponse(location=None, persona=None, enabled=False)
+    return OOTDSubscriptionResponse(location=sub.location, persona=sub.persona, enabled=sub.enabled)

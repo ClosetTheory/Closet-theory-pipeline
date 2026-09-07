@@ -62,6 +62,39 @@
       </div>
     </div>
 
+    <!-- Outfit of the Day -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/30 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+        <div class="lg:col-span-4 space-y-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-400">☀️ Outfit of the Day — Location</span>
+          <input id="ootd-location" type="text" value="Mumbai"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="lg:col-span-4 space-y-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-400">Persona</span>
+          <select id="ootd-persona" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="office_going">Office going</option>
+            <option value="wfh">Work from home</option>
+            <option value="student">Student</option>
+            <option value="outdoor_active">Outdoor / active</option>
+            <option value="evening_out">Evening out</option>
+          </select>
+        </div>
+        <div class="lg:col-span-2">
+          <button id="ootd-btn" onclick="loadOOTD(false)" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition">
+            Get Today's Pick
+          </button>
+        </div>
+        <div class="lg:col-span-2">
+          <button onclick="loadOOTD(true)" class="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl transition">
+            🔄 Regenerate
+          </button>
+        </div>
+      </div>
+      <div id="ootd-weather" class="mt-3 text-xs text-slate-400"></div>
+      <div id="ootd-grid" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </div>
+
     <!-- Progress bar -->
     <div id="progress-bar" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3">
@@ -514,6 +547,41 @@
             <span class="vote-feedback text-[10px] text-slate-500"></span>
           </div>
         </div>`;
+    }
+
+    async function loadOOTD(forceRegenerate) {
+      const btn = document.getElementById("ootd-btn");
+      const weatherEl = document.getElementById("ootd-weather");
+      const grid = document.getElementById("ootd-grid");
+      const location = document.getElementById("ootd-location").value.trim() || "Mumbai";
+      const persona = document.getElementById("ootd-persona").value;
+
+      btn.disabled = true;
+      weatherEl.textContent = forceRegenerate ? "Regenerating today's pick (real weather + full styling pipeline)…" : "Fetching today's pick…";
+      grid.innerHTML = "";
+
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/outfit-of-the-day`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ location, persona, force_regenerate: forceRegenerate }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const data = await res.json();
+        const w = data.weather;
+        weatherEl.innerHTML = `
+          <strong class="text-slate-200">${data.date}</strong> · ${w.resolved_place_name || w.location} ·
+          ${w.temp_c.toFixed(0)}°C, ${w.condition}${w.humidity_pct != null ? `, humidity ${w.humidity_pct.toFixed(0)}%` : ""}
+          ${w.model === "mock-weather-fallback" ? '<span class="text-amber-400">(estimated — real weather lookup unavailable)</span>' : ""}
+          <span class="text-slate-600">·</span> ${data.cached ? "cached pick for today" : "freshly generated"}
+          <span class="text-slate-600">·</span> persona: ${data.persona}
+        `;
+        grid.innerHTML = data.styling.outfits.map(outfitCard).join("") || `<p class="text-slate-500 text-sm col-span-full">No outfit could be assembled from the current wardrobe for today's conditions.</p>`;
+      } catch (e) {
+        weatherEl.innerHTML = `<span class="text-red-400">Failed to load Outfit of the Day: ${e.message}</span>`;
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     async function voteOutfit(outfitId, vote, btnEl) {
