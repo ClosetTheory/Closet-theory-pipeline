@@ -661,7 +661,8 @@
         return;
       }
       applyBtn.disabled = true;
-      statusEl.textContent = "Swapping and regenerating the outfit image…";
+      applyBtn.innerHTML = _spinnerHtml("Applying…");
+      _setSwapBusy(true, "Swapping in the new garment and regenerating the outfit image — this involves a real image generation call and can take up to a minute…");
       try {
         const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(_swapContext.outfitId)}/swap`, {
           method: "POST",
@@ -674,6 +675,23 @@
       } catch (e) {
         statusEl.innerHTML = `<span class="text-red-400">${e.message}</span>`;
         applyBtn.disabled = false;
+        applyBtn.textContent = "Apply swap";
+        _setSwapBusy(false);
+      }
+    }
+
+    function _spinnerHtml(label) {
+      return `<span class="inline-flex items-center gap-2 justify-center w-full"><span class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>${label}</span>`;
+    }
+
+    function _setSwapBusy(busy, message) {
+      const modalBody = document.getElementById("modal-body");
+      const statusEl = document.getElementById("swap-status");
+      if (message) statusEl.innerHTML = `<span class="inline-flex items-center gap-2"><span class="w-3 h-3 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin"></span>${message}</span>`;
+      if (modalBody) {
+        modalBody.querySelectorAll("button, input").forEach(el => {
+          if (el.id !== "swap-apply-btn") el.disabled = busy;
+        });
       }
     }
 
@@ -681,7 +699,7 @@
       const instruction = document.getElementById("swap-chat-input").value.trim();
       const statusEl = document.getElementById("swap-status");
       if (!instruction) { statusEl.innerHTML = '<span class="text-amber-400">Type an instruction first.</span>'; return; }
-      statusEl.textContent = "Interpreting the instruction and swapping…";
+      _setSwapBusy(true, "Interpreting the instruction, picking a replacement, and regenerating the outfit image — this can take up to a minute…");
       try {
         const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(_swapContext.outfitId)}/swap/chat`, {
           method: "POST",
@@ -693,6 +711,7 @@
         closeStageModal();
       } catch (e) {
         statusEl.innerHTML = `<span class="text-red-400">${e.message}</span>`;
+        _setSwapBusy(false);
       }
     }
 
