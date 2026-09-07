@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -21,21 +21,26 @@ from app.rules.style_profile import (
 )
 from app.schemas.styling import (
     AttributeAffinityValue,
+    ChatSwapRequest,
     OOTDSubscriptionRequest,
     OOTDSubscriptionResponse,
     OutfitOfTheDayRequest,
     OutfitOfTheDayResponse,
+    OutfitResult,
     OutfitVoteRequest,
     OutfitVoteResponse,
     StyleProfileResponse,
     StylingIntent,
     StylingRecommendationRequest,
     StylingRecommendationResponse,
+    SwapCandidateSummary,
+    SwapGarmentRequest,
 )
 from app.storage.base import StorageClient
 from app.styling.ootd import get_or_generate_ootd
 from app.styling.orchestrator import StylingOrchestrator
 from app.styling.replay import replay_styling_request
+from app.styling.swap import SwapError, list_swap_candidates, swap_garment_by_chat, swap_garment_direct
 
 router = APIRouter(prefix="/wardrobe/styling", tags=["Styling"])
 
@@ -293,3 +298,77 @@ async def get_ootd_subscription(
     if not sub:
         return OOTDSubscriptionResponse(location=None, extra_hint=None, enabled=False)
     return OOTDSubscriptionResponse(location=sub.location, extra_hint=sub.extra_hint, enabled=sub.enabled)
+
+
+@router.get("/outfits/{outfit_id}/swap/candidates", response_model=List[SwapCandidateSummary])
+async def get_swap_candidates(
+    outfit_id: str,
+    role: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """
+    Browse-and-pick option: this member's own real garments for `role` (e.g. 'FOOTWEAR') that
+    aren't already in this outfit, so a caller can pick one and then call
+    POST /outfits/{id}/swap with its garment_id — no compatibility check yet, that happens on
+    the actual swap so a caller can see all real options before committing.
+    """
+    try:
+        candidates = await list_swap_candidates(session, current_user.tenant_id, current_user.member_id, outfit_id, role)
+    except SwapError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    return [
+        SwapCandidateSummary(
+            garment_id=g.id,
+            subcategory=g.subcategory,
+            canonical_image_url=f"/api/v1/wardrobe/images/{g.canonical_image_id}/bytes" if g.canonical_image_id else None,
+        )
+        for g in candidates
+    ]
+
+
+@router.post("/outfits/{outfit_id}/swap", response_model=OutfitResult)
+async def swap_outfit_garment(
+    outfit_id: str,
+    request: SwapGarmentRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
+):
+    """
+    Replaces one role in an already-generated outfit with a specific real garment from this
+    member's wardrobe (see GET .../swap/candidates to browse options first). Re-checks
+    compatibility with the rest of the outfit — a genuinely incompatible replacement is
+    rejected (409) rather than silently applied — and regenerates the outfit's composite image.
+    """
+    try:
+        return await swap_garment_direct(
+            session, storage, current_user.tenant_id, current_user.member_id,
+            outfit_id, request.role, request.new_garment_id,
+        )
+    except SwapError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.post("/outfits/{outfit_id}/swap/chat", response_model=OutfitResult)
+async def chat_swap_outfit_garment(
+    outfit_id: str,
+    request: ChatSwapRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
+):
+    """
+    Same swap, described in free text instead of a garment_id, e.g. "the shoes feel too
+    casual, give me something else" or "swap the top for something in a darker colour".
+    Identifies which role is meant and picks the best-compatible real match from this
+    member's own wardrobe — never invents a garment. Raises 422 if it can't confidently tell
+    which part of the outfit is meant (asks to be more specific rather than guessing wrong).
+    """
+    try:
+        return await swap_garment_by_chat(
+            session, storage, current_user.tenant_id, current_user.member_id,
+            outfit_id, request.instruction,
+        )
+    except SwapError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)

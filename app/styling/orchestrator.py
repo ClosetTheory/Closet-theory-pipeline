@@ -66,7 +66,7 @@ def garment_to_summary(garment: Garment, role: str = "") -> GarmentSummary:
     )
 
 
-async def _persist_generated_image(
+async def persist_generated_image(
     session: AsyncSession,
     storage: StorageClient,
     tenant_id: str,
@@ -337,7 +337,7 @@ class StylingOrchestrator:
             candidate_image_url = None
             candidate_image_id = None
             if image_bytes:
-                candidate_image_id = await _persist_generated_image(
+                candidate_image_id = await persist_generated_image(
                     self.session, self.storage, tenant_id, member_id, image_bytes
                 )
                 candidate_image_url = f"/api/v1/wardrobe/images/{candidate_image_id}/bytes"

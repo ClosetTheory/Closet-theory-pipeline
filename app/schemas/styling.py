@@ -286,3 +286,24 @@ class OOTDSubscriptionResponse(BaseModel):
     location: Optional[str] = None
     extra_hint: Optional[str] = None
     enabled: bool = False
+
+
+# --- Outfit garment swap ---
+# Replace one role (TOP/BOTTOM/OUTERWEAR/FOOTWEAR/ONE_PIECE/ACCESSORY) in an already-generated
+# outfit — either by naming the exact replacement, or by describing what's wanted in free text
+# (app/styling/swap.py interprets it and picks a real match). Never invents a garment; always a
+# real, member-owned, COMPLETED wardrobe item, re-checked for compatibility with what remains.
+
+class SwapGarmentRequest(BaseModel):
+    role: str = Field(..., description="Which role to replace, e.g. 'FOOTWEAR' — see roles on the outfit's `roles` field")
+    new_garment_id: str = Field(..., description="A real garment_id from this member's own wardrobe")
+
+
+class ChatSwapRequest(BaseModel):
+    instruction: str = Field(..., description="Free text, e.g. \"swap the shoes for something more casual\"")
+
+
+class SwapCandidateSummary(BaseModel):
+    garment_id: str
+    subcategory: Optional[str] = None
+    canonical_image_url: Optional[str] = None
