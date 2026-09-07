@@ -3,6 +3,7 @@
 import hashlib
 import io
 import uuid
+from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -131,17 +132,37 @@ async def get_media_bytes(
 @router.get("/{image_id}/bytes")
 async def get_image_asset_bytes(
     image_id: str,
+    thumb: Optional[int] = None,
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
-    """Streams an ImageAsset by ID directly to the browser."""
+    """Streams an ImageAsset by ID directly to the browser.
+
+    `thumb=<max_dimension>` returns a resized, more heavily compressed JPEG instead of the
+    original — canonical studio images are stored at their full generated resolution (typically
+    1000-1450px, up to ~1.6MB each), which is unnecessarily heavy for a ~300px-wide catalogue
+    grid cell. Resized on the fly rather than precomputed/stored: simplest fix, no migration or
+    Stage 4 changes needed, and this endpoint isn't hit often enough per-image to matter.
+    """
     from fastapi import Response
     asset = await session.get(ImageAsset, image_id)
     if not asset:
         raise HTTPException(status_code=404, detail="ImageAsset not found")
     try:
         data = await storage.get_object(asset.object_uri)
-        return Response(content=data, media_type=asset.mime_type)
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Image bytes could not be retrieved: {e}")
+
+    if thumb and asset.mime_type.startswith("image/"):
+        try:
+            with Image.open(io.BytesIO(data)) as img:
+                img = img.convert("RGB")
+                img.thumbnail((thumb, thumb), Image.Resampling.LANCZOS)
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=80)
+                return Response(content=buf.getvalue(), media_type="image/jpeg")
+        except Exception:
+            pass  # fall through and serve the original rather than a hard failure
+
+    return Response(content=data, media_type=asset.mime_type)
 

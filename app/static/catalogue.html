@@ -84,7 +84,9 @@
     function garmentCard(g) {
       const attrs = g.attributes || {};
       const colour = (attrs.colour || []).join(", ");
-      const img = g.canonical_image_url || "";
+      // ?thumb=320 requests a resized, lighter JPEG instead of the full studio-resolution
+      // original (which can be 1-1.6MB) — the grid cell only ever renders at ~300px wide.
+      const img = g.canonical_image_url ? `${g.canonical_image_url}?thumb=320` : "";
       return `
         <a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="group block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/60 transition">
           <div class="aspect-[3/4] bg-slate-800 overflow-hidden">
