@@ -385,12 +385,35 @@ async def execute_single_pipeline_step(
     if not garment:
         raise HTTPException(status_code=404, detail=f"Garment '{garment_id}' not found")
 
-    # If dynamic API key passed in request, set it
+    # If dynamic API keys were passed in the request, apply them for the duration of THIS
+    # request only — settings is a process-wide singleton shared by every concurrent request
+    # (and the background worker doesn't even go through this endpoint), so permanently
+    # overwriting it here would leak one request's key (or a typo'd/expired one) into every
+    # other request this process handles until the container restarts. Confirmed live: this
+    # exact leak produced a run of real "401 Unauthorized" OpenRouter failures for an unrelated
+    # garment shortly after a demo request had set a bad key, which then silently fell back to
+    # the low-confidence heuristic classifier and got misread as "rate limited."
+    original_openrouter_key = settings.OPENROUTER_API_KEY
+    original_nvidia_key = settings.NVIDIA_API_KEY
     if request.openrouter_api_key:
         settings.OPENROUTER_API_KEY = request.openrouter_api_key
     if request.nvidia_api_key:
         settings.NVIDIA_API_KEY = request.nvidia_api_key
 
+    try:
+        return await _execute_step_with_keys_applied(garment_id, garment, request, session, storage)
+    finally:
+        settings.OPENROUTER_API_KEY = original_openrouter_key
+        settings.NVIDIA_API_KEY = original_nvidia_key
+
+
+async def _execute_step_with_keys_applied(
+    garment_id: str,
+    garment: Garment,
+    request: StepRequest,
+    session: AsyncSession,
+    storage: StorageClient,
+):
     # Determine stage to execute. Always route CLASSIFIED -> STAGE_02_CROP regardless of
     # image_type — Stage02Crop itself decides whether to actually crop (it only fast-skips
     # a CATALOG/CROP-classified image if no face is detected; a face still gets cropped).
