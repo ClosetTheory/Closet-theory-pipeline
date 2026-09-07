@@ -1,5 +1,6 @@
 """Garment and Pipeline execution API endpoints."""
 
+import asyncio
 import time
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
@@ -46,6 +47,10 @@ from app.storage.base import StorageClient
 from app.worker.queue import enqueue_garment_pipeline
 
 router = APIRouter(prefix="/wardrobe/garments", tags=["Garments"])
+
+# Guards the mutate/execute/restore window in execute_single_pipeline_step's per-request API
+# key override — see the comment at its use site.
+_step_api_key_lock = asyncio.Lock()
 
 # Linear pipeline progress order (excludes FAILED/REVIEW_REQUIRED, which aren't part of forward
 # progress) — used so a single-stage re-run can only ever advance garment.status, never regress
@@ -386,25 +391,32 @@ async def execute_single_pipeline_step(
         raise HTTPException(status_code=404, detail=f"Garment '{garment_id}' not found")
 
     # If dynamic API keys were passed in the request, apply them for the duration of THIS
-    # request only — settings is a process-wide singleton shared by every concurrent request
-    # (and the background worker doesn't even go through this endpoint), so permanently
-    # overwriting it here would leak one request's key (or a typo'd/expired one) into every
-    # other request this process handles until the container restarts. Confirmed live: this
-    # exact leak produced a run of real "401 Unauthorized" OpenRouter failures for an unrelated
-    # garment shortly after a demo request had set a bad key, which then silently fell back to
-    # the low-confidence heuristic classifier and got misread as "rate limited."
-    original_openrouter_key = settings.OPENROUTER_API_KEY
-    original_nvidia_key = settings.NVIDIA_API_KEY
-    if request.openrouter_api_key:
-        settings.OPENROUTER_API_KEY = request.openrouter_api_key
-    if request.nvidia_api_key:
-        settings.NVIDIA_API_KEY = request.nvidia_api_key
+    # request only. settings is a process-wide singleton (api and worker are separate
+    # processes/containers with independent settings instances — this can only ever leak
+    # within one of them) shared by every concurrent request the api process handles, so a
+    # save-mutate-restore alone isn't enough under concurrency: a second /step call (with or
+    # without its own override) can start, read the FIRST call's temporarily-mutated key as if
+    # it were real, and/or have its own "restore" overwrite the first call's restore out of
+    # order. Confirmed live: this produced a run of real "401 Unauthorized" / "Missing
+    # Authentication header" OpenRouter failures across an unrelated garment's Stage 1/2/4 —
+    # not a rate limit — and, worse, Stage 3 silently reported SUCCEEDED with entirely
+    # fabricated placeholder attributes instead of failing loud (see the matching fix in
+    # app/providers/vlm/openrouter.py and app/providers/attributes/gemini.py). A per-process
+    # lock around the whole mutate/execute/restore window closes the race — /step is an
+    # interactive demo endpoint, not high-throughput traffic, so serializing it is a fine trade.
+    async with _step_api_key_lock:
+        original_openrouter_key = settings.OPENROUTER_API_KEY
+        original_nvidia_key = settings.NVIDIA_API_KEY
+        if request.openrouter_api_key:
+            settings.OPENROUTER_API_KEY = request.openrouter_api_key
+        if request.nvidia_api_key:
+            settings.NVIDIA_API_KEY = request.nvidia_api_key
 
-    try:
-        return await _execute_step_with_keys_applied(garment_id, garment, request, session, storage)
-    finally:
-        settings.OPENROUTER_API_KEY = original_openrouter_key
-        settings.NVIDIA_API_KEY = original_nvidia_key
+        try:
+            return await _execute_step_with_keys_applied(garment_id, garment, request, session, storage)
+        finally:
+            settings.OPENROUTER_API_KEY = original_openrouter_key
+            settings.NVIDIA_API_KEY = original_nvidia_key
 
 
 async def _execute_step_with_keys_applied(

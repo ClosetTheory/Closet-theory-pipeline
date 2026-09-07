@@ -198,8 +198,15 @@ Use null for any of the above fields that genuinely do not apply to this garment
             # already re-raises this correctly; this restores parity for the primary provider.
             raise
         except Exception as e:
-            logger.warning(f"OpenRouter API call failed: {e}. Falling back to local analysis.")
-            return self._local_vision_analysis(image_bytes)
+            # A real API failure (network error, timeout, 401/500, ...) must also propagate to
+            # Stage 3's cross-model retry loop, not be silently swapped for the fake generic
+            # "white cotton oxford shirt" local fallback — confirmed live: an OpenRouter outage
+            # produced a garment marked COMPLETED/APPROVED whose attributes were entirely that
+            # fabricated placeholder data, not a real reading of the actual photo, because this
+            # exact swap reported SUCCEEDED with no error. The local fallback below is now only
+            # for the genuinely-no-API-key-configured case (checked at the top of this method).
+            logger.warning(f"OpenRouter API call failed: {e}. Propagating for cross-model retry.")
+            raise
 
     def _local_vision_analysis(self, image_bytes: bytes) -> GarmentAttributes:
         """Local fallback analysis."""

@@ -137,5 +137,10 @@ Use null for fields that genuinely do not apply to this garment type (e.g. shoe/
             # route to human review, not be silently swapped for a fake mock result.
             raise
         except Exception as e:
-            logger.warning(f"Gemini ({self.model_name}) attribute extraction failed: {e}. Falling back to mock.")
-            return await self._fallback.extract_attributes(image_bytes)
+            # Same fix as OpenRouterGPTProvider: a real API failure must propagate so Stage 3's
+            # retry loop can honestly record it (and, since this IS already the retry attempt,
+            # correctly land the garment in REVIEW_REQUIRED) rather than silently substituting
+            # fake mock data that reports SUCCEEDED. The mock fallback above (no API key at all)
+            # is unaffected.
+            logger.warning(f"Gemini ({self.model_name}) attribute extraction failed: {e}. Propagating.")
+            raise

@@ -75,6 +75,24 @@ class Stage03Attributes(BaseStage):
                         "verifier_model": settings.VISION_VERIFIER_MODEL,
                     })
                     continue
+                except Exception as api_err:
+                    # A real API failure (network error, 401, timeout, ...) — both providers now
+                    # raise this instead of silently substituting fake generic data (confirmed
+                    # live: an OpenRouter outage produced a COMPLETED/APPROVED garment whose
+                    # attributes were entirely fabricated placeholder values). Same principle as
+                    # the schema-error case above: one provider's real outage must not deny the
+                    # other provider its own attempt.
+                    last_validation_error = api_err
+                    verification_history.append({
+                        "attempt": attempt,
+                        "is_valid": False,
+                        "score": 0.0,
+                        "reason": f"Extraction API call failed: {api_err}",
+                        "mismatches": [],
+                        "extractor_model": getattr(provider, "model_name", "unknown"),
+                        "verifier_model": settings.VISION_VERIFIER_MODEL,
+                    })
+                    continue
 
                 # Second-opinion verification (Gemini via settings.VISION_VERIFIER_MODEL — a
                 # different model/vendor than MODA_NER or GPT-4o) against the actual image:
