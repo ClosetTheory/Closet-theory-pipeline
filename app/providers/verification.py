@@ -167,9 +167,12 @@ async def verify_attributes_against_image(
     prompt_text = focus_preamble + f"""You are a strict quality-control inspector checking whether extracted attribute data
 actually matches a garment photo.
 
-Extracted attributes: category={attributes.category}, subcategory={attributes.subcategory}, \
+Extracted attributes: subcategory={attributes.subcategory}, \
 colour={", ".join(attributes.colour)}, pattern={pattern_str}, material={attributes.material}, \
 fit={fit_str}, sleeve_length={sleeve_str}.
+(Note: "category" is a free-text field the extractor fills independently of subcategory and is
+not authoritative — do not judge or flag it; the pipeline derives the real category from
+subcategory separately. Judge only subcategory and the fields listed above.)
 
 Compare these against the actual image. Flag any attribute that is clearly wrong given what's
 visible (wrong garment type, wrong color, wrong sleeve length, impossible pattern/material for

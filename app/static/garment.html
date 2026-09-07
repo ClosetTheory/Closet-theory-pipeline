@@ -52,7 +52,50 @@
       const display = Array.isArray(value) ? value.join(", ") : value;
       return `<div class="flex justify-between py-1.5 border-b border-slate-800/60 text-sm">
                 <span class="text-slate-500">${label}</span>
-                <span class="text-slate-200 font-medium text-right">${display}</span>
+                <span class="text-slate-200 font-medium text-right">${String(display).replace(/_/g, " ")}</span>
+              </div>`;
+    }
+
+    // The 28 enriched attributes (added on top of the original 16-field extraction schema) —
+    // each is optional and null when not_applicable for this garment type, so only the ones
+    // the extractor actually filled in are shown. Grouped for readability rather than one flat list.
+    const ENRICHED_ATTRIBUTE_GROUPS = [
+      ["Colour detail", [["colour_secondary_name", "Secondary colour"], ["colour_temperature", "Temperature"], ["colour_saturation", "Saturation"]]],
+      ["Pattern & embellishment", [["pattern_motif", "Motif"], ["pattern_density", "Density"], ["embellishment", "Embellishment"], ["embellishment_density", "Embellishment density"], ["embellishment_placement", "Placement"]]],
+      ["Fabric", [["fabric_class", "Fabric class"], ["weave_type", "Weave"], ["transparency", "Transparency"], ["sheen", "Sheen"], ["drape", "Drape"], ["stretch_grade", "Stretch"]]],
+      ["Construction", [["neckline", "Neckline"], ["collar_type", "Collar"], ["sleeve_type", "Sleeve type"], ["closure_type", "Closure"], ["hem_style", "Hem style"]]],
+      ["Bottoms", [["rise", "Rise"], ["leg_shape", "Leg shape"], ["waistband_style", "Waistband"]]],
+      ["Category-specific", [["shoe_silhouette", "Shoe silhouette"], ["accessory_kind", "Accessory kind"]]],
+      ["Styling signals", [["formality", "Formality"], ["mood_intensity", "Mood"], ["vibe_words", "Vibe"], ["wash_state_visible", "Wash state"]]],
+    ];
+
+    function enrichedAttributesSection(attrs) {
+      const groupsHtml = ENRICHED_ATTRIBUTE_GROUPS.map(([groupLabel, fields]) => {
+        const rows = fields.map(([key, label]) => attrRow(label, attrs[key])).join("");
+        if (!rows) return "";
+        return `<div class="mb-3 last:mb-0">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-600 font-bold mb-1">${groupLabel}</div>
+                  ${rows}
+                </div>`;
+      }).join("");
+      if (!groupsHtml) return "";
+      return `<details class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 mb-5">
+                <summary class="text-sm font-semibold text-slate-300 cursor-pointer select-none">Enriched attributes</summary>
+                <div class="mt-3">${groupsHtml}</div>
+              </details>`;
+    }
+
+    function coordinatedSection(coordinated) {
+      if (!coordinated || !coordinated.length) return "";
+      const items = coordinated.map(c => `
+        <a href="/garment?id=${encodeURIComponent(c.garment_id)}" class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition text-sm">
+          <span class="text-slate-200">${(c.subcategory || c.detected_label || "garment").replace(/_/g, " ")}</span>
+          <span class="text-[10px] text-slate-500 font-mono">${c.status}</span>
+        </a>`).join("");
+      return `<div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 mb-5">
+                <div class="text-sm font-semibold text-slate-300 mb-2">Part of a co-ord set</div>
+                <p class="text-xs text-slate-500 mb-3">Detected in the same photo — these were worn together and can be styled as a known-compatible set.</p>
+                <div class="space-y-1.5">${items}</div>
               </div>`;
     }
 
@@ -93,7 +136,12 @@
               ${attrRow("Occasion", attrs.occasion)}
               ${attrRow("Season", attrs.season)}
               ${attrRow("Layering role", attrs.layering_role)}
+              ${attrRow("Gender", attrs.gender)}
+              ${attrRow("Confidence", attrs.confidence != null ? Math.round(attrs.confidence * 100) + "%" : null)}
             </div>
+
+            ${enrichedAttributesSection(attrs)}
+            ${coordinatedSection(g.coordinated_garments)}
 
             <div class="flex gap-2">
               <button id="style-btn" onclick="styleThis()" class="flex-1 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">

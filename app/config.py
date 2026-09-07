@@ -40,9 +40,11 @@ class Settings(BaseSettings):
     ALLOWED_MIME_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
     MAX_BULK_UPLOAD_FILES: int = 50
 
-    # Stage 1: Classifier
-    CLASSIFIER_PROVIDER: str = "openrouter"  # "openrouter" | "mobilenet" | "mock"
-    CLASSIFIER_MODEL_NAME: str = "MobileNetV3"
+    # Stage 1: Classifier. "openrouter" (real vision model, GPT-4o) is the only real
+    # implementation; anything else uses the local face/aspect-ratio heuristic in
+    # app/providers/classifier/mock.py, self-reported under CLASSIFIER_MODEL_NAME below.
+    CLASSIFIER_PROVIDER: str = "openrouter"  # "openrouter" | "mock"
+    CLASSIFIER_MODEL_NAME: str = "heuristic-classifier"
     CLASSIFIER_MODEL_VERSION: str = "v1"
     CLASSIFIER_CONFIDENCE_THRESHOLD: float = 0.70
 
@@ -94,6 +96,15 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL_NAME: str = "MODA SigLIP Distilled"
     EMBEDDING_MODEL_VERSION: str = "v1"
     EMBEDDING_DIMENSION: int = 768
+    # Cosine-similarity floor above which a new garment's embedding is considered a likely
+    # duplicate of an existing one in the same wardrobe (same physical item, different photo —
+    # not just a byte-identical re-upload, which is already caught earlier by the SHA256 check
+    # in app/api/v1/images.py). Deliberately high: two DIFFERENT items in a similar style/color
+    # should not collide, only near-identical photos of the same physical garment. With
+    # EMBEDDING_PROVIDER=mock (hash-seeded random vectors), this only ever fires for
+    # byte-identical images — it becomes a real perceptual check once a real embedding model
+    # (e.g. siglip) is configured.
+    DUPLICATE_SIMILARITY_THRESHOLD: float = 0.97
 
     # Runpod (MODA models: SigLIP embedding + MODA_NER attribute extraction)
     RUNPOD_API_KEY: Optional[str] = None
@@ -111,10 +122,12 @@ class Settings(BaseSettings):
     # Stage 8: Structural Compatibility Rules
     STRUCTURAL_RULE_VERSION: str = "structural_v1"
 
-    # Stage 9: Visual Compatibility (Rules + VLM Fallback)
+    # Stage 9: Visual Compatibility (Rules + VLM Fallback). The real path is OpenRouter/GPT-4o
+    # (used automatically whenever OPENROUTER_API_KEY is set — see
+    # app/providers/vlm/__init__.py::get_vlm_provider()); these two settings only name the
+    # heuristic stand-in used when it isn't.
     VISUAL_RULE_VERSION: str = "visual_v1"
-    VLM_PROVIDER: str = "mock"  # "gemini" | "claude" | "mock"
-    VLM_MODEL_NAME: str = "gemini-flash"
+    VLM_MODEL_NAME: str = "heuristic-vlm-stub"
     VLM_MODEL_VERSION: str = "v1"
 
     # --- Styling Pipeline (Outfit Recommendation) ---

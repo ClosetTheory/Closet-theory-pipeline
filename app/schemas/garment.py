@@ -26,6 +26,21 @@ class BulkGarmentUploadResponse(BaseModel):
     failed_count: int
 
 
+class CoordinatedGarment(BaseModel):
+    """A sibling garment spawned from the SAME source photo — i.e. it was physically worn
+    together with this one when the photo was ingested (e.g. a kurta + palazzo pants + dupatta
+    all detected in one full-body shot). Not a styling suggestion — a fact about how the item
+    was ingested, which the styling pipeline can also use as a strong "these were worn together"
+    signal."""
+
+    garment_id: str
+    detected_label: Optional[str] = None
+    subcategory: Optional[str] = None
+    category: Optional[str] = None
+    canonical_image_url: Optional[str] = None
+    status: str
+
+
 class CanonicalGarment(BaseModel):
     """The canonical product representation matching PRD Section 2."""
 
@@ -43,3 +58,7 @@ class CanonicalGarment(BaseModel):
     quality_status: str
     provenance: Dict[str, Any] = Field(default_factory=dict)
     pipeline_version: str
+    coordinated_garments: List[CoordinatedGarment] = Field(
+        default_factory=list,
+        description="Other garments detected in the same source photo (a 'co-ord' set — items ingested as one outfit).",
+    )

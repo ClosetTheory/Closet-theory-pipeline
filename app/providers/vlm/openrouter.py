@@ -18,7 +18,7 @@ from app.providers.base import (
     BaseVisualValidatorProvider,
     BaseVLMProvider,
 )
-from app.schemas.attributes import KNOWN_SUBCATEGORIES, GarmentAttributes, validate_extracted_attributes
+from app.schemas.attributes import AttributeValidationError, KNOWN_SUBCATEGORIES, GarmentAttributes, validate_extracted_attributes
 from app.schemas.pipeline import ClassificationResult, DetectionResult, GarmentRegion, ImageType
 from app.schemas.styling import (
     GarmentSummary,
@@ -109,8 +109,38 @@ class OpenRouterGPTProvider(
   "gender": "women | men | unisex — classify by the garment's actual cut/styling, not by assuming from context (e.g. a floral wrap dress is women, a plain crewneck tee is usually unisex unless clearly cut/marketed for one gender)",
   "warmth": 0.25,
   "versatility": 0.85,
-  "confidence": 0.95
-}}"""
+  "confidence": 0.95,
+  "colour_secondary_name": "secondary/accent colour name, or null if effectively one colour",
+  "colour_temperature": "warm | cool | neutral",
+  "colour_saturation": "muted | mid | vivid | fluorescent",
+  "pattern_motif": "geometric | floral | paisley | abstract | animal | botanical | digital | portrait | typographic | cultural_traditional | none",
+  "pattern_density": "sparse | balanced | dense | all_over | none",
+  "embellishment": "sequin | bead | mirror | zardozi | kantha | mukaish | chikankari | cutwork | applique | none",
+  "embellishment_density": "none | light | medium | heavy",
+  "embellishment_placement": "allover | panel | hem | yoke | shoulder | collar | cuff | border | none",
+  "fabric_class": "woven | knit | non_woven | leather | synthetic_film",
+  "weave_type": "plain | twill | satin | poplin | oxford | pique | dobby | jacquard | chiffon | georgette | crepe | organza | chambray | canvas | corduroy | velvet | sherpa | none",
+  "transparency": "opaque | semi_sheer | sheer",
+  "sheen": "matte | satin | shiny | metallic | iridescent",
+  "drape": "stiff | structured | softly_falling | fluid | liquid",
+  "stretch_grade": "rigid | slight | moderate | high | four_way",
+  "neckline": "crew | v | scoop | boat | square | sweetheart | halter | off_shoulder | cowl | high | mock | turtle | collared | keyhole | strapless, or null if not_applicable (e.g. footwear/bags)",
+  "collar_type": "point | spread | button_down | band | mandarin | camp | peter_pan | shawl | notch | peak | funnel | no_collar, or null if not_applicable",
+  "sleeve_type": "set_in | raglan | dolman | kimono | puff | bishop | bell | leg_of_mutton | bracelet | flutter, or null if not_applicable",
+  "closure_type": "button | zip | pullover | wrap | lace_up | hook_and_eye | drawstring | elastic | belted | snap | none",
+  "hem_style": "clean | rolled | raw | cuffed | scalloped | curved | asymmetric, or null if not_applicable",
+  "rise": "low | mid | high | ultra_high, or null if this is not a bottom",
+  "leg_shape": "skinny | slim | straight | tapered | wide | flare | bootcut | bell | palazzo | cargo | paperbag | jogger, or null if this is not a bottom",
+  "waistband_style": "fitted | elastic | drawstring | paperbag | fold_over | none, or null if this is not a bottom",
+  "shoe_silhouette": "sneaker | loafer | oxford | derby | mule | heel | boot | sandal | juti | mojari | kolhapuri | chappal | espadrille | slipper, or null if this is not footwear",
+  "accessory_kind": "bag | belt | scarf | hat | sunglasses | jewellery | watch | hair | tie | pocket_square | dupatta | stole | brooch, or null if this is not an accessory",
+  "formality": "loungewear | casual | smart_casual | business | formal | ceremonial",
+  "mood_intensity": "low_key | balanced | statement",
+  "vibe_words": ["2-4 short styling/vibe descriptor words, e.g. \\"breezy\\", \\"festive\\", \\"structured\\""],
+  "wash_state_visible": "raw | mid_wash | heavily_washed | faded | none"
+}}
+
+Use null for any of the above fields that genuinely do not apply to this garment type (e.g. shoe_silhouette/accessory_kind on a shirt, rise/leg_shape/waistband_style on a top, neckline/collar_type/sleeve_type on footwear/bags) rather than guessing a value."""
         self._last_prompt = prompt
 
         b64_image = base64.b64encode(image_bytes).decode("utf-8")
@@ -128,7 +158,7 @@ class OpenRouterGPTProvider(
                     ],
                 }
             ],
-            "max_tokens": 1024,
+            "max_tokens": 1800,
             "temperature": 0.1,
             "response_format": {"type": "json_object"},
         }
@@ -158,6 +188,15 @@ class OpenRouterGPTProvider(
 
                 logger.info(f"OpenRouter ({self.model_name}) attributes extracted successfully.")
                 return validate_extracted_attributes(content)
+        except AttributeValidationError:
+            # A genuine schema/taxonomy failure (e.g. the model correctly identified a garment
+            # type outside KNOWN_SUBCATEGORIES) must propagate to Stage 3's cross-model retry
+            # loop, not be swallowed into a hardcoded fake "white cotton oxford shirt" result —
+            # confirmed live: that fake fallback silently "succeeded" (no exception raised) and
+            # then predictably failed independent verification against the real image, while the
+            # alternate model never got a real second attempt. GeminiAttributeExtractorProvider
+            # already re-raises this correctly; this restores parity for the primary provider.
+            raise
         except Exception as e:
             logger.warning(f"OpenRouter API call failed: {e}. Falling back to local analysis.")
             return self._local_vision_analysis(image_bytes)
@@ -212,17 +251,75 @@ class OpenRouterGPTProvider(
         attrs_a: Dict[str, Any],
         attrs_b: Dict[str, Any],
     ) -> Tuple[str, float, str]:
-        """Aesthetic visual reasoning via OpenRouter GPT."""
-        color_a = ", ".join(attrs_a.get("colour", ["neutral"]))
-        color_b = ", ".join(attrs_b.get("colour", ["neutral"]))
-        mat_a = attrs_a.get("material", "cotton")
-        mat_b = attrs_b.get("material", "cotton")
+        """
+        Real vision-model judgment: only called when the deterministic rules in
+        app/rules/visual.py aren't confident (a genuinely ambiguous pairing), so this is asking
+        for an actual aesthetic opinion, not re-deriving something already decidable from
+        attributes alone — hence it looks at the real images rather than just the colour/material
+        strings a templated stub could fake.
+        """
+        if not self.api_key or not image_a_bytes or not image_b_bytes:
+            # No real judgment is possible without both images — REVIEW_REQUIRED (not a fake
+            # COMPATIBLE) is the honest answer when the rules already couldn't decide and this
+            # fallback also can't.
+            reason = "Visual compatibility check unavailable (no API key or missing image)."
+            return "REVIEW_REQUIRED", 0.5, reason
 
-        return (
-            "COMPATIBLE",
-            0.92,
-            f"OpenRouter ({self.model_name}): Harmonious pairing between {color_a} {mat_a} and {color_b} {mat_b}.",
-        )
+        def _fmt(attrs: Dict[str, Any]) -> str:
+            colour = ", ".join(attrs.get("colour", []) or ["unknown"])
+            return (
+                f"{attrs.get('subcategory', 'garment')}, colour={colour}, "
+                f"pattern={attrs.get('pattern', 'unknown')}, material={attrs.get('material', 'unknown')}"
+            )
+
+        prompt = f"""You are a professional fashion stylist. Two garment photos are attached — judge ONLY \
+whether they visually work together as an outfit (colour harmony, pattern clash, overall aesthetic \
+coherence). Do not judge fit/layering/structural rules — those are handled elsewhere.
+
+Garment A: {_fmt(attrs_a)}
+Garment B: {_fmt(attrs_b)}
+
+Output ONLY raw JSON, no markdown:
+{{"decision": "COMPATIBLE" | "INCOMPATIBLE" | "REVIEW_REQUIRED", "score": 0.0-1.0, "reason": "one sentence"}}"""
+
+        b64_a = base64.b64encode(image_a_bytes).decode("utf-8")
+        b64_b = base64.b64encode(image_b_bytes).decode("utf-8")
+        payload = {
+            "model": self.model_name,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_a}"}},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_b}"}},
+                ],
+            }],
+            "max_tokens": 250,
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "Wardrobe Styling Pipeline",
+            "Content-Type": "application/json",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                resp = await client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
+                resp.raise_for_status()
+                content = resp.json()["choices"][0]["message"]["content"].strip()
+                match = re.search(r"\{.*\}", content, re.DOTALL)
+                data = json.loads(match.group(0) if match else content)
+                decision = data.get("decision", "REVIEW_REQUIRED")
+                if decision not in ("COMPATIBLE", "INCOMPATIBLE", "REVIEW_REQUIRED"):
+                    decision = "REVIEW_REQUIRED"
+                score = max(0.0, min(1.0, float(data.get("score", 0.5))))
+                reason = data.get("reason", "No reason provided.")
+                return decision, score, f"OpenRouter ({self.model_name}): {reason}"
+        except Exception as e:
+            logger.warning(f"Visual compatibility VLM call failed: {e}")
+            return "REVIEW_REQUIRED", 0.5, f"Visual compatibility check failed ({e}); flagged for review."
 
     async def _chat_json(self, prompt: str, max_tokens: int = 512) -> Optional[str]:
         """Shared helper: single-turn JSON-mode chat completion. Returns raw content or None on failure."""

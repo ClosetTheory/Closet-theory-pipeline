@@ -34,16 +34,36 @@ class SigLIPEmbeddingProvider(BaseEmbeddingProvider):
             return await self._fallback.embed(image_bytes)
 
         try:
+            import asyncio
+
             headers = {
                 "Authorization": f"Bearer {settings.RUNPOD_API_KEY}",
                 "Content-Type": "application/json",
             }
-            url = f"{settings.RUNPOD_BASE_URL}/{settings.RUNPOD_EMBEDDING_ENDPOINT_ID}/runsync"
+            base = f"{settings.RUNPOD_BASE_URL}/{settings.RUNPOD_EMBEDDING_ENDPOINT_ID}"
             payload = {"input": {"image_b64": base64.b64encode(image_bytes).decode("utf-8")}}
             async with httpx.AsyncClient(timeout=120.0) as client:
-                resp = await client.post(url, headers=headers, json=payload)
+                resp = await client.post(f"{base}/runsync", headers=headers, json=payload)
                 resp.raise_for_status()
                 result = resp.json()
+
+                # The worker pool scales to 0 when idle (see runpod/moda_embed.py's
+                # workers=(0, 2)) — a cold start (spin-up + model load) routinely exceeds
+                # Runpod's own /runsync internal wait window, which then returns the job as
+                # IN_QUEUE/IN_PROGRESS rather than blocking until it's actually done. Treating
+                # that as a hard failure (the previous behavior) meant this real, fashion-tuned
+                # model was silently never used on a cold worker — every such call fell back to
+                # the meaningless hash-random mock vector without anyone noticing. Poll the
+                # job's real status instead of giving up after the first non-terminal response.
+                job_id = result.get("id")
+                poll_deadline = asyncio.get_event_loop().time() + 90.0
+                while result.get("status") not in ("COMPLETED", "FAILED") and job_id:
+                    if asyncio.get_event_loop().time() > poll_deadline:
+                        break
+                    await asyncio.sleep(2.0)
+                    status_resp = await client.get(f"{base}/status/{job_id}", headers=headers)
+                    status_resp.raise_for_status()
+                    result = status_resp.json()
 
             if result.get("status") != "COMPLETED":
                 raise ValueError(f"Runpod job did not complete: {result.get('status')}")

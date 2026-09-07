@@ -1,4 +1,9 @@
-"""Mock VLM Provider for visual compatibility judgments."""
+"""Mock VLM Provider for visual compatibility judgments.
+
+Used only when OPENROUTER_API_KEY isn't configured (see app/providers/vlm/__init__.py) — the
+real path is OpenRouterGPTProvider.evaluate_visual_compatibility() in
+app/providers/vlm/openrouter.py, which makes an actual vision-model call.
+"""
 
 from typing import Any, Dict, Optional, Tuple
 from app.config import settings
@@ -6,7 +11,8 @@ from app.providers.base import BaseVLMProvider
 
 
 class MockVLMProvider(BaseVLMProvider):
-    """Simulates multimodal VLM visual compatibility evaluation."""
+    """Templated stand-in for a real multimodal VLM visual compatibility call — never inspects
+    the actual images, always returns a plausible-sounding COMPATIBLE verdict."""
 
     def __init__(
         self,

@@ -1,4 +1,4 @@
-"""Unit tests for Stage 1 Classifier (MobileNetV3)."""
+"""Unit tests for Stage 1 Classifier's heuristic fallback (app/providers/classifier/mock.py)."""
 
 import pytest
 from app.providers.classifier.mock import MockClassifierProvider
@@ -12,7 +12,7 @@ async def test_classifier_catalog(sample_catalog_image_bytes):
 
     assert result.image_type == ImageType.CATALOG
     assert result.confidence >= 0.70
-    assert result.model == "MobileNetV3"
+    assert result.model == "heuristic-classifier"
     assert result.model_version == "v1"
 
 

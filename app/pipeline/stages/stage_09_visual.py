@@ -7,6 +7,7 @@ Finalizes the canonical garment ingestion pipeline.
 from app.config import settings
 from app.models.compatibility import CompatibilityResult
 from app.pipeline.idempotency import compute_stage_input_hash
+from app.pipeline.image_resolution import resolve_garment_image_bytes
 from app.pipeline.stages.base import BaseStage, StageExecutionContext, StageExecutionResult
 from app.pipeline.state_machine import PipelineStage
 from app.providers.vlm import get_vlm_provider
@@ -40,7 +41,12 @@ class Stage09Visual(BaseStage):
         model_name = None
         model_version = None
 
-        # Pairwise visual compatibility evaluation if compare_with_garment is present
+        # Pairwise visual compatibility evaluation if compare_with_garment is present. NOTE:
+        # nothing in this codebase currently populates ctx.context_data["compare_garment"] —
+        # this branch is unreachable in the running app today (real pairwise visual checks
+        # happen in app/styling/compatibility.py and app/api/v1/compatibility.py instead). Kept
+        # correct rather than deleted in case a future caller wires up per-garment comparison
+        # during ingestion.
         compare_garment = ctx.context_data.get("compare_garment")
         if compare_garment:
             confident, decision, score, reason, ver = evaluate_visual_rules(
@@ -49,11 +55,13 @@ class Stage09Visual(BaseStage):
 
             # PRD Section 16: If deterministic rules are not confident, invoke VLM fallback
             if not confident:
+                image_a_bytes = await resolve_garment_image_bytes(ctx.storage, ctx.garment)
+                image_b_bytes = await resolve_garment_image_bytes(ctx.storage, compare_garment)
                 vlm = get_vlm_provider()
-                model_name = settings.VLM_MODEL_NAME
-                model_version = settings.VLM_MODEL_VERSION
+                model_name = vlm.model_name
+                model_version = vlm.model_version
                 decision, score, reason = await vlm.evaluate_visual_compatibility(
-                    None, None, attrs, compare_garment.attributes_json
+                    image_a_bytes, image_b_bytes, attrs, compare_garment.attributes_json
                 )
 
             comp_rec = CompatibilityResult(

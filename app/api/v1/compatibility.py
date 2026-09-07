@@ -2,14 +2,16 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.dependencies import get_db_session
+from app.api.dependencies import get_db_session, get_storage
 from app.config import settings
 from app.models.compatibility import CompatibilityResult
 from app.models.garment import Garment
+from app.pipeline.image_resolution import resolve_garment_image_bytes
 from app.providers.vlm import get_vlm_provider
 from app.rules.layering import evaluate_layering_compatibility
 from app.rules.structural import evaluate_structural_compatibility
 from app.rules.visual import evaluate_visual_rules
+from app.storage.base import StorageClient
 from app.schemas.compatibility import (
     CompatibilityDecision,
     CompatibilityEvaluateRequest,
@@ -25,6 +27,7 @@ router = APIRouter(prefix="/wardrobe/compatibility", tags=["Compatibility"])
 async def evaluate_compatibility(
     request: CompatibilityEvaluateRequest,
     session: AsyncSession = Depends(get_db_session),
+    storage: StorageClient = Depends(get_storage),
 ):
     """
     Evaluates compatibility between two canonical garments across layering, structural, and visual criteria.
@@ -96,11 +99,13 @@ async def evaluate_compatibility(
         model_ver = None
 
         if not confident:
-            # Fallback to VLM
+            # Fallback to VLM — needs the real images, not just the attribute strings
+            image_a_bytes = await resolve_garment_image_bytes(storage, garment_a)
+            image_b_bytes = await resolve_garment_image_bytes(storage, garment_b)
             vlm = get_vlm_provider()
-            model_ver = f"{settings.VLM_MODEL_NAME}:{settings.VLM_MODEL_VERSION}"
+            model_ver = f"{vlm.model_name}:{vlm.model_version}"
             decision, score, reason = await vlm.evaluate_visual_compatibility(
-                None, None, attrs_a, attrs_b
+                image_a_bytes, image_b_bytes, attrs_a, attrs_b
             )
 
         results.append(

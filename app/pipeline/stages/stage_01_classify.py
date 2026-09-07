@@ -1,6 +1,8 @@
-"""Stage 1: Image Classifier (MobileNetV3).
+"""Stage 1: Image Classifier.
 
-Determines whether the image is CATALOG, CROP, or FULL_BODY.
+Determines whether the image is CATALOG, CROP, or FULL_BODY, via the real vision model
+(OpenRouter/GPT-4o — see app/providers/classifier/__init__.py) or, if that isn't configured,
+a local face/aspect-ratio heuristic — never an actual trained image classifier model.
 Enforces confidence threshold routing to review.
 """
 

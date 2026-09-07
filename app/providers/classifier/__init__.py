@@ -2,7 +2,6 @@
 
 from app.config import settings
 from app.providers.base import BaseClassifierProvider
-from app.providers.classifier.mobilenet import MobileNetV3ClassifierProvider
 from app.providers.classifier.mock import MockClassifierProvider
 
 
@@ -16,11 +15,11 @@ def get_classifier_provider() -> BaseClassifierProvider:
             model_name=settings.OPENROUTER_MODEL,
             base_url=settings.OPENROUTER_BASE_URL,
         )
-    if provider_name == "mobilenet":
-        return MobileNetV3ClassifierProvider(
-            model_name=settings.CLASSIFIER_MODEL_NAME,
-            model_version=settings.CLASSIFIER_MODEL_VERSION,
-        )
+    # "mock" (or any other value): the local face/aspect-ratio heuristic — there is no real
+    # trained classifier model in this codebase; a previous "mobilenet" option here claimed to
+    # run PyTorch MobileNetV3 inference but silently delegated to this exact same heuristic
+    # while reporting a fake model name. Removed rather than fixed, since OpenRouter (above) is
+    # the only classifier that has ever been real.
     return MockClassifierProvider(
         model_name=settings.CLASSIFIER_MODEL_NAME,
         model_version=settings.CLASSIFIER_MODEL_VERSION,

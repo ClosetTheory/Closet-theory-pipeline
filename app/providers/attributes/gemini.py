@@ -64,7 +64,37 @@ class GeminiAttributeExtractorProvider(BaseAttributeExtractorProvider):
 - gender: women | men | unisex — classify by the garment's actual cut/styling, not by assuming from context
 - warmth: float 0.0 to 1.0
 - versatility: float 0.0 to 1.0
-- confidence: float 0.0 to 1.0"""
+- confidence: float 0.0 to 1.0
+- colour_secondary_name: secondary/accent colour name, or null if effectively one colour
+- colour_temperature: warm | cool | neutral
+- colour_saturation: muted | mid | vivid | fluorescent
+- pattern_motif: geometric | floral | paisley | abstract | animal | botanical | digital | portrait | typographic | cultural_traditional | none
+- pattern_density: sparse | balanced | dense | all_over | none
+- embellishment: sequin | bead | mirror | zardozi | kantha | mukaish | chikankari | cutwork | applique | none
+- embellishment_density: none | light | medium | heavy
+- embellishment_placement: allover | panel | hem | yoke | shoulder | collar | cuff | border | none
+- fabric_class: woven | knit | non_woven | leather | synthetic_film
+- weave_type: plain | twill | satin | poplin | oxford | pique | dobby | jacquard | chiffon | georgette | crepe | organza | chambray | canvas | corduroy | velvet | sherpa | none
+- transparency: opaque | semi_sheer | sheer
+- sheen: matte | satin | shiny | metallic | iridescent
+- drape: stiff | structured | softly_falling | fluid | liquid
+- stretch_grade: rigid | slight | moderate | high | four_way
+- neckline: crew | v | scoop | boat | square | sweetheart | halter | off_shoulder | cowl | high | mock | turtle | collared | keyhole | strapless, or null if not_applicable
+- collar_type: point | spread | button_down | band | mandarin | camp | peter_pan | shawl | notch | peak | funnel | no_collar, or null if not_applicable
+- sleeve_type: set_in | raglan | dolman | kimono | puff | bishop | bell | leg_of_mutton | bracelet | flutter, or null if not_applicable
+- closure_type: button | zip | pullover | wrap | lace_up | hook_and_eye | drawstring | elastic | belted | snap | none
+- hem_style: clean | rolled | raw | cuffed | scalloped | curved | asymmetric, or null if not_applicable
+- rise: low | mid | high | ultra_high, or null if this is not a bottom
+- leg_shape: skinny | slim | straight | tapered | wide | flare | bootcut | bell | palazzo | cargo | paperbag | jogger, or null if this is not a bottom
+- waistband_style: fitted | elastic | drawstring | paperbag | fold_over | none, or null if this is not a bottom
+- shoe_silhouette: sneaker | loafer | oxford | derby | mule | heel | boot | sandal | juti | mojari | kolhapuri | chappal | espadrille | slipper, or null if this is not footwear
+- accessory_kind: bag | belt | scarf | hat | sunglasses | jewellery | watch | hair | tie | pocket_square | dupatta | stole | brooch, or null if this is not an accessory
+- formality: loungewear | casual | smart_casual | business | formal | ceremonial
+- mood_intensity: low_key | balanced | statement
+- vibe_words: array of 2-4 short styling/vibe descriptor words
+- wash_state_visible: raw | mid_wash | heavily_washed | faded | none
+
+Use null for fields that genuinely do not apply to this garment type (e.g. shoe/accessory fields on a top, bottoms fields on footwear) rather than guessing a value."""
         self._last_prompt = prompt
 
         b64_image = base64.b64encode(image_bytes).decode("utf-8")
@@ -79,7 +109,7 @@ class GeminiAttributeExtractorProvider(BaseAttributeExtractorProvider):
                     ],
                 }
             ],
-            "max_tokens": 1024,
+            "max_tokens": 1800,
             "temperature": 0.1,
         }
         headers = {

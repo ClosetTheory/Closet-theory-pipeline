@@ -15,11 +15,13 @@ reject — this is enforced here by never letting the visual rule's decision set
 from itertools import combinations
 from typing import List, Optional, Tuple
 from app.models.garment import Garment
+from app.pipeline.image_resolution import resolve_garment_image_bytes
 from app.providers.vlm import get_vlm_provider
 from app.rules.layering import evaluate_layering_compatibility
 from app.rules.pairing import evaluate_pairing_compatibility
 from app.rules.structural import evaluate_structural_compatibility
 from app.rules.visual import evaluate_visual_rules
+from app.storage import get_storage_client
 
 
 def _attrs(garment: Garment) -> dict:
@@ -55,14 +57,33 @@ async def evaluate_pair_compatibility(garment_a: Garment, garment_b: Garment) ->
     # escalate worst_decision to INCOMPATIBLE, only to REVIEW_REQUIRED at most.
     confident, visual_decision, visual_score, visual_reason, _ver = evaluate_visual_rules(attrs_a, attrs_b)
     if not confident:
+        storage = get_storage_client()
+        image_a_bytes = await resolve_garment_image_bytes(storage, garment_a)
+        image_b_bytes = await resolve_garment_image_bytes(storage, garment_b)
         vlm = get_vlm_provider()
-        visual_decision, visual_score, visual_reason = await vlm.evaluate_visual_compatibility(None, None, attrs_a, attrs_b)
+        visual_decision, visual_score, visual_reason = await vlm.evaluate_visual_compatibility(
+            image_a_bytes, image_b_bytes, attrs_a, attrs_b
+        )
     reasons.append(visual_reason)
     scores.append(visual_score)
     if visual_decision in ("INCOMPATIBLE", "REVIEW_REQUIRED") and worst_decision != "INCOMPATIBLE":
         worst_decision = "REVIEW_REQUIRED"
 
     avg_score = sum(scores) / len(scores) if scores else 0.5
+
+    # Co-ord override: these two garments came from the SAME source photo (Stage 2 spawns one
+    # Garment per detected item in a single full-body shot — see stage_02_crop.py), meaning
+    # they're not a hypothetical pairing but a fact — the person was actually photographed
+    # wearing both together. A soft visual-dissociation flag is moot once that's known, so
+    # REVIEW_REQUIRED from visual disagreement alone is downgraded to COMPATIBLE with a high
+    # floor score. A genuine hard reject (pairing/layering/structural — e.g. two bottoms) still
+    # stands: co-ingestion doesn't override a physically impossible combination, it can only
+    # mean the detector mis-split one garment into two.
+    if garment_a.source_image_id == garment_b.source_image_id and worst_decision != "INCOMPATIBLE":
+        worst_decision = "COMPATIBLE"
+        avg_score = max(avg_score, 0.95)
+        reasons.insert(0, "Ingested together from the same photo — known to have been worn as a set.")
+
     return worst_decision, avg_score, " | ".join(reasons), hard_reject_source
 
 

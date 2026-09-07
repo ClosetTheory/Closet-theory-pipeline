@@ -26,7 +26,13 @@ from app.pipeline.state_machine import (
 )
 from app.api.v1.images import store_uploaded_image
 from app.schemas.attributes import validate_extracted_attributes
-from app.schemas.garment import BulkGarmentUploadResponse, BulkGarmentUploadResult, CanonicalGarment, GarmentCreateRequest
+from app.schemas.garment import (
+    BulkGarmentUploadResponse,
+    BulkGarmentUploadResult,
+    CanonicalGarment,
+    CoordinatedGarment,
+    GarmentCreateRequest,
+)
 from app.schemas.styling import GarmentSummary
 from app.schemas.pipeline import (
     PipelineStageRunRead,
@@ -257,6 +263,28 @@ async def get_garment(
 
     canonical_ref = garment.canonical_image.object_uri if garment.canonical_image else None
 
+    # Co-ord set: other garments spawned from the SAME source photo (Stage 2 detects every
+    # garment in a full-body shot and gives each its own Garment row sharing source_image_id —
+    # see app/pipeline/stages/stage_02_crop.py). That shared id is exactly "these were worn
+    # together" — no separate table needed, just query siblings by it.
+    siblings_stmt = (
+        select(Garment)
+        .where(Garment.source_image_id == garment.source_image_id, Garment.id != garment.id)
+        .options(selectinload(Garment.canonical_image))
+    )
+    siblings = (await session.execute(siblings_stmt)).scalars().all()
+    coordinated = [
+        CoordinatedGarment(
+            garment_id=sib.id,
+            detected_label=sib.detected_label,
+            subcategory=sib.subcategory,
+            category=sib.category,
+            canonical_image_url=f"/api/v1/wardrobe/images/{sib.canonical_image_id}/bytes" if sib.canonical_image_id else None,
+            status=sib.status,
+        )
+        for sib in siblings
+    ]
+
     return CanonicalGarment(
         garment_id=garment.id,
         source_image_refs=[garment.source_image.object_uri] if garment.source_image else [],
@@ -270,6 +298,7 @@ async def get_garment(
         quality_status=garment.quality_status,
         provenance=garment.provenance,
         pipeline_version=garment.pipeline_version,
+        coordinated_garments=coordinated,
     )
 
 

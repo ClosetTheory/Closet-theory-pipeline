@@ -36,7 +36,7 @@ ACCESSORIES: Set[str] = {
     "SUNGLASSES", "ACCESSORY_OTHER",
 }
 TRADITIONAL: Set[str] = {
-    "SAREE", "DHOTI", "KURTA", "LEHENGA", "SHERWANI", "SALWAR", "DUPATTA",
+    "SAREE", "DHOTI", "KURTA", "LEHENGA", "SHERWANI", "SALWAR", "DUPATTA", "ANARKALI",
     "TRADITIONAL_OTHER",
 }
 OTHER: Set[str] = {
@@ -94,9 +94,10 @@ SUBCATEGORY_TO_CLASS: Dict[str, str] = {
     # New spec classes with no prior subcategory equivalent (identity mapping,
     # lowercased garment_class value doubles as the subcategory string)
     "saree": "SAREE", "dhoti": "DHOTI", "kurta": "KURTA", "lehenga": "LEHENGA",
-    "sherwani": "SHERWANI", "salwar": "SALWAR", "dupatta": "DUPATTA",
+    "sherwani": "SHERWANI", "salwar": "SALWAR", "dupatta": "DUPATTA", "anarkali": "ANARKALI",
     "joggers": "JOGGERS", "tube_top": "TUBE_TOP", "watch": "WATCH",
     "jewellery": "JEWELLERY", "innerwear": "INNERWEAR", "activewear": "ACTIVEWEAR",
+    "kimono": "OUTERWEAR_OTHER",
 }
 
 

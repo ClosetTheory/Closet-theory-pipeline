@@ -1,4 +1,4 @@
-"""Mock / Heuristic Classifier Provider for MobileNetV3."""
+"""Heuristic Classifier Provider (Stage 1 fallback — no trained model)."""
 
 import io
 from PIL import Image
@@ -10,8 +10,7 @@ from app.schemas.pipeline import ClassificationResult, ImageType
 
 class MockClassifierProvider(BaseClassifierProvider):
     """
-    Heuristic classifier — no trained model is wired up here (see mobilenet.py, which
-    delegates to this same class). Aspect ratio alone is a poor signal: most real photos
+    Heuristic classifier — no trained model is wired up here. Aspect ratio alone is a poor signal: most real photos
     (portrait phone shots, standard 4:3/3:2 crops) land in a "tall-ish" band regardless of
     whether they actually show a person, so a pure ratio threshold misclassifies the large
     majority of uploads as CROP. Instead, this uses a local, deterministic, zero-cost face
