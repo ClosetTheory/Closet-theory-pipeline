@@ -510,7 +510,7 @@
         return `<span class="text-[10px] px-2 py-0.5 rounded-full bg-${color}-500/15 text-${color}-400 border border-${color}-500/30">${label}: ${v.status}</span>`;
       };
       return `
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div id="outfit-card-${outfit.outfit_id}" class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-white">Outfit ${outfit.rank}</span>
             <span class="text-xs font-mono text-purple-400">${Math.round((scores.final_score || 0) * 100)}%</span>
@@ -519,6 +519,9 @@
           <div class="flex flex-wrap gap-1.5">
             ${outfit.garments.map(g => `<a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full transition">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</a>`).join("")}
           </div>
+          <button onclick='openSwapModal(${JSON.stringify(outfit.outfit_id)}, ${JSON.stringify(outfit.roles || {})})' class="w-full text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-purple-500/20 hover:text-purple-400 text-slate-300 transition">
+            🔁 Swap an item
+          </button>
           <div class="space-y-1">
             ${scoreBar("request match", scores.request_match)}
             ${scoreBar("compatibility", scores.compatibility)}
@@ -576,6 +579,96 @@
       } finally {
         btn.disabled = false;
       }
+    }
+
+    let _swapContext = { outfitId: null };
+
+    function openSwapModal(outfitId, roles) {
+      _swapContext = { outfitId };
+      const uniqueRoles = [...new Set(Object.values(roles || {}))];
+      const roleButtons = uniqueRoles.map(r => `
+        <button onclick="loadSwapCandidates('${r}')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-purple-600 hover:text-white text-slate-300 transition">${r.toLowerCase()}</button>
+      `).join("");
+      const body = `
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Describe what you want changed</label>
+            <div class="flex gap-2">
+              <input id="swap-chat-input" type="text" placeholder="e.g. I don't like the shoes, give me something else"
+                     class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <button onclick="applyChatSwap()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg whitespace-nowrap">Apply</button>
+            </div>
+          </div>
+          <div class="border-t border-slate-800 pt-3">
+            <div class="text-xs font-bold text-slate-300 mb-2">Or browse and pick a specific replacement:</div>
+            <div class="flex flex-wrap gap-2">${roleButtons}</div>
+            <div id="swap-candidates-grid" class="grid grid-cols-3 gap-2 mt-3"></div>
+          </div>
+          <div id="swap-status" class="text-xs text-slate-500"></div>
+        </div>`;
+      openModal("Swap an item in this outfit", body);
+    }
+
+    async function loadSwapCandidates(role) {
+      const grid = document.getElementById("swap-candidates-grid");
+      const statusEl = document.getElementById("swap-status");
+      grid.innerHTML = "";
+      statusEl.textContent = `Loading ${role.toLowerCase()} options…`;
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(_swapContext.outfitId)}/swap/candidates?role=${encodeURIComponent(role)}`);
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const candidates = await res.json();
+        statusEl.textContent = candidates.length ? `${candidates.length} option(s) — click one to swap in:` : "No other options found for this role in the wardrobe.";
+        grid.innerHTML = candidates.map(c => `
+          <button onclick="applyDirectSwap('${role}', '${c.garment_id}')" class="text-left bg-slate-950 border border-slate-800 hover:border-purple-500 rounded-lg overflow-hidden transition">
+            ${c.canonical_image_url ? `<img src="${c.canonical_image_url}" class="w-full aspect-square object-cover">` : `<div class="w-full aspect-square flex items-center justify-center text-[9px] text-slate-600">no image</div>`}
+            <div class="p-1.5 text-[10px] text-slate-300 truncate">${(c.subcategory || '').replace(/_/g,' ')}</div>
+          </button>
+        `).join("");
+      } catch (e) {
+        statusEl.innerHTML = `<span class="text-red-400">${e.message}</span>`;
+      }
+    }
+
+    async function applyDirectSwap(role, newGarmentId) {
+      const statusEl = document.getElementById("swap-status");
+      statusEl.textContent = "Swapping and regenerating the outfit image…";
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(_swapContext.outfitId)}/swap`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role, new_garment_id: newGarmentId }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        _replaceOutfitCard(await res.json());
+        closeStageModal();
+      } catch (e) {
+        statusEl.innerHTML = `<span class="text-red-400">${e.message}</span>`;
+      }
+    }
+
+    async function applyChatSwap() {
+      const instruction = document.getElementById("swap-chat-input").value.trim();
+      const statusEl = document.getElementById("swap-status");
+      if (!instruction) { statusEl.innerHTML = '<span class="text-amber-400">Type an instruction first.</span>'; return; }
+      statusEl.textContent = "Interpreting the instruction and swapping…";
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(_swapContext.outfitId)}/swap/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instruction }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        _replaceOutfitCard(await res.json());
+        closeStageModal();
+      } catch (e) {
+        statusEl.innerHTML = `<span class="text-red-400">${e.message}</span>`;
+      }
+    }
+
+    function _replaceOutfitCard(updatedOutfit) {
+      const el = document.getElementById(`outfit-card-${updatedOutfit.outfit_id}`);
+      if (el) el.outerHTML = outfitCard(updatedOutfit);
     }
 
     async function voteOutfit(outfitId, vote, btnEl) {
