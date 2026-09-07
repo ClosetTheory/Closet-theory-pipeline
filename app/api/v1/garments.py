@@ -478,8 +478,16 @@ async def execute_single_pipeline_step(
         if result.quality_status:
             garment.quality_status = result.quality_status
     elif result.status == "REVIEW_REQUIRED":
-        garment.status = GarmentState.REVIEW_REQUIRED.value
-        garment.quality_status = "REVIEW_REQUIRED"
+        if stage_enum == PipelineStage.STAGE_03_ATTRIBUTES:
+            # The only genuine halt condition — see app/pipeline/orchestrator.py's matching
+            # comment. Every other stage's REVIEW_REQUIRED (e.g. a low-confidence heuristic
+            # fallback) still advances below, same as SUCCEEDED.
+            garment.status = GarmentState.REVIEW_REQUIRED.value
+            garment.quality_status = "REVIEW_REQUIRED"
+        else:
+            next_state = STAGE_TO_GARMENT_STATE.get(stage_enum)
+            if next_state and _garment_state_order(next_state.value) > _garment_state_order(garment.status):
+                garment.status = next_state.value
     else:
         garment.status = GarmentState.FAILED.value
         garment.quality_status = "REJECTED"

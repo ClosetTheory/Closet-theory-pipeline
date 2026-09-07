@@ -767,7 +767,12 @@
             return;
           }
 
-          const isOk = stepData.status === "SUCCEEDED";
+          // The only genuine halt condition is Stage 3 (attributes) actually landing the
+          // garment in REVIEW_REQUIRED — every other stage's REVIEW_REQUIRED (e.g. Stage 1
+          // falling back to the local heuristic classifier) still advances garment_state, so
+          // check that rather than the raw per-stage status.
+          const isOk = stepData.status === "SUCCEEDED"
+            || (stepData.status === "REVIEW_REQUIRED" && stepData.garment_state !== "REVIEW_REQUIRED");
           document.getElementById(st.badge).innerText = `${stepData.status} (${stepData.duration_ms}ms)`;
           document.getElementById(st.badge).className = isOk
             ? "text-[10px] font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded"
@@ -777,9 +782,10 @@
           // Update card visual artifacts
           updateLiveCardVisuals(st.key, stepData);
 
-          // A REVIEW_REQUIRED/FAILED stage must halt the run here — continuing to later stages
-          // (e.g. digitising from attributes that never actually passed verification) would
-          // silently produce a "COMPLETED" garment built on data the pipeline itself rejected.
+          // A real halt (Stage 3 attribute conflict, or a hard FAILED) must stop the run here
+          // — continuing to later stages (e.g. digitising from attributes that never actually
+          // passed verification) would silently produce a "COMPLETED" garment built on data the
+          // pipeline itself rejected.
           if (!isOk) {
             document.getElementById('live-spinner').classList.add('hidden');
             document.getElementById('live-stage-status-title').innerText =

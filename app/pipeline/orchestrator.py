@@ -184,9 +184,24 @@ class PipelineOrchestrator:
                         garment.quality_status = result.quality_status
                     self.spawned_garment_ids.extend(result.output_refs.get("spawned_garment_ids", []))
                 elif result.status == "REVIEW_REQUIRED":
-                    garment.status = GarmentState.REVIEW_REQUIRED.value
-                    garment.quality_status = "REVIEW_REQUIRED"
-                    break
+                    if stage_enum == PipelineStage.STAGE_03_ATTRIBUTES:
+                        # The only genuine halt condition: Stage 3's independent verification
+                        # actually disagrees with the extracted attributes (a real conflict, not
+                        # just uncertainty) — see app/pipeline/stages/stage_03_attributes.py.
+                        garment.status = GarmentState.REVIEW_REQUIRED.value
+                        garment.quality_status = "REVIEW_REQUIRED"
+                        break
+                    # Every other stage's REVIEW_REQUIRED (e.g. Stage 1 falling back to the
+                    # local heuristic classifier because all vision models failed) is recorded
+                    # on this stage_run for visibility but must not stop the pipeline — confirmed
+                    # live: a garment correctly re-classifiable moments later got stuck at Stage 1
+                    # forever over a single transient low-confidence result. Advance exactly as a
+                    # SUCCEEDED result would; leave quality_status alone so a later stage's own
+                    # explicit verdict (not this one uncertain stage) determines the final status.
+                    next_state = STAGE_TO_GARMENT_STATE.get(stage_enum)
+                    if next_state:
+                        garment.status = next_state.value
+                    self.spawned_garment_ids.extend(result.output_refs.get("spawned_garment_ids", []))
                 else:  # FAILED or RETRYABLE
                     garment.status = GarmentState.FAILED.value
                     garment.quality_status = "REJECTED"
