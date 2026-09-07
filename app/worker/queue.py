@@ -8,6 +8,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.garment import Garment
 from app.observability import logger
+from app.pipeline.lock import garment_execution_lock
 from app.pipeline.orchestrator import PipelineOrchestrator
 from app.pipeline.state_machine import PipelineStage
 from app.storage import get_storage_client
@@ -36,7 +37,11 @@ async def process_job(garment_id: str, force: bool = False, resume_stage: Option
 
         stage_enum = PipelineStage(resume_stage) if resume_stage else None
         orchestrator = PipelineOrchestrator(session=session, storage=storage)
-        await orchestrator.run(garment, force=force, resume_stage=stage_enum)
+        # Waits out a concurrent execution rather than skipping this job outright — this is a
+        # background worker with no user watching a spinner, so it can afford to wait for the
+        # other run (most likely the interactive step-by-step demo UI) to finish first.
+        async with garment_execution_lock(garment_id, wait=True):
+            await orchestrator.run(garment, force=force, resume_stage=stage_enum)
 
         # Stage 2 may have detected multiple garments in one photo and spawned sibling
         # Garment rows (see Stage02Crop / PipelineOrchestrator). Enqueue them here — the one

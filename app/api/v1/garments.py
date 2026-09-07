@@ -16,6 +16,7 @@ from app.models.image_asset import ImageAsset
 from app.models.pipeline_stage import PipelineStageRun
 from app.models.user import User
 from app.observability import log_stage_event, metrics
+from app.pipeline.lock import GarmentLockBusy, garment_execution_lock
 from app.pipeline.orchestrator import PipelineOrchestrator
 from app.pipeline.stages.base import StageExecutionContext
 from app.pipeline.state_machine import (
@@ -431,7 +432,16 @@ async def execute_single_pipeline_step(
     )
 
     start_t = time.perf_counter()
-    result = await stage_instance.execute(ctx)
+    try:
+        async with garment_execution_lock(garment_id, wait=False):
+            result = await stage_instance.execute(ctx)
+    except GarmentLockBusy:
+        # Fail fast rather than hang — this is an interactive, user-watched call (the
+        # step-by-step demo UI), unlike the background worker which can afford to wait.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Garment '{garment_id}' is already being processed by another pipeline run (e.g. the background worker) — try again shortly.",
+        )
     duration_ms = (time.perf_counter() - start_t) * 1000.0
 
     # Record stage run in DB

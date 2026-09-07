@@ -5,11 +5,9 @@ import io
 import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from PIL import Image
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_user, get_db_session, get_storage
 from app.config import settings
-from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
 from app.models.user import User
 from app.schemas.image import ImageUploadResponse
@@ -61,29 +59,13 @@ async def store_uploaded_image(
     # 4. Compute SHA-256
     sha256_hash = hashlib.sha256(content).hexdigest()
 
-    # 4b. Exact-duplicate check: the same photo (byte-identical) re-uploaded for this tenant.
-    # Nothing previously stopped this from silently creating a second ImageAsset + a second
-    # Garment for the same picture — confirmed live: several catalogue entries were exact
-    # re-uploads of an existing garment's source photo. Block it here, at the earliest point,
-    # rather than after a full (costly) pipeline re-run, and surface which existing image/garment
-    # it collides with so the caller can decide (view the existing one, or intentionally proceed
-    # by uploading a genuinely different photo of the same item).
-    existing_stmt = select(ImageAsset).where(
-        ImageAsset.tenant_id == current_user.tenant_id,
-        ImageAsset.sha256 == sha256_hash,
-    )
-    existing_image = (await session.execute(existing_stmt)).scalars().first()
-    if existing_image:
-        existing_garment_stmt = select(Garment.id).where(Garment.source_image_id == existing_image.id)
-        existing_garment_id = (await session.execute(existing_garment_stmt)).scalars().first()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "message": "Duplicate image: this exact photo has already been uploaded.",
-                "existing_image_id": existing_image.id,
-                "existing_garment_id": existing_garment_id,
-            },
-        )
+    # Note: no exact-duplicate (SHA256 collision) check here — deliberately removed. A garment
+    # that failed partway through the pipeline needs to be re-ingestible from the exact same
+    # photo, and blocking on a byte-identical hash match made that impossible (the ImageAsset
+    # row for a failed garment's source photo persists even after the garment itself is
+    # deleted/retried). Perceptual near-duplicate detection (a different photo of the same
+    # physical garment) still runs in Stage 5 via embedding similarity and only flags
+    # REVIEW_REQUIRED rather than blocking — see app/pipeline/stages/stage_05_embed.py.
 
     # 5. Generate secure, non-client key
     ext = "jpg" if "jpeg" in file.content_type else "png"
