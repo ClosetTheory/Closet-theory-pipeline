@@ -620,7 +620,7 @@
         const candidates = await res.json();
         statusEl.textContent = candidates.length ? `${candidates.length} option(s) — click one to swap in:` : "No other options found for this role in the wardrobe.";
         grid.innerHTML = candidates.map(c => `
-          <button onclick="applyDirectSwap('${role}', '${c.garment_id}')" class="text-left bg-slate-950 border border-slate-800 hover:border-purple-500 rounded-lg overflow-hidden transition">
+          <button onclick="applyDirectSwap('${role}', '${c.garment_id}', this)" class="swap-candidate-btn text-left bg-slate-950 border-2 border-slate-800 hover:border-purple-500 rounded-lg overflow-hidden transition">
             ${c.canonical_image_url ? `<img src="${c.canonical_image_url}" class="w-full aspect-square object-cover">` : `<div class="w-full aspect-square flex items-center justify-center text-[9px] text-slate-600">no image</div>`}
             <div class="p-1.5 text-[10px] text-slate-300 truncate">${(c.subcategory || '').replace(/_/g,' ')}</div>
           </button>
@@ -630,8 +630,15 @@
       }
     }
 
-    async function applyDirectSwap(role, newGarmentId) {
+    async function applyDirectSwap(role, newGarmentId, btnEl) {
       const statusEl = document.getElementById("swap-status");
+      const grid = document.getElementById("swap-candidates-grid");
+      if (grid) {
+        grid.querySelectorAll(".swap-candidate-btn").forEach(b => b.classList.remove("border-emerald-400", "ring-2", "ring-emerald-400/60", "shadow-[0_0_12px_rgba(52,211,153,0.6)]"));
+      }
+      if (btnEl) {
+        btnEl.classList.add("border-emerald-400", "ring-2", "ring-emerald-400/60", "shadow-[0_0_12px_rgba(52,211,153,0.6)]");
+      }
       statusEl.textContent = "Swapping and regenerating the outfit image…";
       try {
         const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(_swapContext.outfitId)}/swap`, {
@@ -644,6 +651,7 @@
         closeStageModal();
       } catch (e) {
         statusEl.innerHTML = `<span class="text-red-400">${e.message}</span>`;
+        if (btnEl) btnEl.classList.remove("border-emerald-400", "ring-2", "ring-emerald-400/60", "shadow-[0_0_12px_rgba(52,211,153,0.6)]");
       }
     }
 
