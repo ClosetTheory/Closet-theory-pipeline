@@ -407,6 +407,19 @@ async def execute_single_pipeline_step(
     async with _step_api_key_lock:
         original_openrouter_key = settings.OPENROUTER_API_KEY
         original_nvidia_key = settings.NVIDIA_API_KEY
+        # A real OpenRouter key always starts with "sk-or-v1-" — reject anything else rather
+        # than silently applying it as an override. Confirmed live: the demo UI's key field is
+        # styled as a password input, which browser/password-manager autofill can silently
+        # populate with an unrelated saved credential for this same domain (this app's own
+        # /login page also has a password field) despite anti-autofill hints on the element;
+        # every request from an affected browser then failed with a real 401 for the whole
+        # duration. The frontend now filters this too — this is the server-side backstop for
+        # any other caller of this endpoint.
+        if request.openrouter_api_key and not request.openrouter_api_key.startswith("sk-or-"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="openrouter_api_key doesn't look like a real OpenRouter key (expected to start with 'sk-or-') — refusing to apply it as an override.",
+            )
         if request.openrouter_api_key:
             settings.OPENROUTER_API_KEY = request.openrouter_api_key
         if request.nvidia_api_key:

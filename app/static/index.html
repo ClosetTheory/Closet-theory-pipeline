@@ -100,7 +100,7 @@
               <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
                 OpenRouter API Key <span class="text-slate-500 font-normal">(Optional)</span>
               </label>
-              <input type="password" id="openrouter-key-input" placeholder="sk-or-v1-..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 placeholder:text-slate-600">
+              <input type="password" id="openrouter-key-input" name="openrouter-key-override-not-a-login-field" autocomplete="new-password" data-lpignore="true" data-1p-ignore placeholder="sk-or-v1-..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 placeholder:text-slate-600">
               <span class="text-[10px] text-slate-500 block mt-1">
                 Can be entered here or in your <code>.env</code> file (defaults to GPT-4o).
               </span>
@@ -689,7 +689,17 @@
       document.getElementById('live-results-section').classList.remove('hidden');
       document.getElementById('live-stage-status-title').innerText = "Uploading raw image asset...";
 
-      const apiKey = document.getElementById('openrouter-key-input').value.trim();
+      let apiKey = document.getElementById('openrouter-key-input').value.trim();
+      // Defense-in-depth against browser/password-manager autofill silently poisoning this
+      // field (it's styled as a password input; a saved login credential for this same domain
+      // can get suggested into it despite the autocomplete hints on the element) — a real
+      // OpenRouter key always starts with "sk-or-v1-"; anything else typed/filled in here is
+      // almost certainly not one, so don't send it as an override (falls through to the
+      // server's real configured key instead of silently corrupting every request).
+      if (apiKey && !apiKey.startsWith('sk-or-')) {
+        console.warn('OpenRouter API Key field contains a value that doesn\'t look like a real key (expected to start with "sk-or-") — ignoring it, likely browser autofill. Clear the field if this persists.');
+        apiKey = '';
+      }
 
       try {
         // 1. Upload Raw Image
