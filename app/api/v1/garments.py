@@ -3,7 +3,7 @@
 import asyncio
 import time
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,6 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_current_user, get_db_session, get_storage
 from app.config import settings
-from app.models.base import utc_now
 from app.models.embedding import GarmentEmbedding
 from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
@@ -217,123 +216,6 @@ async def list_garments(
         )
         for g in garments
     ]
-
-
-_BULK_IMPORT_MODELS: Dict[str, Any] = {}
-
-
-def _bulk_import_model_registry() -> Dict[str, Any]:
-    """Lazily built so every model is imported (and thus registered on Base.metadata) before
-    this is first used — avoids a hard import-order dependency at module load time."""
-    if not _BULK_IMPORT_MODELS:
-        from app.models.image_asset import ImageAsset as _ImageAsset
-        from app.models.styling import StylingRequest, Outfit, OutfitGarment
-        from app.models.style_profile import StyleProfile
-        from app.models.ootd import OutfitOfTheDay
-
-        _BULK_IMPORT_MODELS.update({
-            "image_assets": _ImageAsset,
-            "garments": Garment,
-            "garment_embeddings": GarmentEmbedding,
-            "styling_requests": StylingRequest,
-            "outfits": Outfit,
-            "outfit_garments": OutfitGarment,
-            "style_profiles": StyleProfile,
-            "outfits_of_the_day": OutfitOfTheDay,
-        })
-    return _BULK_IMPORT_MODELS
-
-
-@router.post("/_bulk_import/image")
-async def bulk_import_image(
-    id: str = Form(...),
-    object_uri: str = Form(...),
-    tenant_id: str = Form(...),
-    member_id: str = Form(...),
-    mime_type: str = Form("image/jpeg"),
-    width: int = Form(0),
-    height: int = Form(0),
-    sha256: str = Form(""),
-    created_at: Optional[str] = Form(None),
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-    storage: StorageClient = Depends(get_storage),
-):
-    """TEMPORARY one-time dev->prod data sync helper (see POST /_bulk_import/{table_name}
-    below for the rest of the tables). Writes the uploaded bytes to this environment's own
-    storage backend under the EXACT SAME object_uri the source environment used (S3StorageClient
-    strips any "object://bucket/" prefix and rebuilds it from its own bucket name, so as long as
-    both environments use the same bucket name — true here — the resulting object_uri matches
-    exactly, meaning every Garment/Outfit row that references this id by string needs no
-    remapping), then upserts the ImageAsset row with the SAME id as the source, so foreign keys
-    from garments/outfits carry over unchanged. Safe to re-run (overwrites by same key/id).
-    Remove once the one-time sync is complete."""
-    from datetime import datetime as _dt
-
-    content = await file.read()
-    stored_uri = await storage.put_object(object_uri, content, content_type=mime_type)
-
-    existing = await session.get(ImageAsset, id)
-    parsed_created_at = _dt.fromisoformat(created_at) if created_at else utc_now()
-    if existing:
-        existing.object_uri = stored_uri
-        existing.mime_type = mime_type
-        existing.width = width
-        existing.height = height
-        existing.sha256 = sha256
-    else:
-        session.add(ImageAsset(
-            id=id, tenant_id=tenant_id, member_id=member_id, object_uri=stored_uri,
-            mime_type=mime_type, width=width, height=height, sha256=sha256,
-            created_at=parsed_created_at,
-        ))
-    await session.commit()
-    return {"id": id, "object_uri": stored_uri, "bytes": len(content)}
-
-
-@router.post("/_bulk_import/{table_name}")
-async def bulk_import_rows(
-    table_name: str,
-    rows: List[Dict[str, Any]],
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-):
-    """TEMPORARY one-time dev->prod data sync helper — see POST /_bulk_import/image above for
-    the images/bytes half. Upserts (by primary key) into any of the non-image tables, using
-    SQLAlchemy's merge() so each column's real Python type (including the pgvector embedding
-    column and JSON columns) is handled correctly rather than hand-writing per-table SQL.
-    Row dicts must be exactly what GET-ing the same model's columns would serialize to, with
-    datetimes as ISO strings (auto-parsed below via each column's declared Python type). Never
-    deletes anything; only ever inserts or overwrites by matching id. Remove once the one-time
-    sync is complete."""
-    from datetime import date as _date, datetime as _dt
-
-    model_cls = _bulk_import_model_registry().get(table_name)
-    if not model_cls:
-        raise HTTPException(status_code=400, detail=f"Unknown bulk-import table '{table_name}'")
-
-    imported = 0
-    errors: List[str] = []
-    for row in rows:
-        try:
-            parsed = dict(row)
-            for col in model_cls.__table__.columns:
-                if col.name in parsed and isinstance(parsed[col.name], str):
-                    try:
-                        py_type = col.type.python_type
-                    except NotImplementedError:
-                        continue
-                    if py_type is _dt:
-                        parsed[col.name] = _dt.fromisoformat(parsed[col.name])
-                    elif py_type is _date:
-                        parsed[col.name] = _date.fromisoformat(parsed[col.name])
-            await session.merge(model_cls(**parsed))
-            imported += 1
-        except Exception as e:
-            errors.append(f"{row.get('id', '?')}: {type(e).__name__}: {e}")
-    await session.commit()
-    return {"table": table_name, "imported": imported, "errors": errors}
 
 
 @router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT)
