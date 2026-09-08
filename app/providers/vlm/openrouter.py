@@ -358,11 +358,21 @@ Output ONLY raw JSON, no markdown:
 
     async def normalize(self, request_text: str, anchor_categories: List[str]) -> StylingIntent:
         """Styling Stage 1: translate free text into structured StylingIntent. Never invents garments."""
-        prompt = f"""Translate this clothing styling request into a JSON object matching exactly this schema \
-(use null for unknown fields, do not invent garments or IDs):
+        prompt = f"""Translate this clothing styling request into a JSON object matching exactly this schema.
+The examples given for each field (e.g. "DINNER, WORK, PARTY") are illustrations of the FORMAT only — they \
+are NOT a closed list. If the request names an occasion that isn't one of the examples (funeral, wedding, \
+baby shower, job interview, graduation, memorial service, religious ceremony, etc.), extract it anyway in \
+your own words (e.g. "FUNERAL"). Only use null for a field when the request truly gives no signal for it at \
+all — never as a default just because an occasion wasn't in the example list. Do not invent garments or IDs.
 {{
-  "occasion": "string or null (e.g. DINNER, WORK, PARTY, DATE, CASUAL)",
-  "formality": "string or null (e.g. CASUAL, SMART_CASUAL, BUSINESS_CASUAL, FORMAL)",
+  "occasion": "string or null — the occasion literally named or clearly implied by the request, in ANY of the \
+user's own words if it doesn't match an example (e.g. DINNER, WORK, PARTY, DATE, CASUAL, FUNERAL, WEDDING, \
+INTERVIEW, GRADUATION)",
+  "formality": "string or null (e.g. CASUAL, SMART_CASUAL, BUSINESS_CASUAL, FORMAL). If not stated explicitly, \
+INFER the conventional formality from the occasion whenever the occasion has an obvious one — funeral, \
+wedding, memorial, job interview, graduation, religious ceremony => FORMAL; gym, beach, errand, lounging => \
+CASUAL; dinner, date, party => SMART_CASUAL unless the request says otherwise. Only leave null if the \
+occasion truly implies no conventional formality.",
   "colors": ["list of requested colors, empty if none mentioned"],
   "style_direction": "string or null (e.g. MINIMAL, CLASSIC, EXPRESSIVE, RELAXED)",
   "gender": "women | men | unisex | null — only set this when the request explicitly names a gender (e.g. 'female', 'women's', 'male', 'men's', 'her', 'his'); leave null otherwise, never guess",
@@ -394,6 +404,7 @@ Anchor garment categories already selected by the user: {anchor_categories or "n
             f"in {', '.join((g.attributes or {}).get('colour', []))}"
             for g in garments
         )
+        member_context_summary = (context.behavioral_signals or {}).get("member_context_summary")
         prompt = f"""You are validating a proposed outfit against a styling request. Output ONLY JSON:
 {{
   "status": "PASS" | "FAIL" | "NEEDS_REVIEW",
@@ -404,7 +415,8 @@ Anchor garment categories already selected by the user: {anchor_categories or "n
 
 Request intent: {context.intent.model_dump_json()}
 Proposed outfit garments: {garment_desc}
-Compatibility note: {outfit.compatibility_reason or "n/a"}"""
+Compatibility note: {outfit.compatibility_reason or "n/a"}
+{f"Member's real styling history/wardrobe context (use to judge fit, not to override an explicit request): {member_context_summary}" if member_context_summary else ""}"""
 
         content = await self._chat_json(prompt, max_tokens=300)
         if content:

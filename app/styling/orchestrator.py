@@ -26,6 +26,7 @@ from app.models.image_asset import ImageAsset
 from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
 from app.providers.normalizer import get_request_normalizer_provider
+from app.styling.member_context import derive_member_context
 from app.schemas.styling import (
     GarmentSummary,
     OutfitResult,
@@ -157,6 +158,10 @@ class StylingOrchestrator:
         # Stage 2: Contextual Analysis — pulls in the member's learned StyleProfile
         # (boldness_preference, updated by outfit up/downvotes) when one exists; an explicit
         # request.boldness_preference always overrides the learned value for that one request.
+        # Also derives a real, natural-language summary of this member's past styling requests
+        # and wardrobe composition (app/styling/member_context.py) — the same real signal used
+        # by Outfit-of-the-Day — so this stage actually reflects their history instead of a
+        # static "nothing here yet" placeholder every time.
         t1 = time.perf_counter()
         user_preferences: Dict[str, Any] = {}
         profile_stmt = select(StyleProfile).where(
@@ -169,12 +174,20 @@ class StylingOrchestrator:
             user_preferences["attribute_affinities"] = style_profile.attribute_affinities
         if request.boldness_preference is not None:
             user_preferences["boldness_preference"] = request.boldness_preference
-        context = StylingContext(intent=intent, user_preferences=user_preferences)
+
+        member_context_summary = await derive_member_context(self.session, tenant_id, member_id)
+        behavioral_signals: Dict[str, Any] = {"member_context_summary": member_context_summary}
+
+        context = StylingContext(intent=intent, user_preferences=user_preferences, behavioral_signals=behavioral_signals)
+        has_real_signal = bool(style_profile) or "No styling history yet" not in member_context_summary
         await self._record(
             "STAGE_02_CONTEXT",
             "Contextual Analysis",
             {
-                "note": "No StyleProfile/behavioral history yet — context is the normalised intent plus neutral stubs.",
+                "note": (
+                    member_context_summary if has_real_signal
+                    else "No styling history or StyleProfile yet for this member — context is the normalised intent plus neutral stubs."
+                ),
                 "context": context.model_dump(mode="json"),
             },
             "SUCCEEDED",

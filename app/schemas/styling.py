@@ -3,8 +3,10 @@
 from enum import Enum
 import json
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from app.schemas.weather import WeatherSnapshot
+
+_NULL_STRINGS = {"null", "none", "n/a", ""}
 
 
 class ValidationStatus(str, Enum):
@@ -25,6 +27,15 @@ class StylingIntent(BaseModel):
     time_context: Optional[str] = None
     anchor_garment_id: Optional[str] = None
     constraints: List[str] = Field(default_factory=list)
+
+    @field_validator("occasion", "formality", "style_direction", "gender", "weather", "time_context", mode="before")
+    @classmethod
+    def _coerce_literal_null_strings(cls, value: Any) -> Any:
+        """LLM normalizers occasionally emit the literal string "null"/"none" instead of JSON
+        null — treat those the same as an actual missing value rather than a real signal."""
+        if isinstance(value, str) and value.strip().lower() in _NULL_STRINGS:
+            return None
+        return value
 
 
 class StylingContext(BaseModel):

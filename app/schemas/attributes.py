@@ -724,12 +724,25 @@ def validate_extracted_attributes(raw_input: Any, min_confidence: float = 0.5) -
     # garment_class (SPEC.md Section 8-10): derive if missing, remap unmapped
     # classes to a *_OTHER bucket rather than rejecting (SPEC.md Section 37 -
     # taxonomy mapping failures must never silently discard the garment).
-    from app.rules.garment_class import GARMENT_CLASSES, infer_garment_class_from_subcategory
+    from app.rules.garment_class import CLASS_TO_CATEGORY, GARMENT_CLASSES, infer_garment_class_from_subcategory
 
     if not attributes.garment_class:
         attributes.garment_class = infer_garment_class_from_subcategory(subcat)
     elif attributes.garment_class not in GARMENT_CLASSES:
         attributes.garment_class = infer_garment_class_from_subcategory(subcat)
+    else:
+        # The VLM extracts subcategory and garment_class somewhat independently, and both can be
+        # individually valid-looking (e.g. subcategory="heels", garment_class="HAT" — "HAT" IS a
+        # real garment_class, just the wrong one for heels) while jointly nonsensical — this was
+        # silently persisted before (a dress ending up categorised as a jumpsuit, heels as a hat)
+        # because nothing ever compared the two fields against each other. subcategory is the
+        # more reliable signal (drawn from a fixed, taxonomy-checked list; garment_class is closer
+        # to free text), so it wins whenever the two disagree on which category they bundle into.
+        expected_class = infer_garment_class_from_subcategory(subcat)
+        expected_category = CLASS_TO_CATEGORY.get(expected_class)
+        actual_category = CLASS_TO_CATEGORY.get(attributes.garment_class)
+        if expected_category and actual_category and expected_category != actual_category:
+            attributes.garment_class = expected_class
 
     # Cross-field consistency: extraction providers score each field somewhat independently
     # (e.g. MODA_NER's structural track vs. the VLM top-up), which can produce a subcategory
