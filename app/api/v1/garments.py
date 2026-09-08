@@ -218,6 +218,46 @@ async def list_garments(
     ]
 
 
+@router.get("/_diagnose_schema")
+async def diagnose_schema(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """TEMPORARY read-only diagnostic (no mutation) — runs the exact query GET /garments uses
+    and, on failure, returns the raw database error instead of a bare 500, plus a column-level
+    diff between the live `garments` table and what the current ORM model expects. This exists
+    only to diagnose a live deployment issue (schema drift on a persistent DB volume, since
+    this project has no migration tooling — Base.metadata.create_all() only creates missing
+    tables, never adds missing columns to an existing one) without needing droplet/DB access.
+    Safe to remove once resolved."""
+    from sqlalchemy import text
+
+    result: Dict[str, Any] = {}
+    try:
+        stmt = select(Garment).options(selectinload(Garment.canonical_image)).where(
+            Garment.tenant_id == current_user.tenant_id
+        ).limit(1)
+        await session.execute(stmt)
+        result["list_garments_query"] = "OK"
+    except Exception as e:
+        result["list_garments_query"] = f"FAILED: {type(e).__name__}: {e}"
+
+    try:
+        live_cols_res = await session.execute(
+            text("SELECT column_name FROM information_schema.columns WHERE table_name = 'garments'")
+        )
+        live_columns = {row[0] for row in live_cols_res.all()}
+        model_columns = {c.name for c in Garment.__table__.columns}
+        result["live_table_columns"] = sorted(live_columns)
+        result["orm_model_columns"] = sorted(model_columns)
+        result["missing_from_live_table"] = sorted(model_columns - live_columns)
+        result["extra_in_live_table"] = sorted(live_columns - model_columns)
+    except Exception as e:
+        result["introspection_error"] = f"{type(e).__name__}: {e}"
+
+    return result
+
+
 @router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_garment(
     garment_id: str,
