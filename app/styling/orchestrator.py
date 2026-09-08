@@ -51,6 +51,44 @@ from app.styling.semantic_validation import validate_outfits
 GATE_FALLBACK_DEPTH = 2
 
 
+def derive_no_outfit_reason(trace: List[StageTrace], outfit_count: int) -> Optional[str]:
+    """When the final outfit list is empty, turns Stage 8/10's own recorded rejection reasons
+    into one plain-language explanation — operates on the same StageTrace list shape whether
+    it comes from a live run (self.trace) or a persisted request being replayed (StylingRequest.
+    trace, re-validated into StageTrace objects), so both paths give the caller the same
+    "why nothing came back" answer instead of a bare empty list."""
+    if outfit_count > 0:
+        return None
+
+    stage08 = next((t for t in trace if t.stage == "STAGE_08_SEMANTIC_VALIDATION"), None)
+    stage10 = next((t for t in trace if t.stage == "STAGE_10_GATES"), None)
+
+    accepted_count = (stage08.summary.get("accepted", 0) if stage08 else 0)
+    if accepted_count and stage10 and stage10.summary.get("results"):
+        # Candidates survived semantic validation but every one failed the post-generation
+        # visual/semantic gates instead.
+        return (
+            f"{accepted_count} candidate combination(s) passed semantic validation, but none "
+            "passed the final generated-image quality check. Try again, or add more wardrobe "
+            "options for this occasion."
+        )
+
+    if stage08:
+        results = stage08.summary.get("results", [])
+        total = stage08.summary.get("outfits_validated", len(results))
+        fail_reasons = [r.get("reason") for r in results if r.get("status") == "FAIL" and r.get("reason")]
+        unique_reasons = list(dict.fromkeys(fail_reasons))[:3]
+        if total:
+            return (
+                f"None of the {total} candidate combination(s) matched this request well enough: "
+                + " | ".join(unique_reasons)
+                if unique_reasons
+                else f"None of the {total} candidate combination(s) matched this request."
+            )
+
+    return "No compatible garment combinations could be assembled from this wardrobe for this request."
+
+
 def garment_to_summary(garment: Garment, role: str = "") -> GarmentSummary:
     canonical_url = f"/api/v1/wardrobe/images/{garment.canonical_image_id}/bytes" if garment.canonical_image_id else None
     return GarmentSummary(
@@ -287,7 +325,7 @@ class StylingOrchestrator:
         # Validates a small pool beyond top_k so a candidate that later fails the
         # post-generation gates (Stage 10) can be replaced instead of shrinking the shortlist.
         t7 = time.perf_counter()
-        validated, dropped_for_fail = await validate_outfits(
+        validated, dropped_for_fail, all_validation_results = await validate_outfits(
             ranking_trace.outfits, context, garments_by_id, top_k=request.top_k + GATE_FALLBACK_DEPTH
         )
         await self._record(
@@ -297,9 +335,19 @@ class StylingOrchestrator:
                 "outfits_validated": len(ranking_trace.outfits),
                 "dropped_for_fail": dropped_for_fail,
                 "accepted": len(validated),
+                # Every candidate's result, in ranked order, including the ones dropped for
+                # FAIL — surfacing *why* a candidate was rejected (not just that it was) is
+                # what lets the frontend explain an empty/zero-outfit result instead of just
+                # showing nothing, and what let this exact gap get diagnosed in the first place.
                 "results": [
-                    {"garment_ids": o.garment_ids, "status": r.status.value, "confidence": r.confidence}
-                    for o, r in validated
+                    {
+                        "garment_ids": o.garment_ids,
+                        "status": r.status.value,
+                        "confidence": r.confidence,
+                        "reason": r.reason,
+                        "issues": r.issues,
+                    }
+                    for o, r in all_validation_results
                 ],
             },
             "SUCCEEDED",
@@ -451,4 +499,5 @@ class StylingOrchestrator:
             intent=intent,
             outfits=outfit_results,
             trace=self.trace,
+            no_outfit_reason=derive_no_outfit_reason(self.trace, len(outfit_results)),
         )

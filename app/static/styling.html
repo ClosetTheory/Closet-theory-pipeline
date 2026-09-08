@@ -163,7 +163,7 @@
         }
         document.getElementById("live-stage-title").textContent = "Replayed from history";
         const grid = document.getElementById("shortlist-grid");
-        grid.innerHTML = data.outfits.length ? data.outfits.map(outfitCard).join("") : `<p class="text-sm text-slate-500 col-span-full">No outfits recorded for this request.</p>`;
+        grid.innerHTML = data.outfits.length ? data.outfits.map(outfitCard).join("") : `<p class="text-sm text-amber-400 col-span-full">${data.no_outfit_reason || "No outfits recorded for this request."}</p>`;
         document.getElementById("shortlist-section").classList.remove("hidden");
       } catch (e) {
         document.getElementById("live-stage-title").textContent = "Failed to replay";
@@ -573,7 +573,7 @@
           <span class="text-slate-600">·</span> ${data.cached ? "cached pick for today" : "freshly generated"}
           <div class="mt-1 text-slate-500" title="${data.context_used.replace(/"/g, '&quot;')}">Context used: ${data.context_used}</div>
         `;
-        grid.innerHTML = data.styling.outfits.map(outfitCard).join("") || `<p class="text-slate-500 text-sm col-span-full">No outfit could be assembled from the current wardrobe for today's conditions.</p>`;
+        grid.innerHTML = data.styling.outfits.map(outfitCard).join("") || `<p class="text-amber-400 text-sm col-span-full">${data.styling.no_outfit_reason || "No outfit could be assembled from the current wardrobe for today's conditions."}</p>`;
       } catch (e) {
         weatherEl.innerHTML = `<span class="text-red-400">Failed to load Outfit of the Day: ${e.message}</span>`;
       } finally {
@@ -828,7 +828,7 @@
         const grid = document.getElementById("shortlist-grid");
         grid.innerHTML = finalResult.outfits.length
           ? finalResult.outfits.map(outfitCard).join("")
-          : `<p class="text-sm text-slate-500 col-span-full">No compatible outfits found — ingest more garments across tops/bottoms/shoes.</p>`;
+          : `<p class="text-sm text-amber-400 col-span-full">${finalResult.no_outfit_reason || "No compatible outfits found — ingest more garments across tops/bottoms/shoes."}</p>`;
         shortlistSection.classList.remove("hidden");
       } catch (e) {
         document.getElementById("live-stage-title").textContent = "Failed";

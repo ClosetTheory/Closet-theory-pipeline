@@ -227,6 +227,10 @@ class StylingRecommendationResponse(BaseModel):
     intent: StylingIntent
     outfits: List[OutfitResult]
     trace: List[StageTrace] = Field(default_factory=list)
+    # Populated only when `outfits` is empty — a plain-language summary of why every candidate
+    # combination was rejected (drawn from Stage 8/10's real rejection reasons), so the frontend
+    # can show the caller something actionable instead of a bare empty result.
+    no_outfit_reason: Optional[str] = None
 
 
 class OutfitVoteRequest(BaseModel):

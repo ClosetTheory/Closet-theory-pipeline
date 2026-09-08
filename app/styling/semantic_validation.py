@@ -36,8 +36,11 @@ async def validate_outfits(
     context: StylingContext,
     garments_by_id: Dict[str, Garment],
     top_k: int,
-) -> Tuple[List[Tuple[OutfitCandidate, ValidationResult]], int]:
-    """Returns (accepted outfits with their validation result, count dropped for FAIL)."""
+) -> Tuple[List[Tuple[OutfitCandidate, ValidationResult]], int, List[Tuple[OutfitCandidate, ValidationResult]]]:
+    """Returns (accepted outfits with their validation result, count dropped for FAIL,
+    ALL outfit/result pairs in ranked order) — the third element exists so a caller (the
+    orchestrator's trace) can show *why* a candidate was rejected even when every candidate
+    fails, instead of that reasoning being silently discarded."""
     validator = get_semantic_validator_provider()
 
     # All candidates in the pool are validated CONCURRENTLY — each is an independent LLM
@@ -48,10 +51,11 @@ async def validate_outfits(
         return await validator.validate(context, outfit, summaries)
 
     results = await asyncio.gather(*(_validate_one(outfit) for outfit in ranked))
+    all_results = list(zip(ranked, results))
 
     accepted: List[Tuple[OutfitCandidate, ValidationResult]] = []
     dropped = 0
-    for outfit, result in zip(ranked, results):
+    for outfit, result in all_results:
         if len(accepted) >= top_k:
             break
         if result.status == ValidationStatus.FAIL:
@@ -59,4 +63,4 @@ async def validate_outfits(
             continue
         accepted.append((outfit, result))
 
-    return accepted, dropped
+    return accepted, dropped, all_results

@@ -20,7 +20,7 @@ from app.schemas.styling import (
     ValidationResult,
     VisualGateResult,
 )
-from app.styling.orchestrator import garment_to_summary
+from app.styling.orchestrator import derive_no_outfit_reason, garment_to_summary
 
 
 async def build_outfit_result(session: AsyncSession, outfit: Outfit) -> OutfitResult:
@@ -58,9 +58,12 @@ async def replay_styling_request(session: AsyncSession, styling_request: Styling
     stmt = select(Outfit).where(Outfit.request_id == styling_request.id).order_by(Outfit.rank.asc())
     outfits = (await session.execute(stmt)).scalars().all()
 
+    outfit_results = [await build_outfit_result(session, outfit) for outfit in outfits]
+    trace = [StageTrace.model_validate(t) for t in (styling_request.trace or [])]
     return StylingRecommendationResponse(
         request_id=styling_request.id,
         intent=StylingIntent.model_validate(styling_request.normalized_intent or {}),
-        outfits=[await build_outfit_result(session, outfit) for outfit in outfits],
-        trace=[StageTrace.model_validate(t) for t in (styling_request.trace or [])],
+        outfits=outfit_results,
+        trace=trace,
+        no_outfit_reason=derive_no_outfit_reason(trace, len(outfit_results)),
     )
