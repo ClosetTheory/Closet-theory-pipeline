@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_current_user, get_db_session, get_storage
 from app.config import settings
+from app.models.base import Base
 from app.models.embedding import GarmentEmbedding
 from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
@@ -218,44 +219,84 @@ async def list_garments(
     ]
 
 
+async def _live_columns(session: AsyncSession, table_name: str) -> set:
+    from sqlalchemy import text
+
+    res = await session.execute(
+        text("SELECT column_name FROM information_schema.columns WHERE table_name = :t"),
+        {"t": table_name},
+    )
+    return {row[0] for row in res.all()}
+
+
 @router.get("/_diagnose_schema")
 async def diagnose_schema(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ):
-    """TEMPORARY read-only diagnostic (no mutation) — runs the exact query GET /garments uses
-    and, on failure, returns the raw database error instead of a bare 500, plus a column-level
-    diff between the live `garments` table and what the current ORM model expects. This exists
-    only to diagnose a live deployment issue (schema drift on a persistent DB volume, since
-    this project has no migration tooling — Base.metadata.create_all() only creates missing
-    tables, never adds missing columns to an existing one) without needing droplet/DB access.
-    Safe to remove once resolved."""
+    """TEMPORARY read-only diagnostic (no mutation) — diffs the live `garments` table's actual
+    columns against what the current ORM model expects, per-table so one table's introspection
+    failure can't abort the whole check. This exists only to diagnose a live deployment issue
+    (schema drift on a persistent DB volume, since this project has no migration tooling —
+    Base.metadata.create_all() only creates missing tables, never adds missing columns to an
+    existing one) without needing droplet/DB access. Safe to remove once resolved."""
+    result: Dict[str, Any] = {}
+    for table in Base.metadata.sorted_tables:
+        try:
+            live_columns = await _live_columns(session, table.name)
+            await session.rollback()  # isolate: a failure on one table must not poison the next
+            model_columns = {c.name for c in table.columns}
+            missing = sorted(model_columns - live_columns)
+            if missing:
+                result[table.name] = {"missing_from_live_table": missing}
+        except Exception as e:
+            await session.rollback()
+            result[table.name] = {"introspection_error": f"{type(e).__name__}: {e}"}
+    return result or {"status": "No schema drift detected on any known table."}
+
+
+@router.post("/_repair_schema")
+async def repair_schema(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """TEMPORARY, additive-only repair for the schema drift diagnosed above — for every table
+    in the ORM's metadata, ADD COLUMN IF NOT EXISTS for any column present in the current model
+    but missing from the live table. Always adds as NULLABLE (regardless of the model's own
+    nullable=False) since existing rows have no value to backfill and a NOT NULL ALTER would
+    fail outright; this only fixes "column does not exist" errors; it never drops or renames
+    anything, and never touches a column that already exists. Safe to remove once resolved."""
     from sqlalchemy import text
 
-    result: Dict[str, Any] = {}
-    try:
-        stmt = select(Garment).options(selectinload(Garment.canonical_image)).where(
-            Garment.tenant_id == current_user.tenant_id
-        ).limit(1)
-        await session.execute(stmt)
-        result["list_garments_query"] = "OK"
-    except Exception as e:
-        result["list_garments_query"] = f"FAILED: {type(e).__name__}: {e}"
+    conn = await session.connection()
+    dialect = conn.dialect
+    added: Dict[str, list] = {}
+    errors: Dict[str, str] = {}
 
-    try:
-        live_cols_res = await session.execute(
-            text("SELECT column_name FROM information_schema.columns WHERE table_name = 'garments'")
-        )
-        live_columns = {row[0] for row in live_cols_res.all()}
-        model_columns = {c.name for c in Garment.__table__.columns}
-        result["live_table_columns"] = sorted(live_columns)
-        result["orm_model_columns"] = sorted(model_columns)
-        result["missing_from_live_table"] = sorted(model_columns - live_columns)
-        result["extra_in_live_table"] = sorted(live_columns - model_columns)
-    except Exception as e:
-        result["introspection_error"] = f"{type(e).__name__}: {e}"
+    for table in Base.metadata.sorted_tables:
+        try:
+            live_columns = await _live_columns(session, table.name)
+        except Exception as e:
+            await session.rollback()
+            errors[table.name] = f"introspection failed: {type(e).__name__}: {e}"
+            continue
 
-    return result
+        for col in table.columns:
+            if col.name in live_columns:
+                continue
+            try:
+                col_type_sql = col.type.compile(dialect=dialect)
+                await session.execute(
+                    text(f'ALTER TABLE "{table.name}" ADD COLUMN IF NOT EXISTS "{col.name}" {col_type_sql}')
+                )
+                await session.commit()
+                added.setdefault(table.name, []).append(col.name)
+            except Exception as e:
+                await session.rollback()
+                errors.setdefault(table.name, "")
+                errors[table.name] += f" {col.name}: {type(e).__name__}: {e};"
+
+    return {"added_columns": added, "errors": errors}
 
 
 @router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT)
