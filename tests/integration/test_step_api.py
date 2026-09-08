@@ -8,12 +8,20 @@ from httpx import AsyncClient
 async def test_step_by_step_execution_flow(client: AsyncClient, auth_headers, sample_catalog_image_bytes, monkeypatch):
     # This test exercises the /step API's wiring (upload -> ingest -> per-stage execution) —
     # not real vision-model accuracy. The fixture image is a synthetic blank square, not an
-    # actual garment photo, so Stage 3's real attribute provider (and its independent verifier,
-    # which genuinely inspects the image) correctly refuse to accept it. Force a deterministic
-    # Mock provider + verifier for Stage 3 so the test stays meaningful without depending on
-    # live model judgment of a fake image.
+    # actual garment photo, so Stage 1/3's real vision providers (and Stage 3's independent
+    # verifier, which genuinely inspects the image) correctly refuse to accept it — Stage 1
+    # calling the real classifier with no network/API access available (e.g. in CI) falls back
+    # to a hardcoded low-confidence heuristic and wrongly routes to REVIEW_REQUIRED. Force
+    # deterministic Mock providers for both stages so the test stays meaningful without
+    # depending on live model judgment of a fake image.
     from app.providers.attributes.mock import MockAttributeExtractorProvider
+    from app.providers.classifier.mock import MockClassifierProvider
+    from app.schemas.pipeline import ImageType
 
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_01_classify.get_classifier_provider",
+        lambda: MockClassifierProvider(forced_type=ImageType.CATALOG, confidence=0.95),
+    )
     monkeypatch.setattr(
         "app.pipeline.stages.stage_03_attributes.get_attribute_provider",
         lambda: MockAttributeExtractorProvider(),

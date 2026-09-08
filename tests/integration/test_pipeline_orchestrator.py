@@ -9,7 +9,9 @@ from app.models.pipeline_stage import PipelineStageRun
 from app.pipeline.orchestrator import PipelineOrchestrator
 from app.pipeline.state_machine import GarmentState, PipelineStage
 from app.providers.attributes.mock import MockAttributeExtractorProvider
+from app.providers.classifier.mock import MockClassifierProvider
 from app.providers.digitisation.mock import MockDigitisationProvider
+from app.schemas.pipeline import ImageType
 
 
 @pytest.mark.asyncio
@@ -21,10 +23,16 @@ async def test_full_pipeline_run_to_completion(
 ):
     # This test exercises orchestrator MECHANICS (stage sequencing, commits, idempotency) —
     # not real vision-model accuracy. The fixture image is a synthetic blank square, not an
-    # actual garment photo, so Stage 3/4's real vision providers (and Stage 3's independent
-    # verifier, which genuinely inspects the image) correctly refuse to accept it. Force
-    # deterministic Mock providers for those two stages so the test stays meaningful without
-    # depending on live model judgment of a fake image.
+    # actual garment photo, so Stage 1/3/4's real vision providers (and Stage 3's independent
+    # verifier, which genuinely inspects the image) correctly refuse to accept it — Stage 1
+    # calling the real classifier against a fixture with no network/API access available (e.g.
+    # in CI) falls back to a hardcoded low-confidence heuristic and wrongly routes to
+    # REVIEW_REQUIRED. Force deterministic Mock providers for all three stages so the test
+    # stays meaningful without depending on live model judgment of a fake image.
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_01_classify.get_classifier_provider",
+        lambda: MockClassifierProvider(forced_type=ImageType.CATALOG, confidence=0.95),
+    )
     monkeypatch.setattr(
         "app.pipeline.stages.stage_03_attributes.get_attribute_provider",
         lambda: MockAttributeExtractorProvider(),
