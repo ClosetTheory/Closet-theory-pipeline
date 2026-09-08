@@ -5,7 +5,7 @@ import time
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -216,6 +216,40 @@ async def list_garments(
         )
         for g in garments
     ]
+
+
+@router.post("/_reconcile_with_dev")
+async def reconcile_with_dev(
+    keep_ids: List[str],
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """TEMPORARY, one-time dev/prod reconciliation helper. Deletes every REVIEW_REQUIRED
+    garment (mirrors the same cleanup already applied in dev), then deletes any remaining
+    garment whose id is NOT in `keep_ids` (dev's current full garment-id set) — this is what
+    makes prod's garment count exactly match dev's, since without it prod's own background
+    worker independently completing queued RECEIVED garments since the one-time data sync
+    would keep leaving the two counts different. Cascades to each garment's embeddings/
+    outfit_garments/pipeline_stage_runs via the DB's own ON DELETE CASCADE. Does not touch
+    image_assets (orphaned images are harmless leftover storage, not shown anywhere).
+    Remove once reconciliation is confirmed complete."""
+    from sqlalchemy import delete as _delete
+
+    review_result = await session.execute(
+        _delete(Garment).where(Garment.tenant_id == current_user.tenant_id, Garment.status == "REVIEW_REQUIRED")
+    )
+    extra_result = await session.execute(
+        _delete(Garment).where(Garment.tenant_id == current_user.tenant_id, Garment.id.notin_(keep_ids))
+    )
+    await session.commit()
+    remaining = (await session.execute(
+        select(func.count()).select_from(Garment).where(Garment.tenant_id == current_user.tenant_id)
+    )).scalar()
+    return {
+        "deleted_review_required": review_result.rowcount,
+        "deleted_not_in_dev": extra_result.rowcount,
+        "remaining_total": remaining,
+    }
 
 
 @router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT)
