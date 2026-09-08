@@ -519,12 +519,26 @@ async def _execute_step_with_keys_applied(
     # image, embedding, compatibility scores) are all still intact and untouched. Confirmed live:
     # a bulk Stage-3-only re-run once demoted 1451 already-COMPLETED garments back to
     # ATTRIBUTES_EXTRACTED/REVIEW_REQUIRED this way, emptying the styling catalog.
+    # A garment already sitting at REVIEW_REQUIRED specifically because Stage 3's cross-model
+    # verifier disagreed with the extracted attributes must not get silently promoted back to
+    # COMPLETED by force-running some OTHER, unrelated stage in isolation (e.g. Stage 6
+    # category bundling, which just bundles whatever subcategory is already on the garment
+    # without re-checking it) — confirmed live: this exact path resurrected already-rejected
+    # attribute extractions (e.g. "cardigan" that the verifier said was clearly a poncho) back
+    # to COMPLETED/APPROVED. Only a fresh, passing Stage 3 re-run may clear this flag.
+    attribute_review_held = (
+        garment.status == GarmentState.REVIEW_REQUIRED.value
+        and garment.quality_status == "REVIEW_REQUIRED"
+        and stage_enum != PipelineStage.STAGE_03_ATTRIBUTES
+    )
+
     if result.status == "SUCCEEDED":
-        next_state = STAGE_TO_GARMENT_STATE.get(stage_enum)
-        if next_state and _garment_state_order(next_state.value) > _garment_state_order(garment.status):
-            garment.status = next_state.value
-        if result.quality_status:
-            garment.quality_status = result.quality_status
+        if not attribute_review_held:
+            next_state = STAGE_TO_GARMENT_STATE.get(stage_enum)
+            if next_state and _garment_state_order(next_state.value) > _garment_state_order(garment.status):
+                garment.status = next_state.value
+            if result.quality_status:
+                garment.quality_status = result.quality_status
     elif result.status == "REVIEW_REQUIRED":
         if stage_enum == PipelineStage.STAGE_03_ATTRIBUTES:
             # The only genuine halt condition — see app/pipeline/orchestrator.py's matching
@@ -532,7 +546,7 @@ async def _execute_step_with_keys_applied(
             # fallback) still advances below, same as SUCCEEDED.
             garment.status = GarmentState.REVIEW_REQUIRED.value
             garment.quality_status = "REVIEW_REQUIRED"
-        else:
+        elif not attribute_review_held:
             next_state = STAGE_TO_GARMENT_STATE.get(stage_enum)
             if next_state and _garment_state_order(next_state.value) > _garment_state_order(garment.status):
                 garment.status = next_state.value

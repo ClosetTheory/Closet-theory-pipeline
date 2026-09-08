@@ -80,18 +80,30 @@ class PipelineOrchestrator:
             stage_class = self.STAGE_MAP[stage_enum]
             stage_instance = stage_class()
 
-            # Check for existing successful stage execution (Idempotency check)
+            # Check for existing successful stage execution (Idempotency check).
+            # Must look at the MOST RECENT attempt for this stage, not "any attempt that
+            # happens to be SUCCEEDED" — confirmed live: a garment whose Stage 3 attempt 1
+            # SUCCEEDED (wrong attributes) and was later manually re-verified to
+            # REVIEW_REQUIRED (correctly catching e.g. "this is a poncho, not a cardigan")
+            # would still get its stale attempt-1 SUCCEEDED row picked up by a
+            # `status == "SUCCEEDED"` filter on a later full-pipeline retry, silently
+            # resurrecting the already-rejected extraction and completing the garment anyway.
+            # Only the latest attempt's own verdict may authorize a skip. Ordered by
+            # started_at, NOT attempt — attempt numbers are computed independently by this
+            # orchestrator and the separate /step endpoint (app/api/v1/garments.py), so the
+            # same attempt number can legitimately appear twice for one garment/stage; only
+            # the timestamp reliably identifies which run actually happened most recently.
             stmt = (
                 select(PipelineStageRun)
                 .where(
                     PipelineStageRun.garment_id == garment.id,
                     PipelineStageRun.stage == stage_enum.value,
-                    PipelineStageRun.status == "SUCCEEDED",
                 )
-                .order_by(PipelineStageRun.attempt.desc())
+                .order_by(PipelineStageRun.started_at.desc())
             )
             res = await self.session.execute(stmt)
-            existing_run = res.scalars().first()
+            most_recent_run = res.scalars().first()
+            existing_run = most_recent_run if most_recent_run and most_recent_run.status == "SUCCEEDED" else None
 
             if existing_run and not force:
                 # PRD Section 20: Computation exists and is valid -> reuse it
