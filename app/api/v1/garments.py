@@ -218,61 +218,6 @@ async def list_garments(
     ]
 
 
-@router.get("/_diagnose_vision_call")
-async def diagnose_vision_call(
-    current_user: User = Depends(get_current_user),
-):
-    """TEMPORARY read-only diagnostic — makes one real OpenRouter vision call directly (no
-    pipeline, no DB writes) and returns the raw HTTP status/response body on failure instead of
-    the pipeline's own generic "all vision models failed" swallow, since this environment has
-    no log access to check what app.providers.vlm.openrouter.py's classify()/_vision_chat_json()
-    is actually catching. Remove once the real cause is found and fixed."""
-    import base64
-    import httpx
-    from app.config import settings
-    from PIL import Image
-    import io
-
-    img = Image.new("RGB", (200, 200), color=(100, 50, 200))
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG")
-    b64_image = base64.b64encode(buf.getvalue()).decode("utf-8")
-
-    result: Dict[str, Any] = {
-        "OPENROUTER_API_KEY_set": bool(settings.OPENROUTER_API_KEY),
-        "OPENROUTER_API_KEY_len": len(settings.OPENROUTER_API_KEY or ""),
-        "OPENROUTER_MODEL": settings.OPENROUTER_MODEL,
-        "OPENROUTER_BASE_URL": settings.OPENROUTER_BASE_URL,
-        "CLASSIFIER_PROVIDER": settings.CLASSIFIER_PROVIDER,
-    }
-    headers = {
-        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-        "HTTP-Referer": "http://localhost:8000",
-        "X-Title": "Wardrobe Styling Pipeline",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": settings.OPENROUTER_MODEL,
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Say hello in JSON: {\"greeting\": \"...\"}"},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}},
-            ],
-        }],
-        "max_tokens": 50,
-        "response_format": {"type": "json_object"},
-    }
-    try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            resp = await client.post(f"{settings.OPENROUTER_BASE_URL}/chat/completions", headers=headers, json=payload)
-            result["http_status"] = resp.status_code
-            result["response_body"] = resp.text[:1500]
-    except Exception as e:
-        result["exception"] = f"{type(e).__name__}: {e}"
-    return result
-
-
 @router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_garment(
     garment_id: str,
