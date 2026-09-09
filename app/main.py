@@ -105,6 +105,24 @@ async def get_visualizer():
     return _serve_static(STATIC_INDEX, "Visualizer")
 
 
+@app.get("/health/db", tags=["Health"])
+async def health_check_db():
+    """TEMPORARY unauthenticated diagnostic — /health only checks the process is alive, not the
+    DB connection; this actually queries Postgres and returns the raw exception on failure,
+    since auth/login itself (which does query the DB) is currently 500ing with no log access
+    to see why. Remove once the real cause is found and fixed."""
+    from app.database import AsyncSessionLocal
+    from sqlalchemy import text as _text
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(_text("SELECT 1"))
+            row = result.scalar()
+        return {"db_status": "OK", "result": row}
+    except Exception as e:
+        return {"db_status": "FAILED", "exception": f"{type(e).__name__}: {e}"}
+
+
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
 async def health_check():
     return {
