@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     image: ghcr.io/closettheory/closet-theory-pipeline:${IMAGE_TAG:-latest}
