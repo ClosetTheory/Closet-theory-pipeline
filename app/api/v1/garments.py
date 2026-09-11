@@ -693,3 +693,49 @@ async def review_garment_pipeline(
         "quality_status": garment.quality_status,
         "decision": request.decision.value,
     }
+
+
+async def _live_columns(session: AsyncSession, table_name: str) -> set:
+    from sqlalchemy import text
+
+    res = await session.execute(
+        text("SELECT column_name FROM information_schema.columns WHERE table_name = :t"),
+        {"t": table_name},
+    )
+    return {row[0] for row in res.all()}
+
+
+@router.post("/_repair_schema")
+async def repair_schema(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """TEMPORARY, additive-only repair for schema drift (this project has no migration
+    tooling — Base.metadata.create_all() only creates missing tables, never adds a missing
+    column to a table that already exists). For every table in the ORM's metadata, ADD
+    COLUMN IF NOT EXISTS for any column present in the current model but missing from the
+    live table. Always adds as NULLABLE regardless of the model's own nullable=False, since
+    existing rows have no value to backfill and a NOT NULL ALTER would fail outright. Never
+    drops, renames, or touches a column that already exists. Same pattern used for the earlier
+    detected_label/garment-gender drift — safe to remove once confirmed clean on production."""
+    from sqlalchemy import text
+    from app.models.base import Base
+
+    repaired: Dict[str, List[str]] = {}
+    for table in Base.metadata.sorted_tables:
+        try:
+            live_columns = await _live_columns(session, table.name)
+            await session.rollback()
+            missing = [c for c in table.columns if c.name not in live_columns]
+            for col in missing:
+                col_type = col.type.compile(dialect=session.bind.dialect)
+                await session.execute(
+                    text(f'ALTER TABLE {table.name} ADD COLUMN IF NOT EXISTS "{col.name}" {col_type}')
+                )
+            if missing:
+                repaired[table.name] = [c.name for c in missing]
+        except Exception as e:
+            await session.rollback()
+            repaired[table.name] = [f"ERROR: {type(e).__name__}: {e}"]
+    await session.commit()
+    return repaired or {"status": "No schema drift detected on any known table."}
