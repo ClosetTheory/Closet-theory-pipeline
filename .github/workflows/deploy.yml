@@ -108,3 +108,7 @@ jobs:
             export IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}
             docker compose pull
             docker compose up -d --remove-orphans
+            # docker compose won't recreate nginx just because the bind-mounted config file's
+            # content changed on disk (the service definition itself is unchanged) -- reload it
+            # explicitly so a nginx.conf edit actually takes effect on every deploy.
+            docker exec pipeline_nginx nginx -s reload || docker compose restart nginx
