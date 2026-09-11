@@ -46,10 +46,15 @@
           <p class="text-xs text-slate-400">← Back to catalogue</p>
         </div>
       </a>
-      <div class="flex items-center gap-2">
-        <a href="/profile" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
-        <button onclick="ctLogout()" class="text-xs font-medium px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
-      </div>
+      <nav class="flex flex-wrap items-center gap-2 text-xs font-medium">
+        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
+        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
+        <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
+        <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
+      </nav>
     </div>
   </header>
 
