@@ -7,7 +7,7 @@ from app.api.dependencies import get_current_user, get_db_session
 from app.auth.security import create_session_token, hash_password, verify_password
 from app.models.base import generate_uuid
 from app.models.user import User
-from app.schemas.auth import AuthResponse, LoginRequest, MeResponse, RegisterRequest
+from app.schemas.auth import AuthResponse, LoginRequest, MeResponse, RegisterRequest, UpdateProfileRequest
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -26,6 +26,7 @@ async def register(request: RegisterRequest, session: AsyncSession = Depends(get
         password_hash=hash_password(request.password),
         tenant_id=new_id,
         member_id=new_id,
+        gender=request.gender,
     )
     session.add(user)
     await session.commit()
@@ -45,4 +46,27 @@ async def login(request: LoginRequest, session: AsyncSession = Depends(get_db_se
 
 @router.get("/me", response_model=MeResponse)
 async def me(current_user: User = Depends(get_current_user)):
-    return MeResponse(user_id=current_user.id, email=current_user.email, display_name=current_user.display_name)
+    return MeResponse(
+        user_id=current_user.id,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        gender=current_user.gender,
+    )
+
+
+@router.patch("/me", response_model=MeResponse)
+async def update_profile(
+    request: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    if request.gender is not None:
+        current_user.gender = request.gender
+        await session.commit()
+        await session.refresh(current_user)
+    return MeResponse(
+        user_id=current_user.id,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        gender=current_user.gender,
+    )

@@ -12,8 +12,8 @@
           fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
           colors: {
             slate: {
-              50: '#ffffff', 100: '#000000', 200: '#000000', 300: '#262622',
-              400: '#33332e', 500: '#62625b', 600: '#91918c', 700: '#c8c8c1',
+              50: '#ffffff', 100: '#18181b', 200: '#2b2b27', 300: '#3f3f3a',
+              400: '#63635b', 500: '#84847a', 600: '#a3a39a', 700: '#c7c7be',
               800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
             },
             ct: {
@@ -49,9 +49,9 @@
         </div>
       </div>
       <nav class="flex items-center gap-2 text-xs font-medium">
-        <a href="/styling" class="px-3 py-1.5 rounded-lg text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/30 transition font-semibold">Styling Pipeline</a>
+        <a href="/styling" class="px-3 py-1.5 rounded-lg text-ct-ink font-semibold hover:bg-black/5 transition">Styling Pipeline</a>
         <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
-        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 transition font-semibold">API Docs ↗</a>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
         <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
         <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
       </nav>
@@ -64,7 +64,7 @@
     <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 sm:p-8">
       <div class="flex items-start justify-between gap-4 mb-2">
         <h2 class="text-2xl font-bold text-ct-ink tracking-tight">What should I wear?</h2>
-        <a href="/styling" class="text-xs font-medium text-purple-400 hover:text-purple-300 whitespace-nowrap pt-1.5">View full pipeline steps →</a>
+        <a href="/styling" class="text-xs font-medium text-ct-ink-soft hover:text-ct-ink whitespace-nowrap pt-1.5">View full pipeline steps →</a>
       </div>
       <p class="text-sm text-slate-500 mb-6 max-w-2xl">Describe an occasion and get a ranked outfit shortlist built entirely from your ingested wardrobe — no invented garments.</p>
       <div class="flex flex-col sm:flex-row gap-3">
@@ -86,7 +86,7 @@
       </div>
       <div id="catalogue-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3"></div>
       <div id="catalogue-empty" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
-        No garments ingested yet. Head to the <a href="/visualizer" class="text-blue-400 hover:underline">Ingestion Pipeline</a> to add some.
+        No garments ingested yet. Head to the <a href="/visualizer" class="text-ct-ink-soft hover:underline">Ingestion Pipeline</a> to add some.
       </div>
     </section>
 
@@ -159,7 +159,7 @@
       return `
         <div class="flex items-center gap-2 text-[10px] text-slate-400">
           <span class="w-24 truncate">${label}</span>
-          <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-blue-500" style="width:${pct}%"></div></div>
+          <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-slate-600" style="width:${pct}%"></div></div>
           <span class="w-8 text-right">${pct}</span>
         </div>`;
     }

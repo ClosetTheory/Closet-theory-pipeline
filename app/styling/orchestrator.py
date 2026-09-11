@@ -25,6 +25,7 @@ from app.models.garment import Garment
 from app.models.image_asset import ImageAsset
 from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
+from app.models.user import User
 from app.providers.normalizer import get_request_normalizer_provider
 from app.styling.member_context import derive_member_context
 from app.schemas.styling import (
@@ -180,6 +181,20 @@ class StylingOrchestrator:
             normalizer = get_request_normalizer_provider()
             normalizer_used = getattr(normalizer, "model_name", type(normalizer).__name__)
             intent = await normalizer.normalize(request.request_text, anchor_categories)
+
+        # A request that doesn't itself state a gender (most don't) falls back to this
+        # account's own styling gender preference — otherwise Stage 4 filtering has nothing to
+        # narrow a mixed-gender wardrobe by, and the pipeline wastefully builds/validates/
+        # generates images for outfits in a gender the member never wanted.
+        if not intent.gender:
+            account = (
+                await self.session.execute(
+                    select(User).where(User.tenant_id == tenant_id, User.member_id == member_id)
+                )
+            ).scalars().first()
+            if account and account.gender:
+                intent.gender = account.gender
+
         await self._record(
             "STAGE_01_NORMALISATION",
             "Request Normalisation",

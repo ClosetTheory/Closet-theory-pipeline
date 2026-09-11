@@ -12,8 +12,8 @@
           fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
           colors: {
             slate: {
-              50: '#ffffff', 100: '#000000', 200: '#000000', 300: '#262622',
-              400: '#33332e', 500: '#62625b', 600: '#91918c', 700: '#c8c8c1',
+              50: '#ffffff', 100: '#18181b', 200: '#2b2b27', 300: '#3f3f3a',
+              400: '#63635b', 500: '#84847a', 600: '#a3a39a', 700: '#c7c7be',
               800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
             },
             ct: {
@@ -65,17 +65,17 @@
       <div class="flex items-center gap-3">
         <span class="text-xs font-medium text-slate-500 w-24">Conventional</span>
         <div class="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden relative">
-          <div id="boldness-bar" class="h-full bg-gradient-to-r from-emerald-500 to-purple-500" style="width:0%"></div>
+          <div id="boldness-bar" class="h-full bg-gradient-to-r from-slate-400 to-ct-primary" style="width:0%"></div>
         </div>
         <span class="text-xs font-medium text-slate-500 w-10 text-right">Bold</span>
       </div>
-      <p id="boldness-value" class="text-center text-sm font-mono font-bold text-purple-400 mt-3"></p>
+      <p id="boldness-value" class="text-center text-sm font-mono font-bold text-ct-ink mt-3"></p>
     </section>
 
     <section id="affinity-sections" class="space-y-6"></section>
 
     <section id="empty-state" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
-      No preferences learned yet — upvote or downvote outfits on the <a href="/styling" class="text-blue-400 hover:underline">Styling Pipeline</a> page to build your profile.
+      No preferences learned yet — upvote or downvote outfits on the <a href="/styling" class="text-ct-ink-soft hover:underline">Styling Pipeline</a> page to build your profile.
     </section>
 
   </main>

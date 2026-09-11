@@ -12,8 +12,8 @@
           fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
           colors: {
             slate: {
-              50: '#ffffff', 100: '#000000', 200: '#000000', 300: '#262622',
-              400: '#33332e', 500: '#62625b', 600: '#91918c', 700: '#c8c8c1',
+              50: '#ffffff', 100: '#18181b', 200: '#2b2b27', 300: '#3f3f3a',
+              400: '#63635b', 500: '#84847a', 600: '#a3a39a', 700: '#c7c7be',
               800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
             },
             ct: {
@@ -47,7 +47,7 @@
         <div>
           <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight flex items-center gap-2">
             Styling Pipeline
-            <span class="text-[11px] bg-purple-500/20 text-purple-300 font-semibold px-2 py-0.5 rounded-full border border-purple-500/30">Live Studio</span>
+            <span class="text-[11px] bg-black/5 text-ct-ink-soft font-semibold px-2 py-0.5 rounded-full">Live Studio</span>
           </h1>
           <p class="text-xs text-slate-400">10-stage outfit recommendation, from request to validated shortlist</p>
         </div>
@@ -55,7 +55,7 @@
       <nav class="flex items-center gap-2 text-xs font-medium">
         <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
         <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
-        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 transition font-semibold">API Docs ↗</a>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
         <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
         <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
       </nav>
@@ -68,15 +68,15 @@
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
         <div class="lg:col-span-7 space-y-2">
-          <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Styling Request</span>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Styling Request</span>
           <input id="request-text" type="text" placeholder="e.g. smart casual dinner tonight, dark colors"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
           <span class="text-[10px] text-slate-500 block">Optional — leave blank to style purely from anchor garments below.</span>
         </div>
         <div class="lg:col-span-3 space-y-2">
-          <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Anchor Garment IDs</span>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Anchor Garment IDs</span>
           <input id="anchor-ids" type="text" placeholder="garm_abc, garm_def"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
           <span class="text-[10px] text-slate-500 block">Comma-separated, optional preselected garments.</span>
         </div>
         <div class="lg:col-span-2">
@@ -91,9 +91,9 @@
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
         <div class="lg:col-span-8 space-y-2">
-          <span class="text-xs font-bold uppercase tracking-wider text-blue-400">☀️ Outfit of the Day — Location</span>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">☀️ Outfit of the Day — Location</span>
           <input id="ootd-location" type="text" placeholder="e.g. Mumbai, New York, London… (can be anywhere)"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
           <span class="text-[10px] text-slate-500 block">Styling context (occasion, formality, wardrobe style, learned preferences) is derived automatically from this member's real history — no persona to pick.</span>
         </div>
         <div class="lg:col-span-2">
@@ -114,7 +114,7 @@
     <!-- Progress bar -->
     <div id="progress-bar" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <div id="live-spinner" class="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+        <div id="live-spinner" class="w-4 h-4 border-2 border-ct-primary border-t-transparent rounded-full animate-spin"></div>
         <div>
           <div class="text-xs text-slate-400 uppercase font-mono">Current Stage</div>
           <div id="live-stage-title" class="text-sm font-bold text-ct-ink">Initializing…</div>
@@ -122,7 +122,7 @@
       </div>
       <div class="flex items-center gap-2 font-mono text-xs">
         <span class="text-slate-400">Request ID:</span>
-        <span id="live-request-id" class="text-purple-400 font-bold bg-slate-950 px-2.5 py-1 rounded border border-slate-800">-</span>
+        <span id="live-request-id" class="text-ct-ink font-bold bg-slate-950 px-2.5 py-1 rounded border border-slate-800">-</span>
       </div>
     </div>
 
@@ -227,11 +227,11 @@
     function stageCard(def) {
       const clickable = MODAL_STAGES.has(def.key);
       return `
-        <div id="card-${def.key}" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-40 transition${clickable ? " cursor-pointer hover:border-purple-500/50" : ""}"
+        <div id="card-${def.key}" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-40 transition${clickable ? " cursor-pointer hover:border-ct-primary/40" : ""}"
              ${clickable ? `onclick="openStageModal('${def.key}')"` : ""}>
           <div class="flex items-center justify-between pb-2 border-b border-slate-800">
             <div>
-              <span class="text-xs font-bold text-${def.color}-400">${def.title}</span>
+              <span class="text-xs font-bold text-ct-ink">${def.title}</span>
               <div class="text-[10px] text-slate-500 font-mono">${def.tech}</div>
             </div>
             <span id="badge-${def.key}" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
@@ -242,7 +242,7 @@
           </div>
           <div class="flex items-center justify-between pt-1 border-t border-slate-800/60">
             <div id="duration-${def.key}" class="text-[10px] text-slate-600 font-mono"></div>
-            ${clickable ? `<span class="text-[10px] text-purple-400">View items →</span>` : ""}
+            ${clickable ? `<span class="text-[10px] text-ct-ink-soft">View items →</span>` : ""}
           </div>
         </div>`;
     }
@@ -353,11 +353,11 @@
 
       if (state === "active") {
         card.classList.remove("opacity-40");
-        card.classList.add("glow-active", "border-purple-500/60");
+        card.classList.add("glow-active", "border-ct-primary/50");
         badge.textContent = "RUNNING";
-        badge.className = "text-[10px] font-mono bg-ct-primary px-2 py-0.5 rounded text-white animate-pulse";
+        badge.className = "text-[10px] font-mono bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded animate-pulse";
       } else if (state === "done" && entry) {
-        card.classList.remove("opacity-40", "glow-active", "border-purple-500/60");
+        card.classList.remove("opacity-40", "glow-active", "border-ct-primary/50");
         badge.textContent = entry.status;
         badge.className = "text-[10px] font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-400 border border-emerald-500/30";
         body.innerHTML = summaryToHtml(stageKey, entry.summary || {});
@@ -392,7 +392,7 @@
       const label = g ? (g.attributes?.subcategory || g.category || "item").replace(/_/g, " ") : "unknown";
       return `
         <a href="${g ? `/garment?id=${encodeURIComponent(g.garment_id)}` : "#"}" target="_blank"
-           class="block bg-slate-950 border border-slate-800 rounded-lg overflow-hidden hover:border-purple-500/50 transition">
+           class="block bg-slate-950 border border-slate-800 rounded-lg overflow-hidden hover:border-ct-primary/40 transition">
           <div class="aspect-[3/4] bg-slate-900">
             ${img ? `<img src="${img}" class="w-full h-full object-cover" alt="${label}">` : `<div class="w-full h-full flex items-center justify-center text-slate-600 text-[10px]">no image</div>`}
           </div>
@@ -435,7 +435,7 @@
       const sections = await Promise.all(roles.map(async role => {
         const items = detail[role];
         const garments = await Promise.all(items.map(it => fetchGarmentCached(it.garment_id)));
-        const thumbs = garments.map((g, i) => garmentThumb(g, `<div class="px-1.5 pb-1.5 text-[9px] text-purple-400">similarity ${items[i].score}</div>`)).join("");
+        const thumbs = garments.map((g, i) => garmentThumb(g, `<div class="px-1.5 pb-1.5 text-[9px] text-slate-500">similarity ${items[i].score}</div>`)).join("");
         return `<div><h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wide">${role} <span class="text-slate-500 font-normal">(${items.length})</span></h4>
                   <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">${thumbs}</div></div>`;
       }));
@@ -454,7 +454,7 @@
         return `<div class="border-b border-slate-800 pb-3">
                   <div class="flex justify-between items-center mb-2">
                     <span class="text-xs font-bold text-slate-300">Ranked combination #${idx + 1}</span>
-                    <span class="text-xs font-mono text-amber-400">${fmtPct(o.final_score)} match score</span>
+                    <span class="text-xs font-mono text-ct-ink font-bold">${fmtPct(o.final_score)} match score</span>
                   </div>
                   <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">${thumbs}</div>
                 </div>`;
@@ -527,7 +527,7 @@
       const pct = Math.round((value || 0) * 100);
       return `<div class="flex items-center gap-2 text-[10px] text-slate-400">
                 <span class="w-24 truncate">${label}</span>
-                <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-purple-500" style="width:${pct}%"></div></div>
+                <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-slate-600" style="width:${pct}%"></div></div>
                 <span class="w-8 text-right">${pct}</span>
               </div>`;
     }
@@ -543,13 +543,13 @@
         <div id="outfit-card-${outfit.outfit_id}" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-ct-ink">Outfit ${outfit.rank}</span>
-            <span class="text-xs font-mono text-purple-400">${Math.round((scores.final_score || 0) * 100)}%</span>
+            <span class="text-xs font-mono font-bold text-ct-primary">${Math.round((scores.final_score || 0) * 100)}%</span>
           </div>
           ${outfit.generated_image_url ? `<img src="${outfit.generated_image_url}" class="w-full rounded-lg border border-slate-800" alt="Generated outfit">` : ""}
           <div class="flex flex-wrap gap-1.5">
             ${outfit.garments.map(g => `<a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full transition">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</a>`).join("")}
           </div>
-          <button onclick='openSwapModal(${JSON.stringify(outfit.outfit_id)}, ${JSON.stringify(outfit.roles || {})})' class="w-full text-xs px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-purple-500/20 hover:text-purple-400 text-slate-300 transition">
+          <button onclick='openSwapModal(${JSON.stringify(outfit.outfit_id)}, ${JSON.stringify(outfit.roles || {})})' class="w-full text-xs px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
             🔁 Swap an item
           </button>
           <div class="space-y-1.5">
@@ -625,7 +625,7 @@
             <label class="block text-xs font-bold text-slate-300 mb-1">Describe what you want changed</label>
             <div class="flex gap-2">
               <input id="swap-chat-input" type="text" placeholder="e.g. I don't like the shoes, give me something else"
-                     class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                     class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
               <button onclick="applyChatSwap()" class="px-4 py-2.5 bg-ct-primary hover:bg-ct-primary-pressed text-white text-xs font-bold rounded-xl whitespace-nowrap">Apply</button>
             </div>
           </div>
@@ -659,7 +659,7 @@
         const candidates = await res.json();
         statusEl.textContent = candidates.length ? `${candidates.length} option(s) — click one to select it, then hit Apply swap.` : "No other options found for this role in the wardrobe.";
         grid.innerHTML = candidates.map(c => `
-          <button onclick="selectSwapCandidate('${role}', '${c.garment_id}', this)" class="swap-candidate-btn text-left bg-slate-950 border-2 border-slate-800 hover:border-purple-500 rounded-lg overflow-hidden transition">
+          <button onclick="selectSwapCandidate('${role}', '${c.garment_id}', this)" class="swap-candidate-btn text-left bg-slate-950 border-2 border-slate-800 hover:border-ct-primary/60 rounded-lg overflow-hidden transition">
             ${c.canonical_image_url ? `<img src="${c.canonical_image_url}" class="w-full aspect-square object-cover">` : `<div class="w-full aspect-square flex items-center justify-center text-[9px] text-slate-600">no image</div>`}
             <div class="p-1.5 text-[10px] text-slate-300 truncate">${(c.subcategory || '').replace(/_/g,' ')}</div>
           </button>
@@ -717,7 +717,7 @@
     function _setSwapBusy(busy, message) {
       const modalBody = document.getElementById("modal-body");
       const statusEl = document.getElementById("swap-status");
-      if (message) statusEl.innerHTML = `<span class="inline-flex items-center gap-2"><span class="w-3 h-3 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin"></span>${message}</span>`;
+      if (message) statusEl.innerHTML = `<span class="inline-flex items-center gap-2"><span class="w-3 h-3 border-2 border-ct-primary/30 border-t-ct-primary rounded-full animate-spin"></span>${message}</span>`;
       if (modalBody) {
         modalBody.querySelectorAll("button, input").forEach(el => {
           if (el.id !== "swap-apply-btn") el.disabled = busy;
