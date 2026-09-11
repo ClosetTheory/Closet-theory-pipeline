@@ -11,7 +11,7 @@ from app.api.dependencies import get_current_user, get_db_session, get_storage
 from app.models.garment import Garment
 from app.models.ootd import OOTDSubscription
 from app.models.style_profile import StyleProfile
-from app.models.styling import Outfit, OutfitGarment, StylingRequest
+from app.models.styling import Outfit, OutfitGarment, StylingRequest, StylistReview
 from app.models.user import User
 from app.rules.style_profile import (
     confidence_for_count,
@@ -27,19 +27,22 @@ from app.schemas.styling import (
     OutfitOfTheDayRequest,
     OutfitOfTheDayResponse,
     OutfitResult,
+    OutfitReviewQueueItem,
     OutfitVoteRequest,
     OutfitVoteResponse,
     StyleProfileResponse,
     StylingIntent,
     StylingRecommendationRequest,
     StylingRecommendationResponse,
+    StylistReviewRequest,
+    StylistReviewResult,
     SwapCandidateSummary,
     SwapGarmentRequest,
 )
 from app.storage.base import StorageClient
 from app.styling.ootd import get_or_generate_ootd
 from app.styling.orchestrator import StylingOrchestrator
-from app.styling.replay import replay_styling_request
+from app.styling.replay import build_outfit_result, replay_styling_request
 from app.styling.swap import SwapError, list_swap_candidates, swap_garment_by_chat, swap_garment_direct
 
 router = APIRouter(prefix="/wardrobe/styling", tags=["Styling"])
@@ -182,6 +185,90 @@ async def vote_outfit(
         boldness_preference=profile.boldness_preference,
         vote_count=profile.vote_count,
     )
+
+
+def _review_to_result(review: StylistReview) -> StylistReviewResult:
+    return StylistReviewResult(
+        id=review.id,
+        outfit_id=review.outfit_id,
+        vote=review.vote,
+        comment=review.comment,
+        created_at=review.created_at.isoformat(),
+        updated_at=review.updated_at.isoformat(),
+    )
+
+
+@router.get("/review-queue", response_model=List[OutfitReviewQueueItem])
+async def get_review_queue(
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Internal QA panel (see app/static/review.html): every outfit ever generated for this
+    account, most recent first, with any existing stylist review attached. Not part of the
+    user-facing recommendation flow — for company stylists reviewing their own account's
+    generated outfits."""
+    stmt = (
+        select(Outfit, StylingRequest.raw_text)
+        .join(StylingRequest, StylingRequest.id == Outfit.request_id)
+        .where(Outfit.tenant_id == current_user.tenant_id, Outfit.member_id == current_user.member_id)
+        .order_by(Outfit.created_at.desc())
+        .limit(limit)
+    )
+    rows = (await session.execute(stmt)).all()
+
+    outfit_ids = [outfit.id for outfit, _ in rows]
+    reviews_res = await session.execute(select(StylistReview).where(StylistReview.outfit_id.in_(outfit_ids)))
+    reviews_by_outfit = {r.outfit_id: r for r in reviews_res.scalars().all()}
+
+    items = []
+    for outfit, raw_text in rows:
+        result = await build_outfit_result(session, outfit)
+        review = reviews_by_outfit.get(outfit.id)
+        items.append(
+            OutfitReviewQueueItem(
+                outfit=result,
+                request_text=raw_text,
+                generated_at=outfit.created_at.isoformat(),
+                review=_review_to_result(review) if review else None,
+            )
+        )
+    return items
+
+
+@router.put("/outfits/{outfit_id}/review", response_model=StylistReviewResult)
+async def review_outfit(
+    outfit_id: str,
+    request: StylistReviewRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Records (or updates) a stylist's like/dislike + comment on one of their own account's
+    generated outfits — one review per outfit, resubmitting updates it in place. Purely a QA
+    record: never touches StyleProfile/ranking (see /vote for that separate mechanism)."""
+    outfit = await session.get(Outfit, outfit_id)
+    if not outfit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outfit '{outfit_id}' not found")
+    if outfit.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This outfit belongs to another account")
+
+    review = (await session.execute(select(StylistReview).where(StylistReview.outfit_id == outfit_id))).scalars().first()
+    if review:
+        review.vote = request.vote
+        review.comment = request.comment
+    else:
+        review = StylistReview(
+            outfit_id=outfit_id,
+            tenant_id=outfit.tenant_id,
+            member_id=outfit.member_id,
+            vote=request.vote,
+            comment=request.comment,
+        )
+        session.add(review)
+
+    await session.commit()
+    await session.refresh(review)
+    return _review_to_result(review)
 
 
 @router.get("/profile", response_model=StyleProfileResponse)

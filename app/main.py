@@ -61,6 +61,7 @@ STATIC_GARMENT = STATIC_DIR / "garment.html"
 STATIC_STYLING = STATIC_DIR / "styling.html"
 STATIC_LOGIN = STATIC_DIR / "login.html"
 STATIC_PROFILE = STATIC_DIR / "profile.html"
+STATIC_REVIEW = STATIC_DIR / "review.html"
 
 
 def _serve_static(path: Path, label: str) -> HTMLResponse:
@@ -103,6 +104,14 @@ async def get_styling_page():
 async def get_visualizer():
     """Visual interactive educational dashboard for explaining the Image Ingestion Pipeline."""
     return _serve_static(STATIC_INDEX, "Visualizer")
+
+
+@app.get("/review", response_class=HTMLResponse, tags=["Styling"])
+async def get_review_page():
+    """Internal stylist QA panel: like/dislike + comment on this account's own generated
+    outfits. Not part of the user-facing app — for company stylists reviewing dressing sense
+    and overall aesthetics."""
+    return _serve_static(STATIC_REVIEW, "Stylist review queue")
 
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])

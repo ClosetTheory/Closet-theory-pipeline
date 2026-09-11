@@ -95,3 +95,35 @@ class OutfitGarment(Base):
         index=True,
     )
     role: Mapped[str] = mapped_column(String(32), nullable=False)  # TOP|BOTTOM|OUTERWEAR|FOOTWEAR|ONE_PIECE|ACCESSORY
+
+
+class StylistReview(Base):
+    """Internal-only QA record: a company stylist's like/dislike + free-text comment on a
+    generated outfit, reviewed from their own account's own generated outfits (see
+    app/static/review.html). Deliberately separate from OutfitVote (app/api/v1/styling.py's
+    /vote endpoint) — that mechanism mutates the member's learned StyleProfile and keeps no
+    durable per-vote record; this table exists purely so a reviewer's judgment on a specific
+    outfit persists and can carry a comment, with no effect on ranking/learning."""
+
+    __tablename__ = "stylist_reviews"
+
+    id: Mapped[str] = mapped_column(
+        String(64),
+        primary_key=True,
+        default=lambda: generate_uuid("sreview"),
+    )
+    outfit_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("outfits.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    member_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+
+    vote: Mapped[str] = mapped_column(String(16), nullable=False)  # "like" | "dislike"
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stylist Review Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#18181b', 200: '#2b2b27', 300: '#3f3f3a',
+              400: '#63635b', 500: '#84847a', 600: '#a3a39a', 700: '#c7c7be',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ct-hairline: #dadad3;
+    }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <a href="/" class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-ct-ink flex items-center justify-center font-bold text-lg text-white">CT</div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight">Stylist Review Queue</h1>
+          <p class="text-xs text-slate-400">Internal QA — mark and comment on your own generated outfits</p>
+        </div>
+      </a>
+      <nav class="flex items-center gap-2 text-xs font-medium">
+        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling</a>
+        <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+
+    <div class="flex items-center justify-between">
+      <p class="text-sm text-slate-500 max-w-xl">Every outfit generated for this account, most recent first. Mark whether the dressing sense/overall aesthetic works and leave a comment — this is a separate internal QA record, it doesn't affect ranking or this account's learned style profile.</p>
+      <span id="queue-count" class="text-xs font-medium text-slate-500 whitespace-nowrap"></span>
+    </div>
+
+    <div id="queue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+
+    <div id="empty-state" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
+      No outfits generated yet — run the <a href="/styling" class="text-ct-ink-soft hover:underline">Styling Pipeline</a> from this account first.
+    </div>
+
+  </main>
+
+  <script>
+    const API_BASE = "/api/v1/wardrobe";
+
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    async function ctFetch(url, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const headers = Object.assign({}, opts.headers || {}, token ? {Authorization: `Bearer ${token}`} : {});
+      const res = await fetch(url, Object.assign({}, opts, {headers}));
+      if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      return res;
+    }
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
+    function queueItemCard(item) {
+      const outfit = item.outfit;
+      const review = item.review;
+      const likeActive = review && review.vote === "like";
+      const dislikeActive = review && review.vote === "dislike";
+      const garmentTags = outfit.garments.map(g =>
+        `<span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded-full">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</span>`
+      ).join("");
+
+      return `
+        <div id="review-card-${outfit.outfit_id}" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
+          ${outfit.generated_image_url
+            ? `<img src="${outfit.generated_image_url}" class="w-full aspect-[3/4] object-cover" alt="Generated outfit">`
+            : `<div class="w-full aspect-[3/4] bg-slate-950 flex items-center justify-center text-xs text-slate-600">no image generated</div>`}
+          <div class="p-4 space-y-3 flex-1 flex flex-col">
+            <div>
+              <div class="text-[10px] text-slate-500">${item.request_text ? `"${item.request_text}"` : "no request text (anchor-only)"}</div>
+              <div class="text-[10px] text-slate-600">${new Date(item.generated_at).toLocaleString()}</div>
+            </div>
+            <div class="flex flex-wrap gap-1.5">${garmentTags}</div>
+            <div class="flex gap-2 pt-1">
+              <button onclick="setVote('${outfit.outfit_id}', 'like', this)"
+                      class="vote-btn like-btn flex-1 text-xs px-2.5 py-2 rounded-xl transition ${likeActive ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}">
+                👍 Works
+              </button>
+              <button onclick="setVote('${outfit.outfit_id}', 'dislike', this)"
+                      class="vote-btn dislike-btn flex-1 text-xs px-2.5 py-2 rounded-xl transition ${dislikeActive ? "bg-red-500/20 text-red-400" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}">
+                👎 Doesn't work
+              </button>
+            </div>
+            <textarea id="comment-${outfit.outfit_id}" placeholder="Notes on dressing sense, proportions, colour story…"
+                      class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-ct-primary/40 resize-none"
+                      rows="2">${review && review.comment ? review.comment : ""}</textarea>
+            <button onclick="saveReview('${outfit.outfit_id}')" class="save-btn w-full text-xs font-bold px-3 py-2 rounded-xl bg-ct-ink text-white hover:opacity-90 transition">
+              Save review
+            </button>
+            <div class="save-status text-[10px] text-slate-500 text-center h-3"></div>
+          </div>
+        </div>`;
+    }
+
+    let queueItemsById = {};
+
+    async function loadQueue() {
+      const grid = document.getElementById("queue-grid");
+      const empty = document.getElementById("empty-state");
+      const count = document.getElementById("queue-count");
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/review-queue?limit=60`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const items = await res.json();
+        queueItemsById = {};
+        items.forEach(it => { queueItemsById[it.outfit.outfit_id] = it; });
+
+        if (!items.length) {
+          grid.innerHTML = "";
+          empty.classList.remove("hidden");
+          count.textContent = "";
+          return;
+        }
+        empty.classList.add("hidden");
+        const reviewed = items.filter(it => it.review).length;
+        count.textContent = `${items.length} outfit${items.length === 1 ? "" : "s"} — ${reviewed} reviewed`;
+        grid.innerHTML = items.map(queueItemCard).join("");
+      } catch (e) {
+        grid.innerHTML = `<p class="text-sm text-red-400 col-span-full">Failed to load review queue: ${e}</p>`;
+      }
+    }
+
+    function setVote(outfitId, vote, btnEl) {
+      const card = document.getElementById(`review-card-${outfitId}`);
+      card.querySelector(".like-btn").className = "vote-btn like-btn flex-1 text-xs px-2.5 py-2 rounded-xl transition " +
+        (vote === "like" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-300 hover:bg-slate-700");
+      card.querySelector(".dislike-btn").className = "vote-btn dislike-btn flex-1 text-xs px-2.5 py-2 rounded-xl transition " +
+        (vote === "dislike" ? "bg-red-500/20 text-red-400" : "bg-slate-800 text-slate-300 hover:bg-slate-700");
+      card.dataset.pendingVote = vote;
+    }
+
+    async function saveReview(outfitId) {
+      const card = document.getElementById(`review-card-${outfitId}`);
+      const statusEl = card.querySelector(".save-status");
+      const existing = queueItemsById[outfitId] && queueItemsById[outfitId].review;
+      const vote = card.dataset.pendingVote || (existing && existing.vote);
+      const comment = document.getElementById(`comment-${outfitId}`).value.trim();
+
+      if (!vote) {
+        statusEl.textContent = "Pick 👍 Works or 👎 Doesn't work first.";
+        statusEl.className = "save-status text-[10px] text-amber-400 text-center h-3";
+        return;
+      }
+
+      statusEl.textContent = "Saving…";
+      statusEl.className = "save-status text-[10px] text-slate-500 text-center h-3";
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(outfitId)}/review`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vote, comment: comment || null }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const saved = await res.json();
+        if (queueItemsById[outfitId]) queueItemsById[outfitId].review = saved;
+        statusEl.textContent = `Saved ${new Date(saved.updated_at).toLocaleTimeString()}`;
+        statusEl.className = "save-status text-[10px] text-emerald-400 text-center h-3";
+      } catch (e) {
+        statusEl.textContent = `Failed to save: ${e.message}`;
+        statusEl.className = "save-status text-[10px] text-red-400 text-center h-3";
+      }
+    }
+
+    loadQueue();
+  </script>
+</body>
+</html>

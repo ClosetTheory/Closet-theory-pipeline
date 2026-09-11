@@ -335,3 +335,30 @@ class SwapCandidateSummary(BaseModel):
     garment_id: str
     subcategory: Optional[str] = None
     canonical_image_url: Optional[str] = None
+
+
+# --- Internal stylist QA review panel (see app/static/review.html) ---
+# Separate from OutfitVoteRequest/Response above: that mechanism updates the member's learned
+# StyleProfile and keeps no durable per-outfit record. This is purely an internal record of a
+# reviewer's like/dislike + optional comment on one of their own account's generated outfits,
+# with no effect on ranking or learning.
+
+class StylistReviewRequest(BaseModel):
+    vote: Literal["like", "dislike"]
+    comment: Optional[str] = Field(default=None, max_length=2000)
+
+
+class StylistReviewResult(BaseModel):
+    id: str
+    outfit_id: str
+    vote: str
+    comment: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class OutfitReviewQueueItem(BaseModel):
+    outfit: OutfitResult
+    request_text: Optional[str] = None
+    generated_at: str
+    review: Optional[StylistReviewResult] = None
