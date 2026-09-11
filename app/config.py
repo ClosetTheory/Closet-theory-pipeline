@@ -133,6 +133,7 @@ class Settings(BaseSettings):
     # --- Styling Pipeline (Outfit Recommendation) ---
     STYLING_NORMALIZER_PROVIDER: str = "openrouter"  # "openrouter" | "mock"
     STYLING_VALIDATOR_PROVIDER: str = "openrouter"  # "openrouter" | "mock"
+    STYLING_AESTHETIC_PROVIDER: str = "openrouter"  # "openrouter" | "mock"
     STYLING_VISUAL_VALIDATOR_PROVIDER: str = "openrouter"  # "openrouter" | "mock"
     STYLING_OUTFIT_IMAGE_PROVIDER: str = "gpt"  # "gpt" | "mock"
     STYLING_SCORER_VERSION: str = "styling_scorer_v1"

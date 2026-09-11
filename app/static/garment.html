@@ -4,18 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Garment Detail</title>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#000000', 200: '#000000', 300: '#262622',
+              400: '#33332e', 500: '#62625b', 600: '#91918c', 700: '#c8c8c1',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Inter', sans-serif; }</style>
+  <style>
+    :root {
+      --ct-hairline: #dadad3;
+    }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-16">
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
 
   <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
       <a href="/" class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/25">CT</div>
+        <div class="w-10 h-10 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
         <div>
-          <h1 class="text-base sm:text-lg font-bold text-white tracking-tight">ClosetTheory Wardrobe</h1>
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight">ClosetTheory Wardrobe</h1>
           <p class="text-xs text-slate-400">← Back to catalogue</p>
         </div>
       </a>
@@ -26,8 +53,8 @@
     </div>
   </header>
 
-  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div id="content" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div id="content" class="grid grid-cols-1 md:grid-cols-2 gap-10">
       <div class="text-slate-500 text-sm">Loading…</div>
     </div>
   </main>
@@ -79,7 +106,7 @@
                 </div>`;
       }).join("");
       if (!groupsHtml) return "";
-      return `<details class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 mb-5">
+      return `<details class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 mb-6">
                 <summary class="text-sm font-semibold text-slate-300 cursor-pointer select-none">Enriched attributes</summary>
                 <div class="mt-3">${groupsHtml}</div>
               </details>`;
@@ -92,7 +119,7 @@
           <span class="text-slate-200">${(c.subcategory || c.detected_label || "garment").replace(/_/g, " ")}</span>
           <span class="text-[10px] text-slate-500 font-mono">${c.status}</span>
         </a>`).join("");
-      return `<div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 mb-5">
+      return `<div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 mb-6">
                 <div class="text-sm font-semibold text-slate-300 mb-2">Part of a co-ord set</div>
                 <p class="text-xs text-slate-500 mb-3">Detected in the same photo — these were worn together and can be styled as a known-compatible set.</p>
                 <div class="space-y-1.5">${items}</div>
@@ -123,10 +150,10 @@
             ${imgLabel ? `<span class="absolute bottom-2 left-2 right-2 text-[10px] text-amber-300 bg-slate-950/80 px-2 py-1 rounded font-mono text-center">${imgLabel}</span>` : ""}
           </div>
           <div>
-            <h2 class="text-2xl font-bold text-white capitalize mb-1">${(attrs.subcategory || g.category || "Garment").replace(/_/g, " ")}</h2>
-            <p class="text-sm text-slate-500 mb-5">${g.quality_status} · ${g.category || "—"}</p>
+            <h2 class="text-3xl font-bold text-ct-ink tracking-tight capitalize mb-1.5">${(attrs.subcategory || g.category || "Garment").replace(/_/g, " ")}</h2>
+            <p class="text-sm text-slate-500 mb-6">${g.quality_status} · ${g.category || "—"}</p>
 
-            <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 mb-5">
+            <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 mb-6">
               ${attrRow("Colour", attrs.colour)}
               ${attrRow("Pattern", attrs.pattern)}
               ${attrRow("Material", attrs.material)}
@@ -143,19 +170,19 @@
             ${enrichedAttributesSection(attrs)}
             ${coordinatedSection(g.coordinated_garments)}
 
-            <div class="flex gap-2">
-              <button id="style-btn" onclick="styleThis()" class="flex-1 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
+            <div class="flex gap-2.5">
+              <button id="style-btn" onclick="styleThis()" class="flex-1 px-5 py-3.5 rounded-2xl bg-ct-primary hover:bg-ct-primary-pressed text-white text-sm font-bold transition">
                 ✨ Style this garment
               </button>
-              <button id="retry-btn" onclick="retryPipeline()" class="px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition whitespace-nowrap">
+              <button id="retry-btn" onclick="retryPipeline()" class="px-4 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition whitespace-nowrap">
                 🔄 Retry pipeline
               </button>
-              <a id="style-pipeline-link" href="#" class="px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition whitespace-nowrap">
+              <a id="style-pipeline-link" href="#" class="px-4 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition whitespace-nowrap">
                 View pipeline →
               </a>
             </div>
             <div id="retry-status" class="mt-2 text-xs text-slate-500"></div>
-            <div id="style-results" class="mt-5 space-y-4"></div>
+            <div id="style-results" class="mt-6 space-y-4"></div>
           </div>`;
       } catch (e) {
         content.innerHTML = `<p class="text-red-400 col-span-full">Failed to load garment: ${e}</p>`;
@@ -227,16 +254,16 @@
     function outfitCard(outfit) {
       const scores = outfit.scores || {};
       return `
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-white">Outfit ${outfit.rank}</span>
-            <span class="text-xs font-mono text-blue-400">${Math.round((scores.final_score || 0) * 100)}%</span>
+            <span class="text-xs font-bold text-ct-ink">Outfit ${outfit.rank}</span>
+            <span class="text-xs font-mono font-bold text-ct-primary">${Math.round((scores.final_score || 0) * 100)}%</span>
           </div>
-          ${outfit.generated_image_url ? `<img src="${outfit.generated_image_url}" class="w-full rounded-lg border border-slate-800" alt="Generated outfit">` : ""}
+          ${outfit.generated_image_url ? `<img src="${outfit.generated_image_url}" class="w-full rounded-xl border border-slate-800" alt="Generated outfit">` : ""}
           <div class="flex flex-wrap gap-1.5">
             ${outfit.garments.map(g => `<a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full transition">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</a>`).join("")}
           </div>
-          <div class="space-y-1">
+          <div class="space-y-1.5">
             ${scoreBar("compatibility", scores.compatibility)}
             ${scoreBar("occasion fit", scores.occasion_fit)}
           </div>

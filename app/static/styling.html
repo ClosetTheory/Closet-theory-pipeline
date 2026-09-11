@@ -4,23 +4,48 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Styling Pipeline — Live Interactive Studio</title>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#000000', 200: '#000000', 300: '#262622',
+              400: '#33332e', 500: '#62625b', 600: '#91918c', 700: '#c8c8c1',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; }
+    :root {
+      --ct-hairline: #dadad3;
+    }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
     code, pre { font-family: 'JetBrains Mono', monospace; }
-    .glow-active { box-shadow: 0 0 25px rgba(139, 92, 246, 0.35); }
+    .glow-active { box-shadow: 0 0 0 3px rgba(230, 0, 35, 0.18); }
     pre.trace-json { white-space: pre-wrap; word-break: break-word; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-purple-600 selection:text-white pb-16">
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
 
   <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
       <a href="/" class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-fuchsia-500 to-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-purple-500/25">CT</div>
+        <div class="w-10 h-10 rounded-2xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
         <div>
-          <h1 class="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight flex items-center gap-2">
             Styling Pipeline
             <span class="text-[11px] bg-purple-500/20 text-purple-300 font-semibold px-2 py-0.5 rounded-full border border-purple-500/30">Live Studio</span>
           </h1>
@@ -37,25 +62,25 @@
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
 
     <!-- Request Card -->
-    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-purple-950/30 border border-slate-800 rounded-2xl p-6 shadow-xl">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
         <div class="lg:col-span-7 space-y-2">
           <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Styling Request</span>
           <input id="request-text" type="text" placeholder="e.g. smart casual dinner tonight, dark colors"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
           <span class="text-[10px] text-slate-500 block">Optional — leave blank to style purely from anchor garments below.</span>
         </div>
         <div class="lg:col-span-3 space-y-2">
           <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Anchor Garment IDs</span>
           <input id="anchor-ids" type="text" placeholder="garm_abc, garm_def"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
           <span class="text-[10px] text-slate-500 block">Comma-separated, optional preselected garments.</span>
         </div>
         <div class="lg:col-span-2">
-          <button id="run-btn" onclick="runPipeline()" class="w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 transition flex items-center justify-center gap-2">
+          <button id="run-btn" onclick="runPipeline()" class="w-full py-3 px-4 bg-ct-primary hover:bg-ct-primary-pressed disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2">
             <span>✨</span> Run Styling Pipeline
           </button>
         </div>
@@ -63,21 +88,21 @@
     </div>
 
     <!-- Outfit of the Day -->
-    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/30 border border-slate-800 rounded-2xl p-6 shadow-xl">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
         <div class="lg:col-span-8 space-y-2">
           <span class="text-xs font-bold uppercase tracking-wider text-blue-400">☀️ Outfit of the Day — Location</span>
           <input id="ootd-location" type="text" placeholder="e.g. Mumbai, New York, London… (can be anywhere)"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
           <span class="text-[10px] text-slate-500 block">Styling context (occasion, formality, wardrobe style, learned preferences) is derived automatically from this member's real history — no persona to pick.</span>
         </div>
         <div class="lg:col-span-2">
-          <button id="ootd-btn" onclick="loadOOTD(false)" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition">
+          <button id="ootd-btn" onclick="loadOOTD(false)" class="w-full py-3 px-4 bg-ct-primary hover:bg-ct-primary-pressed disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-2xl transition">
             Get Today's Pick
           </button>
         </div>
         <div class="lg:col-span-2">
-          <button onclick="loadOOTD(true)" class="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl transition">
+          <button onclick="loadOOTD(true)" class="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-2xl transition">
             🔄 Regenerate
           </button>
         </div>
@@ -92,7 +117,7 @@
         <div id="live-spinner" class="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
         <div>
           <div class="text-xs text-slate-400 uppercase font-mono">Current Stage</div>
-          <div id="live-stage-title" class="text-sm font-bold text-white">Initializing…</div>
+          <div id="live-stage-title" class="text-sm font-bold text-ct-ink">Initializing…</div>
         </div>
       </div>
       <div class="flex items-center gap-2 font-mono text-xs">
@@ -105,9 +130,9 @@
     <div id="stage-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
     <!-- Final shortlist -->
-    <section id="shortlist-section" class="hidden">
-      <h2 class="text-lg font-bold text-white mb-4">Final Outfit Shortlist</h2>
-      <div id="shortlist-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    <section id="shortlist-section" class="hidden pt-4 border-t border-slate-800">
+      <h2 class="text-2xl font-bold text-ct-ink tracking-tight mb-6">Final Outfit Shortlist</h2>
+      <div id="shortlist-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5"></div>
     </section>
 
   </main>
@@ -116,8 +141,8 @@
   <div id="stage-modal" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeStageModal()">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl">
       <div class="flex items-center justify-between p-5 border-b border-slate-800">
-        <h3 id="modal-title" class="text-sm font-bold text-white">Stage detail</h3>
-        <button onclick="closeStageModal()" class="text-slate-400 hover:text-white text-lg leading-none">✕</button>
+        <h3 id="modal-title" class="text-sm font-bold text-ct-ink">Stage detail</h3>
+        <button onclick="closeStageModal()" class="text-slate-400 hover:text-ct-ink text-lg leading-none">✕</button>
       </div>
       <div id="modal-body" class="p-5 overflow-y-auto space-y-4"></div>
     </div>
@@ -330,7 +355,7 @@
         card.classList.remove("opacity-40");
         card.classList.add("glow-active", "border-purple-500/60");
         badge.textContent = "RUNNING";
-        badge.className = "text-[10px] font-mono bg-purple-600 px-2 py-0.5 rounded text-white animate-pulse";
+        badge.className = "text-[10px] font-mono bg-ct-primary px-2 py-0.5 rounded text-white animate-pulse";
       } else if (state === "done" && entry) {
         card.classList.remove("opacity-40", "glow-active", "border-purple-500/60");
         badge.textContent = entry.status;
@@ -515,26 +540,26 @@
         return `<span class="text-[10px] px-2 py-0.5 rounded-full bg-${color}-500/15 text-${color}-400 border border-${color}-500/30">${label}: ${v.status}</span>`;
       };
       return `
-        <div id="outfit-card-${outfit.outfit_id}" class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div id="outfit-card-${outfit.outfit_id}" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-white">Outfit ${outfit.rank}</span>
+            <span class="text-xs font-bold text-ct-ink">Outfit ${outfit.rank}</span>
             <span class="text-xs font-mono text-purple-400">${Math.round((scores.final_score || 0) * 100)}%</span>
           </div>
           ${outfit.generated_image_url ? `<img src="${outfit.generated_image_url}" class="w-full rounded-lg border border-slate-800" alt="Generated outfit">` : ""}
           <div class="flex flex-wrap gap-1.5">
             ${outfit.garments.map(g => `<a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full transition">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</a>`).join("")}
           </div>
-          <button onclick='openSwapModal(${JSON.stringify(outfit.outfit_id)}, ${JSON.stringify(outfit.roles || {})})' class="w-full text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-purple-500/20 hover:text-purple-400 text-slate-300 transition">
+          <button onclick='openSwapModal(${JSON.stringify(outfit.outfit_id)}, ${JSON.stringify(outfit.roles || {})})' class="w-full text-xs px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-purple-500/20 hover:text-purple-400 text-slate-300 transition">
             🔁 Swap an item
           </button>
-          <div class="space-y-1">
+          <div class="space-y-1.5">
             ${scoreBar("request match", scores.request_match)}
             ${scoreBar("compatibility", scores.compatibility)}
             ${scoreBar("occasion fit", scores.occasion_fit)}
             ${scoreBar("visual harmony", scores.visual_harmony)}
             ${outfit.visual_gate ? scoreBar("visual gate", outfit.visual_gate.score / 10) : ""}
           </div>
-          <div class="flex flex-wrap gap-1.5 pt-1">
+          <div class="flex flex-wrap gap-1.5 pt-2 border-t border-slate-800">
             ${validationBadge(outfit.semantic_validation, "semantic")}
             ${validationBadge(outfit.generation_semantic_gate, "gen. semantic")}
           </div>
@@ -592,7 +617,7 @@
       _swapContext = { outfitId };
       const uniqueRoles = [...new Set(Object.values(roles || {}))];
       const roleButtons = uniqueRoles.map(r => `
-        <button onclick="loadSwapCandidates('${r}')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-purple-600 hover:text-white text-slate-300 transition">${r.toLowerCase()}</button>
+        <button onclick="loadSwapCandidates('${r}')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-ct-primary hover:text-white text-slate-300 transition">${r.toLowerCase()}</button>
       `).join("");
       const body = `
         <div class="space-y-4">
@@ -601,7 +626,7 @@
             <div class="flex gap-2">
               <input id="swap-chat-input" type="text" placeholder="e.g. I don't like the shoes, give me something else"
                      class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-              <button onclick="applyChatSwap()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg whitespace-nowrap">Apply</button>
+              <button onclick="applyChatSwap()" class="px-4 py-2.5 bg-ct-primary hover:bg-ct-primary-pressed text-white text-xs font-bold rounded-xl whitespace-nowrap">Apply</button>
             </div>
           </div>
           <div class="border-t border-slate-800 pt-3">
@@ -609,7 +634,7 @@
             <div class="flex flex-wrap gap-2">${roleButtons}</div>
             <div id="swap-candidates-grid" class="grid grid-cols-3 gap-2 mt-3"></div>
             <button id="swap-apply-btn" onclick="applySelectedSwap()" disabled
-                    class="hidden mt-3 w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition">
+                    class="hidden mt-3 w-full px-4 py-2.5 bg-ct-primary hover:bg-ct-primary-pressed disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition">
               Apply swap
             </button>
           </div>

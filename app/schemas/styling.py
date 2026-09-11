@@ -78,6 +78,7 @@ class ScoreBreakdown(BaseModel):
     user_preference: float = 0.0
     occasion_fit: float = 0.0
     visual_harmony: float = 0.0
+    aesthetic_score: float = 0.0
     wardrobe_behavior: float = 0.0
     weather_fit: float = 0.0
     attribute_affinity: float = 0.0
@@ -98,6 +99,18 @@ class ValidationResult(BaseModel):
     confidence: float = 0.5
     issues: List[str] = Field(default_factory=list)
     reason: str = ""
+    model: Optional[str] = None
+    model_version: Optional[str] = None
+
+
+class AestheticScoreResult(BaseModel):
+    """Holistic stylist-style judgment of a candidate outfit as a single composition —
+    distinct from compatibility (won't clash) and semantic validation (fits the request):
+    this is specifically "would a stylist call this genuinely well put-together," judged
+    once per outfit rather than averaged from pairwise checks."""
+
+    score: float = 0.5
+    reasoning: str = ""
     model: Optional[str] = None
     model_version: Optional[str] = None
 

@@ -9,14 +9,17 @@ attribute_affinity rewards colour/pattern values the member has upvoted before,
 via StylingContext.user_preferences["attribute_affinities"] (see app/rules/style_profile.py).
 """
 
+import asyncio
 from typing import Dict, List, Optional, Tuple
 from app.models.garment import Garment
+from app.providers.aesthetic import get_aesthetic_provider
 from app.rules.scoring import DEFAULT_STYLING_WEIGHTS, apply_diversity_penalty, compute_outfit_score
 from app.rules.style_profile import attribute_affinity_score
 from app.rules.taxonomy import bundle_category
 from app.rules.visual import FORMALITY_SCORES, NEUTRAL_COLORS, _get_max_formality
 from app.rules.wardrobe_behavior import score_wardrobe_behavior
 from app.schemas.styling import OutfitCandidate, ScoreBreakdown, StylingContext, StylingIntent
+from app.styling.aesthetics import _to_summary as _to_garment_summary
 from app.styling.compatibility import evaluate_outfit_compatibility
 from app.styling.retrieval import resolve_role
 
@@ -169,7 +172,13 @@ async def rank_combinations(
     scored_by_key: Dict[frozenset, float] = {}
     pending_layered: List[Tuple[OutfitCandidate, Optional[frozenset]]] = []
     pairing_rejected = 0
+    aesthetic_provider = get_aesthetic_provider()
 
+    # Pass 1: compatibility + every cheap (local, no-I/O) component, sequentially — matches the
+    # pre-existing per-combo compatibility check's own sequential VLM-fallback calls. Aesthetic
+    # scoring is deferred to pass 2 so its real LLM calls can run CONCURRENTLY across every
+    # surviving combo instead of serializing up to MAX_COMBOS_TO_EVALUATE (60) network round-trips.
+    survivors: List[Tuple[List[Garment], Optional[frozenset], Dict[str, str], str, Dict[str, float]]] = []
     for entry in combinations_with_retrieval:
         garments, _retrieval_sum, base_combo_key = entry if len(entry) == 3 else (*entry, None)
 
@@ -179,8 +188,9 @@ async def rank_combinations(
                 pairing_rejected += 1
             continue
 
+        roles = {g.id: (resolve_role(g) or "UNKNOWN") for g in garments}
         visual_harmony_score = await _visual_harmony(garments)
-        components = {
+        partial_components = {
             "request_match": _request_match(garments, intent),
             "compatibility": compatibility_score,
             "user_preference": _user_preference(visual_harmony_score, context),
@@ -193,9 +203,18 @@ async def rank_combinations(
             ),
             "novelty": 1.0,  # stub: no WearLog history to compare against yet
         }
-        final_score = compute_outfit_score(components, DEFAULT_STYLING_WEIGHTS)
+        survivors.append((garments, base_combo_key, roles, reason, partial_components))
 
-        roles = {g.id: (resolve_role(g) or "UNKNOWN") for g in garments}
+    aesthetic_results = await asyncio.gather(
+        *(
+            aesthetic_provider.score_outfit([_to_garment_summary(g, roles[g.id]) for g in garments], context)
+            for garments, _base_combo_key, roles, _reason, _partial_components in survivors
+        )
+    )
+
+    for (garments, base_combo_key, roles, reason, partial_components), aesthetic_result in zip(survivors, aesthetic_results):
+        components = {**partial_components, "aesthetic_score": aesthetic_result.score}
+        final_score = compute_outfit_score(components, DEFAULT_STYLING_WEIGHTS)
         candidate = OutfitCandidate(
             garment_ids=[g.id for g in garments],
             roles=roles,

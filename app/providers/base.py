@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import ClassificationResult, DetectionResult, DigitisationResult
 from app.schemas.styling import (
+    AestheticScoreResult,
     GarmentSummary,
     OutfitCandidate,
     SemanticGateResult,
@@ -123,6 +124,24 @@ class BaseRequestNormalizerProvider(ABC):
     @abstractmethod
     async def normalize(self, request_text: str, anchor_categories: List[str]) -> StylingIntent:
         """Translates free-text into a validated StylingIntent. Must never invent garments/IDs."""
+        pass
+
+
+class BaseAestheticProvider(ABC):
+    """Styling Stage 7 (ranking): holistic judgment of a candidate outfit's aesthetic
+    composition — colour story, proportion, silhouette balance — as a single look, not a
+    sum of pairwise checks. Distinct from compatibility (won't clash) and semantic
+    validation (fits the request): this is specifically "would a stylist call this
+    genuinely well put-together," which neither of those other checks measures."""
+
+    @abstractmethod
+    async def score_outfit(
+        self,
+        garments: List[GarmentSummary],
+        context: StylingContext,
+    ) -> AestheticScoreResult:
+        """Returns a 0.0-1.0 holistic aesthetic score + reasoning. Must not invent/replace
+        garments or mutate inventory — pure judgment of the given combination."""
         pass
 
 

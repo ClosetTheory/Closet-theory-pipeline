@@ -4,25 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Image Ingestion Pipeline — Live Interactive Studio</title>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#000000', 200: '#000000', 300: '#262622',
+              400: '#33332e', 500: '#62625b', 600: '#91918c', 700: '#c8c8c1',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; }
+    :root {
+      --ct-hairline: #dadad3;
+    }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
     code, pre { font-family: 'JetBrains Mono', monospace; }
-    .glow-active { box-shadow: 0 0 25px rgba(59, 130, 246, 0.4); }
+    .glow-active { box-shadow: 0 0 0 3px rgba(230, 0, 35, 0.18); }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-12">
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-12">
 
   <!-- Navigation Bar -->
   <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/25">
+        <div class="w-10 h-10 rounded-2xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">
           AI
         </div>
         <div>
-          <h1 class="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight flex items-center gap-2">
             Image Ingestion Pipeline
             <span class="text-[11px] bg-emerald-500/20 text-emerald-400 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30">Live Studio</span>
           </h1>
@@ -31,21 +56,9 @@
       </div>
 
       <!-- Navigation Tabs -->
-      <nav class="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 text-xs font-medium space-x-1">
-        <button onclick="switchTab('live-runner')" id="tab-live-runner" class="tab-btn px-3.5 py-1.5 rounded-lg text-white bg-blue-600 shadow-sm transition">
+      <nav class="flex items-center bg-slate-800/80 p-1 rounded-2xl border border-slate-700/60 text-xs font-medium space-x-1">
+        <button onclick="switchTab('live-runner')" id="tab-live-runner" class="tab-btn px-3.5 py-1.5 rounded-lg text-white bg-ct-primary shadow-sm transition">
           🚀 Live Pipeline Runner
-        </button>
-        <button onclick="switchTab('simulator')" id="tab-simulator" class="tab-btn px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
-          Pipeline Walkthrough
-        </button>
-        <button onclick="switchTab('compatibility')" id="tab-compatibility" class="tab-btn px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
-          Compatibility Sandbox
-        </button>
-        <button onclick="switchTab('validator')" id="tab-validator" class="tab-btn px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
-          7-Step Validator
-        </button>
-        <button onclick="switchTab('principles')" id="tab-principles" class="tab-btn px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
-          Engineering Rationale
         </button>
         <button onclick="switchTab('bulk')" id="tab-bulk" class="tab-btn px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
           📦 Bulk Ingestion
@@ -60,15 +73,15 @@
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
     <!-- ============================================================= -->
     <!-- TAB 1: LIVE REAL-TIME PIPELINE RUNNER -->
     <!-- ============================================================= -->
-    <section id="section-live-runner" class="tab-content space-y-6">
-      
+    <section id="section-live-runner" class="tab-content space-y-8">
+
       <!-- Upload & Configuration Card -->
-      <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/30 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-7">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           
           <!-- Image Upload Area (7 cols) -->
@@ -80,13 +93,13 @@
                 <div class="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 mx-auto flex items-center justify-center text-2xl group-hover:scale-110 transition">
                   📸
                 </div>
-                <div class="text-sm font-semibold text-white">Click or drag an image here</div>
+                <div class="text-sm font-semibold text-ct-ink">Click or drag an image here</div>
                 <div class="text-xs text-slate-400">Supports catalog photos, flat-lays, or full-body person shots (JPEG, PNG, WebP)</div>
               </div>
               <div id="upload-preview" class="hidden flex items-center justify-center gap-4">
-                <img id="preview-img" src="" alt="Selected Preview" class="h-28 w-28 object-cover rounded-xl border-2 border-blue-500 shadow-md">
+                <img id="preview-img" src="" alt="Selected Preview" class="h-28 w-28 object-cover rounded-2xl border-2 border-blue-500 shadow-md">
                 <div class="text-left space-y-1">
-                  <div id="preview-filename" class="text-xs font-bold text-white truncate max-w-xs">image.jpg</div>
+                  <div id="preview-filename" class="text-xs font-bold text-ct-ink truncate max-w-xs">image.jpg</div>
                   <div id="preview-filesize" class="text-[11px] text-slate-400 font-mono">0 KB</div>
                   <button type="button" onclick="event.stopPropagation(); resetUpload();" class="text-[11px] text-red-400 hover:underline">Change image</button>
                 </div>
@@ -100,17 +113,17 @@
               <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
                 OpenRouter API Key <span class="text-slate-500 font-normal">(Optional)</span>
               </label>
-              <input type="password" id="openrouter-key-input" name="openrouter-key-override-not-a-login-field" autocomplete="new-password" data-lpignore="true" data-1p-ignore placeholder="sk-or-v1-..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 placeholder:text-slate-600">
+              <input type="password" id="openrouter-key-input" name="openrouter-key-override-not-a-login-field" autocomplete="new-password" data-lpignore="true" data-1p-ignore placeholder="sk-or-v1-..." class="w-full bg-slate-900 border border-slate-700 text-ct-ink rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 placeholder:text-slate-600">
               <span class="text-[10px] text-slate-500 block mt-1">
                 Can be entered here or in your <code>.env</code> file (defaults to GPT-4o).
               </span>
             </div>
 
-            <button id="run-pipeline-btn" onclick="startLiveIngestion()" disabled class="w-full py-3 px-4 bg-blue-600 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2">
+            <button id="run-pipeline-btn" onclick="startLiveIngestion()" disabled class="w-full py-3.5 px-4 bg-ct-primary disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed hover:bg-ct-primary-pressed text-white font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2">
               <span>🚀</span> Run Full Ingestion Pipeline
             </button>
 
-            <button type="button" onclick="loadSampleImage()" class="w-full py-2 px-3 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-medium rounded-lg transition text-center">
+            <button type="button" onclick="loadSampleImage()" class="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-medium rounded-2xl transition text-center">
               Use Built-In Sample Shirt Photo
             </button>
           </div>
@@ -127,7 +140,7 @@
             <div id="live-spinner" class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <div>
               <div class="text-xs text-slate-400 uppercase font-mono">Current Execution Stage</div>
-              <div id="live-stage-status-title" class="text-sm font-bold text-white">Initializing Ingestion...</div>
+              <div id="live-stage-status-title" class="text-sm font-bold text-ct-ink">Initializing Ingestion...</div>
             </div>
           </div>
           <div class="flex items-center gap-2 font-mono text-xs">
@@ -145,10 +158,10 @@
               <span class="text-xs font-bold text-blue-400">Stage 1: Classifier</span>
               <span id="badge-stage-1" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl flex items-center justify-center overflow-hidden border border-slate-800 relative">
+            <div class="h-44 bg-slate-950 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-800 relative">
               <img id="stage1-img" src="" alt="Classified" class="h-full w-full object-contain p-2 hidden">
               <div id="stage1-placeholder" class="text-xs text-slate-600 font-mono">Waiting to run...</div>
-              <div id="stage1-badge" class="absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded hidden"></div>
+              <div id="stage1-badge" class="absolute top-2 right-2 bg-ct-primary text-white text-[10px] font-bold px-2 py-0.5 rounded hidden"></div>
             </div>
             <div id="stage1-data" class="text-[11px] font-mono text-slate-400 space-y-1">
               <div>Type: <span class="text-slate-200">-</span></div>
@@ -163,12 +176,12 @@
               <span id="badge-stage-2" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
             <div class="grid grid-cols-2 gap-2 h-44">
-              <div class="bg-slate-950 rounded-xl flex flex-col items-center justify-center overflow-hidden border border-slate-800 relative">
+              <div class="bg-slate-950 rounded-2xl flex flex-col items-center justify-center overflow-hidden border border-slate-800 relative">
                 <img id="stage2-overlay-img" src="" alt="Detection Overlay" class="h-full w-full object-contain p-1 hidden">
                 <span id="stage2-overlay-label" class="text-[9px] text-slate-500 absolute bottom-1 font-mono hidden">Face & Region</span>
                 <span id="stage2-p1" class="text-[10px] text-slate-600 font-mono">Overlay</span>
               </div>
-              <div class="bg-slate-950 rounded-xl flex flex-col items-center justify-center overflow-hidden border border-slate-800 relative">
+              <div class="bg-slate-950 rounded-2xl flex flex-col items-center justify-center overflow-hidden border border-slate-800 relative">
                 <img id="stage2-crop-img" src="" alt="Full Photo + Label" class="h-full w-full object-contain p-1 hidden">
                 <span id="stage2-crop-label" class="text-[9px] text-emerald-400 absolute bottom-1 font-mono hidden">Full Photo (this garment's region labeled)</span>
                 <span id="stage2-p2" class="text-[10px] text-slate-600 font-mono">Full Photo</span>
@@ -198,7 +211,7 @@
               <span class="text-xs font-bold text-blue-400">Stage 3: Attributes & 7 Gates</span>
               <span id="badge-stage-3" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 overflow-y-auto text-[11px] font-mono space-y-1.5">
+            <div class="h-44 bg-slate-950 rounded-2xl p-3 border border-slate-800 overflow-y-auto text-[11px] font-mono space-y-1.5">
               <div id="stage3-attr-list" class="text-slate-500">Waiting for extraction...</div>
             </div>
             <div id="stage3-data" class="text-[11px] font-mono text-emerald-400">
@@ -223,7 +236,7 @@
               <span class="text-xs font-bold text-blue-400">Stage 4: FLUX.2 Digitisation</span>
               <span id="badge-stage-4" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl flex items-center justify-center overflow-hidden border border-slate-800 relative">
+            <div class="h-44 bg-slate-950 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-800 relative">
               <img id="stage4-canonical-img" src="" alt="Canonical Studio" class="h-full w-full object-contain p-2 hidden">
               <div id="stage4-placeholder" class="text-xs text-slate-600 font-mono">Waiting for generation...</div>
             </div>
@@ -293,7 +306,7 @@
               <span class="text-xs font-bold text-blue-400">Stage 6: Category Bundling</span>
               <span id="badge-stage-6" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-center space-y-3">
+            <div class="h-44 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-center space-y-3">
               <div class="text-center">
                 <span class="text-[10px] font-mono text-slate-500 uppercase">Canonical Category</span>
                 <div id="stage6-canonical-badge" class="text-2xl font-bold text-blue-400 font-mono mt-0.5">-</div>
@@ -324,7 +337,7 @@
               <span class="text-xs font-bold text-cyan-400">Stage 7: Layering Analysis</span>
               <span id="badge-stage-7" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-center space-y-2.5 text-[11px] font-mono">
+            <div class="h-44 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-center space-y-2.5 text-[11px] font-mono">
               <div>
                 <span class="text-slate-500 text-[10px] uppercase">Assigned Layering Role</span>
                 <div id="stage7-role" class="text-sm font-bold text-cyan-400 mt-0.5">-</div>
@@ -354,7 +367,7 @@
               <span class="text-xs font-bold text-indigo-400">Stage 8: Structural Slot</span>
               <span id="badge-stage-8" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-center space-y-2 text-[11px] font-mono">
+            <div class="h-44 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-center space-y-2 text-[11px] font-mono">
               <div class="grid grid-cols-2 gap-2">
                 <div class="bg-slate-900 p-2 rounded border border-slate-800">
                   <div class="text-[10px] text-slate-500">Body Slot</div>
@@ -385,7 +398,7 @@
               <span class="text-xs font-bold text-pink-400">Stage 9: Visual Harmony</span>
               <span id="badge-stage-9" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
-            <div class="h-44 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col justify-between space-y-2 text-[11px] font-mono">
+            <div class="h-44 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-between space-y-2 text-[11px] font-mono">
               <div>
                 <div class="text-[10px] text-slate-500 uppercase mb-1">Color Palette Profile</div>
                 <div id="stage9-palette" class="flex flex-wrap gap-1">
@@ -417,159 +430,49 @@
         <!-- Canonical Garment Final JSON Output Card -->
         <div id="final-canonical-card" class="bg-slate-900 border border-emerald-500/40 rounded-2xl p-6 hidden space-y-3">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h3 class="text-sm font-bold text-ct-ink flex items-center gap-2">
               <span class="text-emerald-400">✓</span> Persistent Canonical Garment Record
             </h3>
             <span class="text-xs font-mono bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30 font-bold">
               STATUS: APPROVED
             </span>
           </div>
-          <pre id="final-garment-json" class="text-[11px] bg-slate-950 p-4 rounded-xl border border-slate-800 text-blue-300 font-mono max-h-[300px] overflow-y-auto leading-relaxed"></pre>
+          <pre id="final-garment-json" class="text-[11px] bg-slate-950 p-4 rounded-2xl border border-slate-800 text-blue-300 font-mono max-h-[300px] overflow-y-auto leading-relaxed"></pre>
         </div>
 
       </div>
 
-    </section>
-
-    <!-- (Other tabs: Walkthrough, Compatibility Sandbox, Validator, Engineering Rationale) -->
-    <!-- Included below cleanly -->
-    <section id="section-simulator" class="tab-content hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 class="text-lg font-bold text-white mb-2">9-Stage Architectural Flowchart</h2>
-        <p class="text-xs text-slate-400 mb-6">Step-by-step logic pipeline mapping raw inputs into canonical entities.</p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">1. Image Classifier</div>
-            <p class="text-slate-400 font-sans">MobileNetV3 assigns CATALOG, CROP, or FULL_BODY.</p>
-          </div>
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">2. Facial/Person Detection</div>
-            <p class="text-slate-400 font-sans">OpenCV/RetinaFace + SAM isolates the garment region.</p>
-          </div>
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">3. Garment Attributes</div>
-            <p class="text-slate-400 font-sans">NVIDIA NIM VLM extracts structured attributes through 7 validation gates.</p>
-          </div>
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">4. Image Digitisation</div>
-            <p class="text-slate-400 font-sans">FLUX.2 synthesizes clean studio representation with retry loop.</p>
-          </div>
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">5. Image Embedding</div>
-            <p class="text-slate-400 font-sans">MODA SigLIP Distilled produces normalized 768d unit vector for pgvector.</p>
-          </div>
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">6. Category Bundling</div>
-            <p class="text-slate-400 font-sans">Deterministic lookup table maps subcategory to canonical category.</p>
-          </div>
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">7. Layering Compatibility</div>
-            <p class="text-slate-400 font-sans">Python decision tree validates torso layering rules.</p>
-          </div>
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">8. Structural Compatibility</div>
-            <p class="text-slate-400 font-sans">Outfit slot rules ensure anatomical slot harmony.</p>
-          </div>
-          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-            <div class="text-blue-400 font-bold">9. Visual Compatibility</div>
-            <p class="text-slate-400 font-sans">Rules + VLM fallback calculate color and pattern harmony.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="section-compatibility" class="tab-content hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-        <h2 class="text-lg font-bold text-white">Outfit Compatibility Evaluator</h2>
-        <p class="text-xs text-slate-400">Test how the deterministic rules handle pairing different garment items:</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
-            <span class="text-xs font-bold text-blue-400">Top Garment</span>
-            <select id="eval-top" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white" onchange="evalPair()">
-              <option value="base">Oxford Shirt (Base Layer - White)</option>
-              <option value="mid">Sweater Cardigan (Mid Layer - Grey)</option>
-              <option value="outer">Heavy Puffer Jacket (Outer Layer - Black)</option>
-            </select>
-          </div>
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
-            <span class="text-xs font-bold text-purple-400">Second Garment</span>
-            <select id="eval-sec" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white" onchange="evalPair()">
-              <option value="bottom">Chino Pants (Bottom Slot - Navy)</option>
-              <option value="outer">Leather Biker Jacket (Outer Layer - Black)</option>
-              <option value="bottom_clash">Jeans Pants (Bottom Slot - Blue)</option>
-            </select>
-          </div>
-        </div>
-        <div id="eval-result-box" class="p-4 rounded-xl bg-slate-950 border border-emerald-500/40 text-xs font-mono space-y-1">
-          <div class="text-emerald-400 font-bold">COMPATIBLE (Score: 0.95)</div>
-          <div class="text-slate-300">Top torso slot paired with Bottom leg slot. Seamless anatomical outfit complement.</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="section-validator" class="tab-content hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-        <h2 class="text-lg font-bold text-white">7-Step Attribute Validation Pipeline</h2>
-        <p class="text-xs text-slate-400">PRD Section 10 strictly enforces seven sequential verification gates before database persistence:</p>
-        <ol class="space-y-2 text-xs font-mono list-decimal list-inside text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800">
-          <li><strong class="text-white">Parse JSON:</strong> Strict syntax validation (no trailing commas, invalid quotes).</li>
-          <li><strong class="text-white">Schema Validation:</strong> Pydantic type checking.</li>
-          <li><strong class="text-white">Enum Validation:</strong> Enforces standard patterns, fits, silhouettes, and layering roles.</li>
-          <li><strong class="text-white">Range Validation:</strong> Warmth and versatility strictly between 0.0 and 1.0.</li>
-          <li><strong class="text-white">Taxonomy Validation:</strong> Subcategory matched against standard fashion dictionary.</li>
-          <li><strong class="text-white">Required Fields:</strong> Asserts presence of all mandatory garment attributes.</li>
-          <li><strong class="text-white">Confidence Checks:</strong> Low confidence (&lt; 0.50) automatically routes to human review.</li>
-        </ol>
-      </div>
-    </section>
-
-    <section id="section-principles" class="tab-content hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-        <h2 class="text-lg font-bold text-white">Engineering First Principles</h2>
-        <p class="text-xs text-slate-400">Why each component was designed the way it was:</p>
-        <div class="space-y-3 text-xs text-slate-300">
-          <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
-            <strong class="text-blue-400">Separate Bytes from Meaning:</strong> Binary image blobs live strictly in S3/MinIO under SHA256 hashes. PostgreSQL stores metadata, vectors, and state.
-          </div>
-          <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
-            <strong class="text-emerald-400">Lookup Tables over LLMs:</strong> Category bundling uses a static versioned map. LLMs are not used for tasks deterministic dictionaries solve in microseconds.
-          </div>
-          <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
-            <strong class="text-purple-400">Normalized Embeddings:</strong> All SigLIP vectors are L2-normalized so that cosine similarity is computed in PostgreSQL via rapid dot product indexing.
-          </div>
-        </div>
-      </div>
     </section>
 
     <!-- ============================================================= -->
     <!-- TAB: BULK INGESTION -->
     <!-- ============================================================= -->
-    <section id="section-bulk" class="tab-content hidden space-y-6">
-      <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/30 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+    <section id="section-bulk" class="tab-content hidden space-y-8">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-7 space-y-5">
         <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-blue-400">Select Many Garment Photos at Once</span>
-          <p class="text-xs text-slate-400 mt-1">Each photo is queued independently and processed in the background by the worker pool (several run concurrently) — no need to wait for one to finish before the next starts. Max 50 files per batch.</p>
+          <h2 class="text-xl font-bold text-ct-ink tracking-tight">Select Many Garment Photos at Once</h2>
+          <p class="text-sm text-slate-500 mt-1.5 max-w-2xl">Each photo is queued independently and processed in the background by the worker pool (several run concurrently) — no need to wait for one to finish before the next starts. Max 50 files per batch.</p>
         </div>
-        <div id="bulk-drop-zone" onclick="document.getElementById('bulk-file-input').click()" class="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-2xl p-6 bg-slate-950/60 transition cursor-pointer text-center group">
+        <div id="bulk-drop-zone" onclick="document.getElementById('bulk-file-input').click()" class="border-2 border-dashed border-slate-700 hover:border-ct-primary/50 rounded-2xl p-8 bg-slate-950/60 transition cursor-pointer text-center group">
           <input type="file" id="bulk-file-input" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="handleBulkFileSelect(event)">
           <div id="bulk-upload-prompt" class="space-y-2">
             <div class="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 mx-auto flex items-center justify-center text-2xl group-hover:scale-110 transition">📦</div>
-            <div class="text-sm font-semibold text-white">Click or drag multiple images here</div>
+            <div class="text-sm font-semibold text-ct-ink">Click or drag multiple images here</div>
             <div class="text-xs text-slate-400">JPEG, PNG, or WebP — up to 50 at once</div>
           </div>
           <div id="bulk-selected-info" class="hidden text-sm text-slate-300"></div>
         </div>
         <div class="flex items-center gap-3">
-          <button id="bulk-upload-btn" onclick="uploadBulkFiles()" disabled class="flex-1 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition flex items-center justify-center gap-2">
+          <button id="bulk-upload-btn" onclick="uploadBulkFiles()" disabled class="flex-1 px-5 py-3.5 rounded-2xl bg-ct-primary hover:bg-ct-primary-pressed disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition flex items-center justify-center gap-2">
             <span>🚀</span> Upload &amp; Queue All
           </button>
-          <button type="button" onclick="resetBulkUpload()" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition">Clear</button>
+          <button type="button" onclick="resetBulkUpload()" class="px-4 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition">Clear</button>
         </div>
       </div>
 
-      <div id="bulk-results-section" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <div id="bulk-results-section" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-7 space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-sm font-bold text-white">Batch Progress</h2>
+          <h2 class="text-base font-bold text-ct-ink">Batch Progress</h2>
           <span id="bulk-summary-line" class="text-xs font-mono text-slate-400">—</span>
         </div>
         <div class="overflow-x-auto">
@@ -608,13 +511,13 @@
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.tab-btn').forEach(el => {
-        el.classList.remove('bg-blue-600', 'text-white');
+        el.classList.remove('bg-ct-primary', 'text-white');
         el.classList.add('text-slate-400');
       });
       document.getElementById(`section-${tabId}`).classList.remove('hidden');
       const activeBtn = document.getElementById(`tab-${tabId}`);
       activeBtn.classList.remove('text-slate-400');
-      activeBtn.classList.add('bg-blue-600', 'text-white');
+      activeBtn.classList.add('bg-ct-primary', 'text-white');
     }
 
     function handleFileSelect(e) {
@@ -952,7 +855,7 @@
                </div>`
             : '';
           document.getElementById('stage3-attr-list').innerHTML = `
-            <div>Subcategory: <strong class="text-white">${out.subcategory || 'shirt'}</strong></div>
+            <div>Subcategory: <strong class="text-ct-ink">${out.subcategory || 'shirt'}</strong></div>
             <div>Colors: ${colorHtml}</div>
             <div>Pattern: <strong class="text-slate-300">${out.pattern}</strong> | Material: <strong class="text-slate-300">${out.material}</strong></div>
             <div>Fit: <strong class="text-slate-300">${out.fit}</strong> | Role: <strong class="text-purple-400">${out.layering_role}</strong></div>
@@ -1140,7 +1043,7 @@
               <div class="text-[7px] text-slate-600 font-mono mt-0.5">${vec.length}-dim embedding</div>`
             : `<div class="text-[7px] text-slate-700 font-mono mt-1.5">no embedding yet</div>`;
 
-          return `<a href="/garment?id=${encodeURIComponent(id)}" target="_blank" class="block bg-slate-950 rounded-xl border border-slate-800 overflow-hidden hover:border-purple-500/50 transition">
+          return `<a href="/garment?id=${encodeURIComponent(id)}" target="_blank" class="block bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden hover:border-purple-500/50 transition">
             <div class="h-28 flex items-center justify-center overflow-hidden">
               ${imgUrl ? `<img src="${imgUrl}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-slate-600 font-mono">no image yet</span>`}
             </div>
@@ -1151,7 +1054,7 @@
             </div>
           </a>`;
         } catch (e) {
-          return `<div class="bg-slate-950 rounded-xl border border-slate-800 p-2 text-[9px] text-red-400 font-mono">error loading</div>`;
+          return `<div class="bg-slate-950 rounded-2xl border border-slate-800 p-2 text-[9px] text-red-400 font-mono">error loading</div>`;
         }
       }));
 
@@ -1298,32 +1201,6 @@
 
       if (!allTerminal && attemptsLeft > 0) {
         setTimeout(() => pollBulkGarments(garmentIds, idToRowIndex, failedUploadCount, attemptsLeft - 1), 4000);
-      }
-    }
-
-    function evalPair() {
-      const top = document.getElementById('eval-top').value;
-      const sec = document.getElementById('eval-sec').value;
-      const box = document.getElementById('eval-result-box');
-
-      if (top === 'outer' && sec === 'outer') {
-        box.className = "p-4 rounded-xl bg-slate-950 border border-red-500/40 text-xs font-mono space-y-1";
-        box.innerHTML = `
-          <div class="text-red-400 font-bold">INCOMPATIBLE (Score: 0.15)</div>
-          <div class="text-slate-300">Layering collision: Multiple heavy outer layers (Puffer + Biker Jacket) create excessive bulk.</div>
-        `;
-      } else if (sec === 'bottom_clash') {
-        box.className = "p-4 rounded-xl bg-slate-950 border border-emerald-500/40 text-xs font-mono space-y-1";
-        box.innerHTML = `
-          <div class="text-emerald-400 font-bold">COMPATIBLE (Score: 0.95)</div>
-          <div class="text-slate-300">Top torso slot complements Bottom leg jeans.</div>
-        `;
-      } else {
-        box.className = "p-4 rounded-xl bg-slate-950 border border-emerald-500/40 text-xs font-mono space-y-1";
-        box.innerHTML = `
-          <div class="text-emerald-400 font-bold">COMPATIBLE (Score: 0.95)</div>
-          <div class="text-slate-300">Complementary outfit pairing verified by decision trees.</div>
-        `;
       }
     }
 

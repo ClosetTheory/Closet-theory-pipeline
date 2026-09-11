@@ -4,22 +4,47 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wardrobe Catalogue</title>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#000000', 200: '#000000', 300: '#262622',
+              400: '#33332e', 500: '#62625b', 600: '#91918c', 700: '#c8c8c1',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .skeleton { background: linear-gradient(90deg, #1e293b 25%, #334155 37%, #1e293b 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
+    :root {
+      --ct-hairline: #dadad3;
+    }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+    .skeleton { background: linear-gradient(90deg, #f6f6f3 25%, #e5e5e0 37%, #f6f6f3 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
     @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-16">
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
 
   <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/25">CT</div>
+        <div class="w-10 h-10 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
         <div>
-          <h1 class="text-base sm:text-lg font-bold text-white tracking-tight">ClosetTheory Wardrobe</h1>
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight">ClosetTheory Wardrobe</h1>
           <p class="text-xs text-slate-400">Catalogue &amp; AI Styling</p>
         </div>
       </div>
@@ -33,33 +58,33 @@
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
 
-    <!-- Styling Request -->
-    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
-      <div class="flex items-start justify-between gap-4 mb-1">
-        <h2 class="text-lg font-bold text-white">What should I wear?</h2>
-        <a href="/styling" class="text-xs text-purple-400 hover:text-purple-300 whitespace-nowrap">View full pipeline steps →</a>
+    <!-- Styling Request — the page's primary action, sized to lead -->
+    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 sm:p-8">
+      <div class="flex items-start justify-between gap-4 mb-2">
+        <h2 class="text-2xl font-bold text-ct-ink tracking-tight">What should I wear?</h2>
+        <a href="/styling" class="text-xs font-medium text-purple-400 hover:text-purple-300 whitespace-nowrap pt-1.5">View full pipeline steps →</a>
       </div>
-      <p class="text-sm text-slate-400 mb-4">Describe an occasion and get a ranked outfit shortlist built entirely from your ingested wardrobe — no invented garments.</p>
+      <p class="text-sm text-slate-500 mb-6 max-w-2xl">Describe an occasion and get a ranked outfit shortlist built entirely from your ingested wardrobe — no invented garments.</p>
       <div class="flex flex-col sm:flex-row gap-3">
         <input id="styling-input" type="text" placeholder="e.g. smart casual dinner tonight, dark colors"
-               class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+               class="flex-1 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary">
         <button id="styling-btn" onclick="runStyling()"
-                class="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition whitespace-nowrap">
+                class="px-6 py-3 rounded-2xl bg-ct-primary hover:bg-ct-primary-pressed text-white text-sm font-bold transition whitespace-nowrap">
           ✨ Style me
         </button>
       </div>
-      <div id="styling-results" class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+      <div id="styling-results" class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- Catalogue Grid -->
+    <!-- Catalogue Grid — secondary content, dense/discovery surface: tighter gutters -->
     <section>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-white">Wardrobe Catalogue</h2>
-        <span id="catalogue-count" class="text-xs text-slate-500"></span>
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-ct-ink">Wardrobe Catalogue</h2>
+        <span id="catalogue-count" class="text-xs font-medium text-slate-500"></span>
       </div>
-      <div id="catalogue-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+      <div id="catalogue-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3"></div>
       <div id="catalogue-empty" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
         No garments ingested yet. Head to the <a href="/visualizer" class="text-blue-400 hover:underline">Ingestion Pipeline</a> to add some.
       </div>
@@ -94,14 +119,14 @@
       // it hasn't been confirmed.
       const needsReview = g.status === "REVIEW_REQUIRED" || g.quality_status === "REVIEW_REQUIRED";
       return `
-        <a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="group block bg-slate-900 border ${needsReview ? "border-amber-500/60" : "border-slate-800"} rounded-xl overflow-hidden hover:border-blue-500/60 transition relative">
-          ${needsReview ? `<span class="absolute top-1.5 left-1.5 z-10 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/90 text-slate-950">⚠ NEEDS REVIEW</span>` : ""}
+        <a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="group block bg-slate-900 border ${needsReview ? "border-amber-500/60" : "border-slate-800"} rounded-2xl overflow-hidden hover:border-ct-primary/50 transition relative">
+          ${needsReview ? `<span class="absolute top-2 left-2 z-10 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/90 text-slate-950">⚠ NEEDS REVIEW</span>` : ""}
           <div class="aspect-[3/4] bg-slate-800 overflow-hidden">
             ${img ? `<img src="${img}" alt="${g.subcategory || ''}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy">` : `<div class="w-full h-full flex items-center justify-center text-slate-600 text-xs">No image</div>`}
           </div>
-          <div class="p-2.5">
+          <div class="p-3">
             <p class="text-xs font-semibold ${needsReview ? "text-amber-400" : "text-slate-200"} truncate">${(g.subcategory || g.category || "Garment").replace(/_/g, " ")}${needsReview ? " (unconfirmed)" : ""}</p>
-            <p class="text-[11px] text-slate-500 truncate">${colour || "—"}</p>
+            <p class="text-[11px] text-slate-500 truncate mt-0.5">${colour || "—"}</p>
           </div>
         </a>`;
     }
@@ -147,23 +172,23 @@
         return `<span class="text-[10px] px-2 py-0.5 rounded-full bg-${color}-500/15 text-${color}-400 border border-${color}-500/30">${label}: ${v.status}</span>`;
       };
       return `
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-white">Outfit ${outfit.rank}</span>
-            <span class="text-xs font-mono text-blue-400">${Math.round((scores.final_score || 0) * 100)}%</span>
+            <span class="text-xs font-bold text-ct-ink">Outfit ${outfit.rank}</span>
+            <span class="text-xs font-mono font-bold text-ct-primary">${Math.round((scores.final_score || 0) * 100)}%</span>
           </div>
-          ${outfit.generated_image_url ? `<img src="${outfit.generated_image_url}" class="w-full rounded-lg border border-slate-800" alt="Generated outfit">` : ""}
+          ${outfit.generated_image_url ? `<img src="${outfit.generated_image_url}" class="w-full rounded-xl border border-slate-800" alt="Generated outfit">` : ""}
           <div class="flex flex-wrap gap-1.5">
             ${outfit.garments.map(g => `<a href="/garment?id=${encodeURIComponent(g.garment_id)}" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full transition">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</a>`).join("")}
           </div>
-          <div class="space-y-1">
+          <div class="space-y-1.5">
             ${scoreBar("request match", scores.request_match)}
             ${scoreBar("compatibility", scores.compatibility)}
             ${scoreBar("occasion fit", scores.occasion_fit)}
             ${scoreBar("visual harmony", scores.visual_harmony)}
             ${outfit.visual_gate ? scoreBar("visual gate", outfit.visual_gate.score / 10) : ""}
           </div>
-          <div class="flex flex-wrap gap-1.5 pt-1">
+          <div class="flex flex-wrap gap-1.5 pt-2 border-t border-slate-800">
             ${validationBadge(outfit.semantic_validation, "semantic")}
             ${validationBadge(outfit.generation_semantic_gate, "gen. semantic")}
           </div>

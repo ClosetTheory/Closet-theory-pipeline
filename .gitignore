@@ -54,3 +54,7 @@ terraform/.terraform/
 terraform/*.tfstate*
 terraform/.secrets/
 terraform/tfplan*
+
+# Personal notes (not for the repo)
+UPDATES.md
+DESIGN-pinterest.md

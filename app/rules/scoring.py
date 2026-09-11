@@ -7,14 +7,15 @@ from app.schemas.styling import OutfitCandidate
 STYLING_SCORER_VERSION = settings.STYLING_SCORER_VERSION
 
 DEFAULT_STYLING_WEIGHTS: Dict[str, float] = {
-    "request_match": 0.20,
-    "compatibility": 0.20,
-    "user_preference": 0.15,
-    "occasion_fit": 0.15,
-    "visual_harmony": 0.10,
-    "wardrobe_behavior": 0.07,
-    "weather_fit": 0.05,
-    "attribute_affinity": 0.05,
+    "request_match": 0.17,
+    "compatibility": 0.17,
+    "user_preference": 0.13,
+    "occasion_fit": 0.13,
+    "visual_harmony": 0.08,
+    "aesthetic_score": 0.15,
+    "wardrobe_behavior": 0.06,
+    "weather_fit": 0.04,
+    "attribute_affinity": 0.04,
     "novelty": 0.03,
 }
 

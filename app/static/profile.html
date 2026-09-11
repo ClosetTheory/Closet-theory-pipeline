@@ -4,18 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Style Profile</title>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#000000', 200: '#000000', 300: '#262622',
+              400: '#33332e', 500: '#62625b', 600: '#91918c', 700: '#c8c8c1',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Inter', sans-serif; }</style>
+  <style>
+    :root {
+      --ct-hairline: #dadad3;
+    }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-16">
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
 
   <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
       <a href="/" class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/25">CT</div>
+        <div class="w-10 h-10 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
         <div>
-          <h1 class="text-base sm:text-lg font-bold text-white tracking-tight">Style Profile</h1>
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight">Style Profile</h1>
           <p class="text-xs text-slate-400">What we've learned from your likes/dislikes</p>
         </div>
       </a>
@@ -27,22 +54,22 @@
     </div>
   </header>
 
-  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
 
-    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-bold text-white">Boldness Preference</h2>
-        <span id="vote-count" class="text-xs text-slate-500"></span>
+    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-8">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-xl font-bold text-ct-ink tracking-tight">Boldness Preference</h2>
+        <span id="vote-count" class="text-xs font-medium text-slate-500"></span>
       </div>
-      <p class="text-sm text-slate-400 mb-4">Learned from every outfit you've upvoted/downvoted — pulled toward the boldness (inverse of visual harmony) of outfits you liked, pushed away from ones you didn't.</p>
+      <p class="text-sm text-slate-500 mb-6 max-w-lg">Learned from every outfit you've upvoted/downvoted — pulled toward the boldness (inverse of visual harmony) of outfits you liked, pushed away from ones you didn't.</p>
       <div class="flex items-center gap-3">
-        <span class="text-xs text-slate-500 w-24">Conventional</span>
-        <div class="flex-1 h-3 bg-slate-800 rounded-full overflow-hidden relative">
+        <span class="text-xs font-medium text-slate-500 w-24">Conventional</span>
+        <div class="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden relative">
           <div id="boldness-bar" class="h-full bg-gradient-to-r from-emerald-500 to-purple-500" style="width:0%"></div>
         </div>
-        <span class="text-xs text-slate-500 w-10 text-right">Bold</span>
+        <span class="text-xs font-medium text-slate-500 w-10 text-right">Bold</span>
       </div>
-      <p id="boldness-value" class="text-center text-sm font-mono text-purple-400 mt-2"></p>
+      <p id="boldness-value" class="text-center text-sm font-mono font-bold text-purple-400 mt-3"></p>
     </section>
 
     <section id="affinity-sections" class="space-y-6"></section>
@@ -92,8 +119,8 @@
       if (!entries.length) return "";
       return `
         <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
-          <h3 class="text-base font-bold text-white mb-4">${FIELD_LABELS[field] || field}</h3>
-          <div class="space-y-2.5">${entries.map(affinityRow).join("")}</div>
+          <h3 class="text-base font-bold text-ct-ink mb-5">${FIELD_LABELS[field] || field}</h3>
+          <div class="space-y-3">${entries.map(affinityRow).join("")}</div>
         </div>`;
     }
 
