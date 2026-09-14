@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import numpy as np
 import pytest
+from app.providers.base import EmbeddingUnavailableError
 from app.providers.embedding.mock import MockEmbeddingProvider
 from app.providers.embedding.siglip import SigLIPEmbeddingProvider
 
@@ -56,7 +57,15 @@ async def test_siglip_provider_calls_runpod_and_normalizes(sample_catalog_image_
 
 
 @pytest.mark.asyncio
-async def test_siglip_provider_falls_back_to_mock_on_http_failure(sample_catalog_image_bytes, monkeypatch):
+async def test_siglip_provider_raises_rather_than_substituting_a_fake_vector(
+    sample_catalog_image_bytes, monkeypatch
+):
+    """A failed embedding call must never return a stand-in vector.
+
+    Falling back to the hash-seeded mock used to look like success, so unusable vectors were
+    written to the DB labelled as the real model — dedup and similarity retrieval then ran
+    against random numbers with no visible error anywhere.
+    """
     from app.config import settings
 
     monkeypatch.setattr(settings, "RUNPOD_API_KEY", "test-key")
@@ -64,8 +73,37 @@ async def test_siglip_provider_falls_back_to_mock_on_http_failure(sample_catalog
 
     with patch("httpx.AsyncClient.post", new=AsyncMock(side_effect=RuntimeError("network down"))):
         provider = SigLIPEmbeddingProvider(dimension=768)
-        vec = await provider.embed(sample_catalog_image_bytes)
+        with pytest.raises(EmbeddingUnavailableError):
+            await provider.embed(sample_catalog_image_bytes)
 
-    # Falls back to the deterministic mock provider rather than raising.
-    assert len(vec) == 768
-    assert pytest.approx(np.linalg.norm(vec), 0.0001) == 1.0
+
+@pytest.mark.asyncio
+async def test_siglip_provider_raises_when_runpod_is_not_configured(
+    sample_catalog_image_bytes, monkeypatch
+):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "RUNPOD_API_KEY", None)
+    monkeypatch.setattr(settings, "RUNPOD_EMBEDDING_ENDPOINT_ID", None)
+
+    provider = SigLIPEmbeddingProvider(dimension=768)
+    with pytest.raises(EmbeddingUnavailableError):
+        await provider.embed(sample_catalog_image_bytes)
+
+
+@pytest.mark.asyncio
+async def test_mock_provider_reports_its_own_identity(sample_catalog_image_bytes):
+    """A stored embedding must always say which provider really produced it."""
+    from app.providers.embedding import get_embedding_provider
+    from app.providers.embedding.mock import MOCK_EMBEDDING_MODEL_NAME
+    from app.config import settings
+
+    assert MockEmbeddingProvider().model_name == MOCK_EMBEDDING_MODEL_NAME
+
+    original = settings.EMBEDDING_PROVIDER
+    try:
+        settings.EMBEDDING_PROVIDER = "mock"
+        assert get_embedding_provider().model_name == MOCK_EMBEDDING_MODEL_NAME
+        assert get_embedding_provider().model_name != settings.EMBEDDING_MODEL_NAME
+    finally:
+        settings.EMBEDDING_PROVIDER = original

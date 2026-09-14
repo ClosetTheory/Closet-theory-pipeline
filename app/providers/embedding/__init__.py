@@ -14,8 +14,9 @@ def get_embedding_provider() -> BaseEmbeddingProvider:
             model_version=settings.EMBEDDING_MODEL_VERSION,
             dimension=settings.EMBEDDING_DIMENSION,
         )
+    # Deliberately NOT passing EMBEDDING_MODEL_NAME: the mock keeps its own name so a stored
+    # GarmentEmbedding row always records the provider that really produced the vector.
     return MockEmbeddingProvider(
-        model_name=settings.EMBEDDING_MODEL_NAME,
         model_version=settings.EMBEDDING_MODEL_VERSION,
         dimension=settings.EMBEDDING_DIMENSION,
     )

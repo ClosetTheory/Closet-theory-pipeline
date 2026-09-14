@@ -13,6 +13,7 @@ from app.models.image_asset import ImageAsset
 from app.pipeline.idempotency import compute_stage_input_hash
 from app.pipeline.stages.base import BaseStage, StageExecutionContext, StageExecutionResult
 from app.pipeline.state_machine import PipelineStage
+from app.providers.base import EmbeddingUnavailableError
 from app.providers.embedding import get_embedding_provider
 
 
@@ -73,7 +74,22 @@ class Stage05Embed(BaseStage):
         input_hash = compute_stage_input_hash(image_bytes)
 
         provider = get_embedding_provider()
-        vector = await provider.embed(image_bytes)
+        try:
+            vector = await provider.embed(image_bytes)
+        except EmbeddingUnavailableError as e:
+            # Fail loudly and leave no row behind. The previous behavior (a stand-in vector from
+            # the mock provider) was indistinguishable from a real embedding once stored, which
+            # is how 82% of this wardrobe ended up holding hash-seeded noise.
+            return StageExecutionResult(
+                status="FAILED",
+                input_refs={"image_uri": image_uri},
+                output_refs={},
+                input_hash=input_hash,
+                model=provider.model_name,
+                model_version=provider.model_version,
+                algorithm_version="embed_v1",
+                error=str(e),
+            )
 
         # Validate dimension
         if len(vector) != settings.EMBEDDING_DIMENSION:
@@ -95,15 +111,30 @@ class Stage05Embed(BaseStage):
             normalized = (np.array(vector) / norm).tolist()
             vector = normalized
 
-        embedding_record = GarmentEmbedding(
-            garment_id=ctx.garment.id,
-            embedding=vector,
-            model=provider.model_name,
-            model_version=provider.model_version,
-            dimension=len(vector),
-            source_image_version=ctx.garment.pipeline_version,
-        )
-        ctx.session.add(embedding_record)
+        # Update in place rather than inserting: a garment has exactly one current embedding, and
+        # re-running this stage (retry, /step, backfill) previously stacked extra rows that both
+        # _find_near_duplicate and styling retrieval then read as if they were separate garments.
+        embedding_record = (
+            await ctx.session.execute(
+                select(GarmentEmbedding).where(GarmentEmbedding.garment_id == ctx.garment.id)
+            )
+        ).scalars().first()
+        if embedding_record:
+            embedding_record.embedding = vector
+            embedding_record.model = provider.model_name
+            embedding_record.model_version = provider.model_version
+            embedding_record.dimension = len(vector)
+            embedding_record.source_image_version = ctx.garment.pipeline_version
+        else:
+            embedding_record = GarmentEmbedding(
+                garment_id=ctx.garment.id,
+                embedding=vector,
+                model=provider.model_name,
+                model_version=provider.model_version,
+                dimension=len(vector),
+                source_image_version=ctx.garment.pipeline_version,
+            )
+            ctx.session.add(embedding_record)
         await ctx.session.flush()
 
         norm_val = round(float(np.linalg.norm(vector)), 4)

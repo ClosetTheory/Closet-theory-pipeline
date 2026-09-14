@@ -6,13 +6,17 @@ import httpx
 import numpy as np
 from app.config import settings
 from app.observability import logger
-from app.providers.base import BaseEmbeddingProvider
-from app.providers.embedding.mock import MockEmbeddingProvider
+from app.providers.base import BaseEmbeddingProvider, EmbeddingUnavailableError
 
 
 class SigLIPEmbeddingProvider(BaseEmbeddingProvider):
     """MODA SigLIP Distilled (HopitAI/moda-fashion-distilled) vision transformer
-    embedding model, served from a Runpod Serverless endpoint (see runpod/moda_embed.py)."""
+    embedding model, served from a Runpod Serverless endpoint (see runpod/moda_embed.py).
+
+    Never substitutes a stand-in vector on failure — see EmbeddingUnavailableError. Choosing
+    the mock provider is a deliberate configuration (EMBEDDING_PROVIDER=mock), never something
+    this provider decides on its own behalf mid-request.
+    """
 
     def __init__(
         self,
@@ -23,15 +27,14 @@ class SigLIPEmbeddingProvider(BaseEmbeddingProvider):
         self.model_name = model_name
         self.model_version = model_version
         self.dimension = dimension
-        self._fallback = MockEmbeddingProvider(
-            model_name=model_name,
-            model_version=model_version,
-            dimension=dimension,
-        )
 
     async def embed(self, image_bytes: bytes) -> List[float]:
         if not settings.RUNPOD_API_KEY or not settings.RUNPOD_EMBEDDING_ENDPOINT_ID:
-            return await self._fallback.embed(image_bytes)
+            raise EmbeddingUnavailableError(
+                "EMBEDDING_PROVIDER=siglip but RUNPOD_API_KEY / RUNPOD_EMBEDDING_ENDPOINT_ID "
+                "are not configured. Set them, or set EMBEDDING_PROVIDER=mock to deliberately "
+                "run without a real embedding model."
+            )
 
         try:
             import asyncio
@@ -86,8 +89,10 @@ class SigLIPEmbeddingProvider(BaseEmbeddingProvider):
                     arr = np.pad(arr, (0, self.dimension - arr.shape[0]))
 
             return arr.tolist()
+        except EmbeddingUnavailableError:
+            raise
         except Exception as e:
-            logger.warning(
-                f"Runpod SigLIP embedding call failed: {e}. Falling back to mock embedding."
-            )
-            return await self._fallback.embed(image_bytes)
+            logger.warning(f"Runpod SigLIP embedding call failed: {e}")
+            raise EmbeddingUnavailableError(
+                f"Runpod SigLIP embedding call failed: {type(e).__name__}: {e}"
+            ) from e

@@ -17,6 +17,17 @@ from app.schemas.styling import (
 from app.schemas.weather import WeatherSnapshot
 
 
+class EmbeddingUnavailableError(RuntimeError):
+    """The configured embedding model could not produce a vector.
+
+    Raised instead of returning a stand-in vector: an embedding is only meaningful relative to
+    every other embedding, so a synthetic one is not a degraded answer, it is a wrong answer
+    that is indistinguishable from a real one once stored. Silently substituting one is what
+    left 82% of this wardrobe's vectors as hash-seeded noise — dedup and similarity retrieval
+    both ran against random numbers for months without a single visible error.
+    """
+
+
 class BaseClassifierProvider(ABC):
     """Stage 1: Image Classifier provider interface."""
 
