@@ -4,7 +4,7 @@ import base64
 import io
 import json
 import re
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import httpx
 import numpy as np
@@ -43,7 +43,12 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         self.verifier_model_name: str = settings.DIGITISATION_VERIFIER_MODEL
         self._last_verification: Optional[dict] = None
 
-    def build_prompt(self, attributes: GarmentAttributes, garment_label: Optional[str] = None) -> Tuple[str, str]:
+    def build_prompt(
+        self,
+        attributes: GarmentAttributes,
+        garment_label: Optional[str] = None,
+        previous_rejections: Optional[List[Dict[str, Any]]] = None,
+    ) -> Tuple[str, str]:
         """
         Builds a 1:1-preservation e-commerce catalogue product-shot prompt from the real
         extracted attributes only. Never invents specifics for a field the extractor didn't
@@ -141,6 +146,31 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         if visual_desc:
             positive_prompt += f"\n\n### Detailed Visual Specifications (from the reference photo):\n{visual_desc}"
 
+        # Tell the model exactly what the verifier rejected last time. Without this a retry is a
+        # blind re-roll: the same invented detail reappears and eventually slips past a noisy
+        # verifier, which is how a plain collar came back as a ruffled high collar and passed.
+        correction_lines = []
+        for rejection in previous_rejections or []:
+            for mismatch in rejection.get("mismatches") or []:
+                correction_lines.append(f"- {mismatch}")
+            reason = (rejection.get("reason") or "").strip()
+            if reason:
+                correction_lines.append(f"- {reason}")
+        if correction_lines:
+            seen, deduped = set(), []
+            for line in correction_lines:
+                if line not in seen:
+                    seen.add(line)
+                    deduped.append(line)
+            positive_prompt += (
+                "\n\n### Corrections — a previous attempt at THIS garment was REJECTED (highest priority):\n"
+                + "\n".join(deduped)
+                + "\nDo not repeat these mistakes. Where the reference photo and your instinct for a "
+                "'typical' garment of this type disagree, follow the reference photo — it is the real "
+                "garment. Do not add decorative features (ruffles, frills, puffed sleeves, contrast "
+                "trims, extra plackets) that are not clearly visible in the reference photo."
+            )
+
         negative_prompt = (
             "different garment, wrong garment, generic garment, invented details not in the reference photo, "
             "human, person, face, skin, hands, arms, body, visible head, visible neck, visible support structure, "
@@ -157,8 +187,11 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         attributes: GarmentAttributes,
         attempt: int = 1,
         garment_label: Optional[str] = None,
+        previous_rejections: Optional[List[Dict[str, Any]]] = None,
     ) -> DigitisationResult:
-        prompt, negative_prompt = self.build_prompt(attributes, garment_label=garment_label)
+        prompt, negative_prompt = self.build_prompt(
+            attributes, garment_label=garment_label, previous_rejections=previous_rejections
+        )
         self._last_prompt = prompt
         self._last_negative_prompt = negative_prompt
 

@@ -2,7 +2,7 @@
 
 import base64
 import io
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import httpx
 import numpy as np
@@ -93,6 +93,7 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         attributes: GarmentAttributes,
         attempt: int = 1,
         garment_label: Optional[str] = None,
+        previous_rejections: Optional[List[Dict[str, Any]]] = None,
     ) -> DigitisationResult:
         prompt, negative_prompt = self.build_prompt(attributes)
         self._last_prompt = prompt

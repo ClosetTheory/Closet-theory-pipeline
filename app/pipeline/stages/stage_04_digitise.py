@@ -41,8 +41,16 @@ class Stage04Digitise(BaseStage):
         canonical_bytes = None
         verification_history = []
 
+        previous_rejections: list = []
+
         for attempt in range(1, max_retries + 1):
-            digit_res = await provider.digitise(crop_bytes, attributes, attempt=attempt, garment_label=garment_label)
+            digit_res = await provider.digitise(
+                crop_bytes,
+                attributes,
+                attempt=attempt,
+                garment_label=garment_label,
+                previous_rejections=previous_rejections,
+            )
             last_result = digit_res
 
             # Generate synthetic or actual canonical image bytes
@@ -91,6 +99,11 @@ class Stage04Digitise(BaseStage):
                 break
             else:
                 last_error = f"Attempt {attempt}/{max_retries} validation failed: {reason}"
+                # Carry the specific defect into the next attempt's prompt so the retry corrects
+                # it rather than re-rolling and hoping the verifier blinks.
+                previous_rejections.append(
+                    {"mismatches": verifier_info.get("mismatches", []), "reason": reason}
+                )
 
         if not accepted:
             # PRD Section 21: Poor digitisation routes to human review

@@ -87,8 +87,15 @@ class BaseDigitisationProvider(ABC):
         attributes: GarmentAttributes,
         attempt: int = 1,
         garment_label: Optional[str] = None,
+        previous_rejections: Optional[List[Dict[str, Any]]] = None,
     ) -> DigitisationResult:
         """Generate standardized clean canonical garment representation.
+
+        previous_rejections: what the verifier rejected on earlier attempts of THIS garment, as
+        {"mismatches": [...], "reason": "..."} entries. Without it a retry is a blind re-roll
+        rather than a correction, so with a noisy verifier the loop simply accepts the first
+        lucky pass — observed live: attempt 1 was rejected for inventing a ruffled high collar,
+        attempt 2 reproduced the same collar and was accepted at 0.9.
 
         garment_label: which garment (of possibly several visible in crop_bytes) to isolate
         and reproduce, e.g. "outerwear". None when crop_bytes already shows a single isolated
