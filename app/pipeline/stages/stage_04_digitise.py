@@ -12,6 +12,7 @@ from app.models.image_asset import ImageAsset
 from app.pipeline.idempotency import compute_stage_input_hash
 from app.pipeline.stages.base import BaseStage, StageExecutionContext, StageExecutionResult
 from app.pipeline.state_machine import PipelineStage
+from app.providers.base import VerifierUnavailableError
 from app.providers.digitisation import get_digitisation_provider
 from app.schemas.attributes import GarmentAttributes
 
@@ -55,9 +56,25 @@ class Stage04Digitise(BaseStage):
                     img.save(buf, format="JPEG", quality=95)
                     canonical_bytes = buf.getvalue()
 
-            is_valid, quality_score, reason = await provider.validate_digitisation(
-                crop_bytes, canonical_bytes, attributes, garment_label=garment_label
-            )
+            try:
+                is_valid, quality_score, reason = await provider.validate_digitisation(
+                    crop_bytes, canonical_bytes, attributes, garment_label=garment_label
+                )
+            except VerifierUnavailableError as e:
+                # Stop immediately rather than retrying: a broken verifier is not a bad image, so
+                # burning the remaining generation attempts would cost real money and still tell
+                # us nothing. Never store an unverified canonical image — an unchecked generation
+                # is how belts and hats ended up rendered (and then embedded) as dress shirts.
+                return StageExecutionResult(
+                    status="FAILED",
+                    input_refs={"crop_uri": crop_uri},
+                    output_refs={"attempts": attempt, "verification_history": verification_history},
+                    input_hash=input_hash,
+                    model=provider.model_name,
+                    model_version=provider.model_version,
+                    algorithm_version="digitise_v1",
+                    error=str(e),
+                )
             verifier_info = getattr(provider, "_last_verification", None) or {}
             verification_history.append({
                 "attempt": attempt,

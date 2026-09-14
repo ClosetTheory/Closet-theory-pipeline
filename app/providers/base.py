@@ -28,6 +28,16 @@ class EmbeddingUnavailableError(RuntimeError):
     """
 
 
+class VerifierUnavailableError(RuntimeError):
+    """A quality gate's independent verifier could not run.
+
+    Raised instead of returning a passing verdict. The digitisation verifier used to answer
+    (is_valid=True, score=0.9) whenever it failed or had no API key — above the 0.75 accept
+    threshold — so any verifier hiccup silently approved whatever the generator produced. A gate
+    that fails open is worse than no gate: it certifies the exact failures it exists to catch.
+    """
+
+
 class BaseClassifierProvider(ABC):
     """Stage 1: Image Classifier provider interface."""
 

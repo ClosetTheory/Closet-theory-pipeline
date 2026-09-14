@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 from app.config import settings
 from app.observability import logger
-from app.providers.base import BaseDigitisationProvider
+from app.providers.base import BaseDigitisationProvider, VerifierUnavailableError
 from app.rules.garment_class import bundle_garment_class, infer_garment_class_from_subcategory
 from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import DigitisationResult
@@ -338,21 +338,11 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         sleeve_str = getattr(attributes.sleeve_length, "value", str(attributes.sleeve_length)) if attributes.sleeve_length else "not_applicable"
         pattern_str = getattr(attributes.pattern, "value", str(attributes.pattern)) if attributes.pattern else "solid"
 
-        fallback = (
-            True,
-            0.9,
-            "Verifier unavailable (no API key or call failed): accepted without model-based comparison.",
-        )
-
         if not self.api_key:
-            self._last_verification = {
-                "model": self.verifier_model_name,
-                "is_valid": fallback[0],
-                "score": fallback[1],
-                "reason": fallback[2],
-                "mismatches": [],
-            }
-            return fallback
+            raise VerifierUnavailableError(
+                "Digitisation verifier has no API key, so the generated image cannot be checked "
+                "against the original. Refusing to report it as verified."
+            )
 
         focus_note = (
             f"Image 1 shows a person wearing MULTIPLE garments — judge Image 2 only against the "
@@ -422,13 +412,18 @@ Output ONLY raw JSON, no markdown:
                     "mismatches": mismatches,
                 }
                 return is_match, score, reason
+        except VerifierUnavailableError:
+            raise
         except Exception as e:
             logger.warning(f"Digitisation verifier ({self.verifier_model_name}) call failed: {e}")
             self._last_verification = {
                 "model": self.verifier_model_name,
-                "is_valid": fallback[0],
-                "score": fallback[1],
-                "reason": f"Verifier call failed ({e}); accepted without model-based comparison.",
+                "is_valid": None,
+                "score": None,
+                "reason": f"Verifier call failed: {type(e).__name__}: {e}",
                 "mismatches": [],
             }
-            return fallback
+            raise VerifierUnavailableError(
+                f"Digitisation verifier ({self.verifier_model_name}) call failed: "
+                f"{type(e).__name__}: {e}"
+            ) from e
