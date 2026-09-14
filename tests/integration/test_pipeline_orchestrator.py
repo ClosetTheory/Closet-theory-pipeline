@@ -50,10 +50,16 @@ async def test_full_pipeline_run_to_completion(
         lambda: MockDigitisationProvider(),
     )
 
+    # Own tenant, not the shared tenant_1: several other tests ingest this same fixture image,
+    # and Stage 5 now blocks a garment that near-duplicates one already in the same wardrobe.
+    # With the mock embedder (a hash of the image bytes) those byte-identical fixtures embed
+    # identically, so a shared tenant would make this test fail purely on execution order.
+    tenant = "tenant_orchestrator_mechanics"
+
     # 1. Store raw image asset
-    uri = await test_storage.put_object("raw/tenant_1/test_item.jpg", sample_catalog_image_bytes)
+    uri = await test_storage.put_object(f"raw/{tenant}/test_item.jpg", sample_catalog_image_bytes)
     raw_asset = ImageAsset(
-        tenant_id="tenant_1",
+        tenant_id=tenant,
         member_id="member_1",
         object_uri=uri,
         mime_type="image/jpeg",
@@ -67,7 +73,7 @@ async def test_full_pipeline_run_to_completion(
 
     # 2. Create Garment entity
     garment = Garment(
-        tenant_id="tenant_1",
+        tenant_id=tenant,
         member_id="member_1",
         source_image_id=raw_asset.id,
         status=GarmentState.RECEIVED.value,
@@ -120,3 +126,70 @@ async def test_full_pipeline_run_to_completion(
     )
     # Stage run count should remain 9 (no duplicates created)
     assert len(all_runs_res.scalars().all()) == 9
+
+
+@pytest.mark.asyncio
+async def test_near_duplicate_garment_is_blocked_and_names_the_original(
+    db_session,
+    test_storage,
+    sample_catalog_image_bytes,
+    monkeypatch,
+):
+    """A second photo of a garment already in the wardrobe must stop the pipeline, and must
+    record WHICH garment it duplicates — being told only "blocked" gives the member nothing to
+    act on. Siblings split out of one photo are explicitly not duplicates of each other.
+    """
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_01_classify.get_classifier_provider",
+        lambda: MockClassifierProvider(forced_type=ImageType.CATALOG, confidence=0.95),
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_03_attributes.get_attribute_provider",
+        lambda: MockAttributeExtractorProvider(),
+    )
+
+    async def _mock_verify(image_bytes, attributes, api_key=None, model=None, garment_label=None):
+        return True, 1.0, "Mocked verifier.", []
+
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_03_attributes.verify_attributes_against_image", _mock_verify
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.stage_04_digitise.get_digitisation_provider",
+        lambda: MockDigitisationProvider(),
+    )
+
+    tenant = "tenant_dup_block"
+    orchestrator = PipelineOrchestrator(session=db_session, storage=test_storage)
+
+    async def _ingest(name: str) -> Garment:
+        # Distinct ImageAsset rows, identical bytes: the mock embedder hashes the bytes, so this
+        # is the "same physical garment photographed again" case it must catch.
+        uri = await test_storage.put_object(f"raw/{tenant}/{name}.jpg", sample_catalog_image_bytes)
+        asset = ImageAsset(
+            tenant_id=tenant, member_id="member_1", object_uri=uri,
+            mime_type="image/jpeg", width=800, height=800, sha256=f"sha_{name}",
+        )
+        db_session.add(asset)
+        await db_session.commit()
+        await db_session.refresh(asset)
+        garment = Garment(
+            tenant_id=tenant, member_id="member_1",
+            source_image_id=asset.id, status=GarmentState.RECEIVED.value,
+        )
+        db_session.add(garment)
+        await db_session.commit()
+        await db_session.refresh(garment)
+        return await orchestrator.run(garment)
+
+    first = await _ingest("original")
+    assert first.status == GarmentState.COMPLETED.value
+
+    second = await _ingest("same_item_again")
+    assert second.status == GarmentState.REVIEW_REQUIRED.value
+    assert second.quality_status == "REVIEW_REQUIRED"
+
+    dup = (second.provenance or {}).get("duplicate_of")
+    assert dup is not None, "a blocked duplicate must record which garment it duplicates"
+    assert dup["garment_id"] == first.id
+    assert dup["similarity"] >= 0.97

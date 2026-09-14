@@ -32,6 +32,16 @@ from app.pipeline.state_machine import (
 )
 from app.storage.base import StorageClient
 
+# Stages whose REVIEW_REQUIRED is a definite finding about the garment and must stop the
+# pipeline, rather than a transient model wobble that should simply advance. Everything else
+# (e.g. Stage 1 falling back to the local heuristic classifier because a vision call failed) is
+# recorded for visibility but must not halt — confirmed live: a garment that re-classified
+# correctly moments later got stuck at Stage 1 forever over one low-confidence result.
+HALTING_REVIEW_STAGES = {
+    PipelineStage.STAGE_03_ATTRIBUTES,  # verification contradicts the extracted attributes
+    PipelineStage.STAGE_05_EMBED,       # near-duplicate of a garment already in the wardrobe
+}
+
 
 class PipelineOrchestrator:
     """Coordinates execution of sequential garment ingestion stages."""
@@ -196,10 +206,13 @@ class PipelineOrchestrator:
                         garment.quality_status = result.quality_status
                     self.spawned_garment_ids.extend(result.output_refs.get("spawned_garment_ids", []))
                 elif result.status == "REVIEW_REQUIRED":
-                    if stage_enum == PipelineStage.STAGE_03_ATTRIBUTES:
-                        # The only genuine halt condition: Stage 3's independent verification
-                        # actually disagrees with the extracted attributes (a real conflict, not
-                        # just uncertainty) — see app/pipeline/stages/stage_03_attributes.py.
+                    if stage_enum in HALTING_REVIEW_STAGES:
+                        # Stage 3: the independent verification actually disagrees with the
+                        # extracted attributes (a real conflict, not just uncertainty) — see
+                        # app/pipeline/stages/stage_03_attributes.py.
+                        # Stage 5: the garment is a near-duplicate of one already in the wardrobe.
+                        # Both are definite findings about the garment rather than a transient
+                        # model wobble, so they stop the pipeline instead of advancing.
                         garment.status = GarmentState.REVIEW_REQUIRED.value
                         garment.quality_status = "REVIEW_REQUIRED"
                         break

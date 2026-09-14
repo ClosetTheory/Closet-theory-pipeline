@@ -117,6 +117,32 @@
               </details>`;
     }
 
+    // A garment blocked as a near-duplicate names the item it duplicates, with a thumbnail and a
+    // link — being told only "blocked" leaves no way to act on it.
+    function duplicateBanner(g) {
+      const dup = (g.provenance || {}).duplicate_of;
+      if (!dup) return "";
+      const pct = dup.similarity != null ? `${(dup.similarity * 100).toFixed(1)}%` : "";
+      const thumb = dup.canonical_image_id
+        ? `<img src="/api/v1/wardrobe/images/${dup.canonical_image_id}/bytes?thumb=160" class="w-16 h-20 object-cover rounded-lg border border-slate-700" alt="duplicate">`
+        : "";
+      return `
+        <div class="bg-amber-500/10 border border-amber-500/40 rounded-2xl p-4 mb-6">
+          <div class="flex items-start gap-3">
+            ${thumb}
+            <div class="flex-1">
+              <div class="text-sm font-bold text-amber-600 mb-1">⚠ Blocked — duplicate of an existing garment</div>
+              <p class="text-xs text-slate-500 mb-2">
+                This looks like the same physical item as
+                <span class="font-semibold text-ct-ink capitalize">${(dup.subcategory || "another garment").replace(/_/g, " ")}</span>
+                already in your wardrobe${pct ? ` (${pct} visually identical)` : ""}. It was held for review instead of being added twice.
+              </p>
+              <a href="/garment?id=${encodeURIComponent(dup.garment_id)}" class="text-xs font-semibold text-ct-ink-soft hover:underline">View the garment it duplicates →</a>
+            </div>
+          </div>
+        </div>`;
+    }
+
     function coordinatedSection(coordinated) {
       if (!coordinated || !coordinated.length) return "";
       const items = coordinated.map(c => `
@@ -157,6 +183,8 @@
           <div>
             <h2 class="text-3xl font-bold text-ct-ink tracking-tight capitalize mb-1.5">${(attrs.subcategory || g.category || "Garment").replace(/_/g, " ")}</h2>
             <p class="text-sm text-slate-500 mb-6">${g.quality_status} · ${g.category || "—"}</p>
+
+            ${duplicateBanner(g)}
 
             <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 mb-6">
               ${attrRow("Colour", attrs.colour)}
