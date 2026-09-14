@@ -32,12 +32,16 @@ from typing import Any, Dict, List
 import httpx
 
 
-def _select(results: List[Dict[str, Any]], max_score: float, limit: int | None) -> List[Dict[str, Any]]:
+def _select(results: List[Dict[str, Any]], max_score: float, limit: int | None, gate: float = 0.75) -> List[Dict[str, Any]]:
+    # Two independent conditions, deliberately ANDed: the garment must have failed the audit at
+    # all, AND fall inside the severity tier being repaired. Written as an OR, --max-score was
+    # silently ignored and every failure got selected, which would have doubled a paid batch.
     failures = [
         r
         for r in results
         if r.get("error") is None
-        and (not r.get("is_valid") or (r.get("score") or 0) <= max_score)
+        and (not r.get("is_valid") or (r.get("score") or 0) < gate)
+        and (r.get("score") or 0) <= max_score
     ]
     failures.sort(key=lambda r: r.get("score") or 0)
     if not limit or limit >= len(failures):
