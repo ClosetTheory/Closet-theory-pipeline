@@ -137,6 +137,31 @@ async def _reembed_one(
             return garment_id, False, f"{type(e).__name__}: {e}"
 
 
+async def _run(targets: List[str], concurrency: int) -> None:
+    provider = SigLIPEmbeddingProvider()
+    storage = get_storage_client()
+    sem = asyncio.Semaphore(concurrency)
+
+    print(f"\nRe-embedding {len(targets)} garment(s) at concurrency {concurrency}...")
+    done = 0
+    failed: List[Tuple[str, str]] = []
+    for coro in asyncio.as_completed([_reembed_one(gid, provider, storage, sem) for gid in targets]):
+        garment_id, ok, detail = await coro
+        done += 1
+        if not ok:
+            failed.append((garment_id, detail))
+        if done % 25 == 0 or done == len(targets):
+            print(f"  {done}/{len(targets)} processed, {len(failed)} failed")
+
+    print(f"\nDone. {len(targets) - len(failed)}/{len(targets)} re-embedded, {len(failed)} failed.")
+    if failed:
+        print("Failures (re-run to retry — already-real rows are skipped):")
+        for garment_id, detail in failed[:20]:
+            print(f"  {garment_id}: {detail}")
+        if len(failed) > 20:
+            print(f"  ... and {len(failed) - 20} more")
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="classify and report, write nothing")
@@ -148,7 +173,30 @@ async def main() -> None:
         help="best-match cosine below which a vector is treated as noise (default 0.25)",
     )
     parser.add_argument("--limit", type=int, default=None, help="only process the first N")
+    parser.add_argument(
+        "--ids",
+        nargs="*",
+        default=None,
+        help="re-embed these garment ids (or id prefixes) regardless of classification. Needed "
+        "after a canonical image is regenerated: the stored vector is a real embedding, just of "
+        "the previous (wrong) render, so the mock detector will not flag it.",
+    )
     args = parser.parse_args()
+
+    if args.ids:
+        async with AsyncSessionLocal() as session:
+            all_ids = [
+                r[0] for r in (await session.execute(select(Garment.id))).all()
+            ]
+        targets = [gid for gid in all_ids if any(gid.startswith(p) for p in args.ids)]
+        print(f"Re-embedding {len(targets)} garment(s) matched by --ids")
+        if args.dry_run:
+            print("[dry run] nothing written.")
+            return
+        if not targets:
+            return
+        await _run(targets, args.concurrency)
+        return
 
     print("Classifying stored embeddings...")
     mock_ids, real_count, missing = await _classify(args.threshold)
@@ -166,29 +214,7 @@ async def main() -> None:
         print(f"\n[dry run] would re-embed {len(targets)} garment(s). Nothing written.")
         return
 
-    provider = SigLIPEmbeddingProvider()
-    storage = get_storage_client()
-    sem = asyncio.Semaphore(args.concurrency)
-
-    print(f"\nRe-embedding {len(targets)} garment(s) at concurrency {args.concurrency}...")
-    done = 0
-    failed: List[Tuple[str, str]] = []
-    tasks = [_reembed_one(gid, provider, storage, sem) for gid in targets]
-    for coro in asyncio.as_completed(tasks):
-        garment_id, ok, detail = await coro
-        done += 1
-        if not ok:
-            failed.append((garment_id, detail))
-        if done % 25 == 0 or done == len(targets):
-            print(f"  {done}/{len(targets)} processed, {len(failed)} failed")
-
-    print(f"\nDone. {len(targets) - len(failed)}/{len(targets)} re-embedded, {len(failed)} failed.")
-    if failed:
-        print("Failures (re-run to retry — real rows are skipped):")
-        for garment_id, detail in failed[:20]:
-            print(f"  {garment_id}: {detail}")
-        if len(failed) > 20:
-            print(f"  ... and {len(failed) - 20} more")
+    await _run(targets, args.concurrency)
 
 
 if __name__ == "__main__":
