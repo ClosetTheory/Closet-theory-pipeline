@@ -17,6 +17,24 @@ from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import DigitisationResult
 
 
+_PLACEHOLDER_TEXT = {"none", "null", "n/a", "na", "not_applicable", "not applicable", "unknown", ""}
+
+
+def _meaningful(value: Optional[str]) -> Optional[str]:
+    """Return the text only if it actually says something.
+
+    An extractor answering the *string* "null" instead of JSON null yields a truthy value that
+    reads as real content. Observed live: 31 garments carried brand_label = "null", so the
+    prompt asked for an inner label reading "null" and the image model drew exactly that into
+    the garment's neck. GarmentAttributes now strips these at ingestion; this keeps already
+    stored rows from leaking the same text into a prompt without re-extracting them.
+    """
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    return None if cleaned.lower() in _PLACEHOLDER_TEXT else cleaned
+
+
 class GPTStudioDigitisationProvider(BaseDigitisationProvider):
     """
     GPT-guided Canonical Studio Digitisation.
@@ -94,16 +112,16 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
             identity_lines.append(f"- Pattern Structure: {pattern_str} pattern, matching the reference photo exactly")
 
         if has_collar_buttons_pockets:
-            pocket_detail = getattr(attributes, "pocket_detail", None)
-            if pocket_detail and pocket_detail.lower() != "none":
+            pocket_detail = _meaningful(getattr(attributes, "pocket_detail", None))
+            if pocket_detail:
                 identity_lines.append(f"- Pocket(s): {pocket_detail}")
-            button_detail = getattr(attributes, "button_detail", None)
-            if button_detail and button_detail.lower() != "none":
+            button_detail = _meaningful(getattr(attributes, "button_detail", None))
+            if button_detail:
                 identity_lines.append(f"- Buttons & Placket: {button_detail}")
-            collar_detail = getattr(attributes, "collar_detail", None)
-            if collar_detail and collar_detail.lower() != "none":
+            collar_detail = _meaningful(getattr(attributes, "collar_detail", None))
+            if collar_detail:
                 identity_lines.append(f"- Collar & Neckline: {collar_detail}")
-            brand_label = getattr(attributes, "brand_label", None)
+            brand_label = _meaningful(getattr(attributes, "brand_label", None))
             if brand_label:
                 identity_lines.append(f"- Inside the neck opening, an inner label reads '{brand_label}'")
             if has_sleeves:

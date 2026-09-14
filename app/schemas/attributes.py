@@ -387,6 +387,13 @@ class WashStateVisibleEnum(str, Enum):
 # already Optional and the prompt asks for null in that case.
 _OPTIONAL_ENUM_NONE_TOKENS = {"not_applicable", "n/a", "na", "null", "none_", "", "unknown"}
 
+# Free-text equivalents. Kept separate from the enum set on purpose: that one deliberately uses
+# "none_" rather than "none" because "none" is a legitimate value for some enums (embellishment
+# = none really means "has no embellishment"). In free text it just means the field is empty.
+_OPTIONAL_TEXT_NONE_TOKENS = {
+    "", "none", "null", "n/a", "na", "not applicable", "not_applicable", "unknown", "nil", "-",
+}
+
 # Field name -> its Enum class, used to soft-fail an invalid value to None instead of
 # raising — a model asked ~28 extra questions per garment will occasionally put a value from
 # a NEIGHBORING field into the wrong one (e.g. "off_shoulder" — a valid neckline — answered
@@ -566,6 +573,28 @@ class GarmentAttributes(BaseModel):
     mood_intensity: Optional[MoodIntensityEnum] = Field(default=None)
     vibe_words: Optional[List[str]] = Field(default=None, description="Short free-form styling/vibe descriptor words")
     wash_state_visible: Optional[WashStateVisibleEnum] = Field(default=None)
+
+    @field_validator(
+        "visual_description", "pattern_detail", "pocket_detail", "button_detail",
+        "collar_detail", "brand_label", "colour_secondary_name",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_text(cls, v):
+        """Treat a literal "null"/"none"/"n/a" string as an absent value.
+
+        These fields are free text, so an extractor that answers the string "null" rather than
+        JSON null produces a *truthy* value that reads as real content downstream. Observed
+        live: 31 garments stored brand_label = "null", and the digitisation prompt duly
+        instructed the image model that "an inner label reads 'null'" — which it then drew into
+        the garment's neck. The enum fields already guard against these tokens
+        (_OPTIONAL_ENUM_NONE_TOKENS); the free-text fields never did.
+        """
+        if not isinstance(v, str):
+            return v
+        if v.strip().lower() in _OPTIONAL_TEXT_NONE_TOKENS:
+            return None
+        return v.strip() or None
 
     @field_validator(
         "colour_temperature", "colour_saturation", "pattern_motif", "pattern_density", "embellishment",
