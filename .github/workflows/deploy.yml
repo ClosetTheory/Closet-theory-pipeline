@@ -106,7 +106,13 @@ jobs:
             echo "$NGINX_CONF_B64" | base64 -d > nginx.conf
             echo "$GHCR_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             export IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}
-            docker compose pull
+            # Only the app image changes per deploy; postgres/minio/redis/nginx/certbot are
+            # pinned and already on the droplet. Pulling all of them every time meant several
+            # anonymous Docker Hub pulls per deploy, which exhausted Docker Hub's 100-per-6h
+            # per-IP limit on a busy day and failed the deploy with a misleading
+            # "pull access denied for minio/minio" (a public image). `up -d` below still pulls
+            # anything genuinely missing, so a fresh droplet provisions fine.
+            docker compose pull api worker
             docker compose up -d --remove-orphans
             # docker compose won't recreate nginx just because the bind-mounted config file's
             # content changed on disk (the service definition itself is unchanged) -- reload it
