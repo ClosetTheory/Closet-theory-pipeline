@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Info</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#18181b', 200: '#2b2b27', 300: '#3f3f3a',
+              400: '#63635b', 500: '#84847a', 600: '#a3a39a', 700: '#c7c7be',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --ct-hairline: #dadad3; }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+
+    /* ---- rendered markdown ---- */
+    #doc { color: #2b2b27; font-size: 15px; line-height: 1.7; }
+    #doc > h1:first-child { display: none; }           /* page header already says it */
+    #doc h1 {
+      font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; color: #000;
+      margin: 3.5rem 0 1rem; padding-top: 2rem; border-top: 2px solid #18181b;
+    }
+    #doc h2 {
+      font-size: 1.35rem; font-weight: 700; letter-spacing: -0.015em; color: #000;
+      margin: 2.75rem 0 0.9rem; scroll-margin-top: 90px;
+    }
+    #doc h3 { font-size: 1.05rem; font-weight: 600; color: #18181b; margin: 2rem 0 0.6rem; }
+    #doc p { margin: 0 0 1rem; max-width: 72ch; }
+    #doc ul, #doc ol { margin: 0 0 1.25rem; padding-left: 1.4rem; max-width: 72ch; }
+    #doc li { margin-bottom: 0.45rem; }
+    #doc li > ul, #doc li > ol { margin-top: 0.45rem; margin-bottom: 0.3rem; }
+    #doc strong { font-weight: 650; color: #000; }
+    #doc em { font-style: italic; color: #3f3f3a; }
+    #doc a { color: #e60023; text-decoration: underline; text-underline-offset: 2px; }
+    #doc hr { border: 0; border-top: 1px solid var(--ct-hairline); margin: 2.5rem 0; }
+
+    #doc blockquote {
+      border-left: 3px solid #e60023; background: #f6f6f3;
+      padding: 0.85rem 1.1rem; margin: 0 0 1.25rem; border-radius: 0 8px 8px 0;
+    }
+    #doc blockquote p:last-child { margin-bottom: 0; }
+
+    #doc code {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.855em; background: #f6f6f3; border: 1px solid #e5e5e0;
+      border-radius: 4px; padding: 0.1em 0.36em; color: #18181b; white-space: nowrap;
+    }
+    #doc pre {
+      background: #18181b; color: #f6f6f3; border-radius: 12px;
+      padding: 1.1rem 1.25rem; overflow-x: auto; margin: 0 0 1.5rem;
+      font-size: 13px; line-height: 1.6;
+    }
+    #doc pre code {
+      background: none; border: 0; padding: 0; color: inherit;
+      white-space: pre; font-size: inherit;
+    }
+
+    /* tables scroll rather than squash */
+    .table-wrap { overflow-x: auto; margin: 0 0 1.5rem; border: 1px solid var(--ct-hairline); border-radius: 12px; }
+    #doc table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 520px; }
+    #doc thead th {
+      background: #f6f6f3; text-align: left; font-weight: 650; color: #000;
+      padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--ct-hairline); white-space: nowrap;
+    }
+    #doc tbody td { padding: 0.7rem 0.9rem; border-bottom: 1px solid #ececE6; vertical-align: top; }
+    #doc tbody tr:last-child td { border-bottom: 0; }
+    #doc tbody tr:nth-child(even) { background: #fcfcfa; }
+    #doc td code { white-space: normal; }
+
+    /* ---- mermaid ---- */
+    .diagram {
+      border: 1px solid var(--ct-hairline); border-radius: 16px; background: #fff;
+      margin: 0 0 1.75rem; overflow: hidden;
+    }
+    .diagram-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      padding: 0.5rem 0.65rem 0.5rem 1rem; border-bottom: 1px solid #ececE6; background: #fbfbf9;
+    }
+    .diagram-label {
+      font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #84847a;
+    }
+    .diagram-actions { display: flex; gap: 0.3rem; }
+    .dbtn {
+      font-size: 11px; font-weight: 600; color: #3f3f3a; background: #fff;
+      border: 1px solid var(--ct-hairline); border-radius: 7px; padding: 0.25rem 0.55rem;
+      cursor: pointer; transition: all .15s; line-height: 1.4;
+    }
+    .dbtn:hover { background: #18181b; color: #fff; border-color: #18181b; }
+    .diagram-stage {
+      position: relative; height: 460px; background: #fff;
+      cursor: grab; touch-action: none; overflow: hidden;
+    }
+    .diagram-stage:active { cursor: grabbing; }
+    .diagram-stage .mermaid, .diagram-stage svg { width: 100%; height: 100%; display: block; }
+    .diagram-stage svg { max-width: none !important; }
+    .diagram-hint {
+      position: absolute; right: 10px; bottom: 8px; z-index: 2; pointer-events: none;
+      font-size: 10.5px; color: #a3a39a; background: rgba(255,255,255,.9);
+      border: 1px solid #ececE6; border-radius: 6px; padding: 2px 7px;
+    }
+
+    .mermaid-error {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #b91c1c;
+      background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;
+      white-space: pre-wrap; margin: 1rem;
+    }
+
+    /* full-screen diagram */
+    #lightbox {
+      position: fixed; inset: 0; z-index: 100; background: rgba(24,24,27,.93);
+      display: none; flex-direction: column;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox-bar {
+      display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem;
+      padding: 0.75rem 1rem; flex: none;
+    }
+    #lightbox-bar .dbtn { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.25); }
+    #lightbox-bar .dbtn:hover { background: #fff; color: #18181b; }
+    #lightbox-body {
+      flex: 1; margin: 0 1.25rem 1.25rem; background: #fff; border-radius: 14px;
+      overflow: hidden; cursor: grab; touch-action: none;
+    }
+    #lightbox-body:active { cursor: grabbing; }
+    #lightbox-body svg { width: 100%; height: 100%; max-width: none !important; display: block; }
+
+    /* sidebar */
+    #toc a {
+      display: block; padding: 0.3rem 0.65rem; border-radius: 7px; font-size: 12.5px;
+      color: #63635b; border-left: 2px solid transparent; transition: all .12s;
+    }
+    #toc a:hover { color: #18181b; background: #f6f6f3; }
+    #toc a.lvl1 { font-weight: 700; color: #18181b; margin-top: 0.8rem; font-size: 13px; }
+    #toc a.lvl1:first-child { margin-top: 0; }
+    #toc a.active { color: #e60023; border-left-color: #e60023; background: #fff5f5; font-weight: 600; }
+
+    @media print {
+      header, #toc-col, .diagram-actions { display: none !important; }
+      .diagram-stage { height: auto; }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight">ClosetTheory Wardrobe</h1>
+          <p class="text-xs text-slate-400">Catalogue &amp; AI Styling</p>
+        </div>
+      </div>
+      <nav class="flex flex-wrap items-center gap-2 text-xs font-medium">
+        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
+        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
+        <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg bg-ct-primary text-white transition">Pipeline Info</a>
+        <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
+        <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+    <div class="mb-10 pb-8 border-b border-slate-800">
+      <p class="text-[11px] font-semibold tracking-[0.14em] uppercase text-slate-500 mb-2">Engineering reference</p>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-ct-ink tracking-tight mb-3">The Two Pipelines, Stage by Stage</h2>
+      <p class="text-sm text-slate-500 max-w-3xl">
+        Ingestion (9 stages) and styling (10 stages): what each stage does, what it judges and
+        against which threshold, how many attempts it gets and what changes between them, and
+        which verdicts halt the run versus advance it. Read from the code, so every number here
+        is the live value.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-10">
+
+      <aside id="toc-col" class="hidden lg:block">
+        <div class="sticky top-24">
+          <p class="text-[10px] font-semibold tracking-[0.12em] uppercase text-slate-500 mb-3 px-2">On this page</p>
+          <nav id="toc" class="space-y-0.5 max-h-[70vh] overflow-y-auto pr-1"></nav>
+        </div>
+      </aside>
+
+      <article id="doc" class="min-w-0">
+        <div class="animate-pulse space-y-4 py-8">
+          <div class="h-6 bg-slate-900 rounded w-1/3"></div>
+          <div class="h-4 bg-slate-900 rounded w-full"></div>
+          <div class="h-4 bg-slate-900 rounded w-5/6"></div>
+          <div class="h-56 bg-slate-900 rounded-2xl"></div>
+        </div>
+      </article>
+
+    </div>
+  </main>
+
+  <div id="lightbox" role="dialog" aria-modal="true" aria-label="Expanded diagram">
+    <div id="lightbox-bar">
+      <button class="dbtn" onclick="lbZoom(-0.25)" aria-label="Zoom out">− Zoom</button>
+      <button class="dbtn" onclick="lbZoom(0.25)" aria-label="Zoom in">+ Zoom</button>
+      <button class="dbtn" onclick="lbZoom(0)" aria-label="Reset zoom">Reset</button>
+      <button class="dbtn" onclick="closeLightbox()" aria-label="Close">Close ✕</button>
+    </div>
+    <div id="lightbox-body"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/svg-pan-zoom/3.6.1/svg-pan-zoom.min.js"></script>
+  <script>
+    function ctLogout() {
+      try { localStorage.removeItem('ct_token'); } catch (e) {}
+      window.location.href = '/login';
+    }
+
+    // Diagram labels, in document order — the markdown has no captions of its own.
+    const DIAGRAM_LABELS = [
+      'Ingestion pipeline — the shape of it',
+      'Garment state machine',
+      'Stage 3 — cross-vendor attribute retry',
+      'Stage 4 — digitisation correction loop',
+      'Styling pipeline — the shape of it',
+      'The candidate funnel',
+      'Stage 6 — compatibility cascade',
+      'Stages 9 & 10 — generate and gate',
+    ];
+
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'loose',      // needed for the <b>/<br> labels in the diagrams
+      theme: 'base',
+      fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#f6f6f3',
+        primaryTextColor: '#18181b',
+        primaryBorderColor: '#c7c7be',
+        secondaryColor: '#fbfbf9',
+        tertiaryColor: '#ffffff',
+        lineColor: '#84847a',
+        textColor: '#2b2b27',
+        mainBkg: '#f6f6f3',
+        nodeBorder: '#c7c7be',
+        clusterBkg: '#fbfbf9',
+        clusterBorder: '#dadad3',
+        edgeLabelBackground: '#ffffff',
+        fontSize: '14px',
+      },
+      flowchart: { htmlLabels: true, useMaxWidth: false, curve: 'basis', nodeSpacing: 45, rankSpacing: 55, padding: 12 },
+      state: { useMaxWidth: false },
+      sequence: { useMaxWidth: false },
+    });
+
+    let diagramIndex = 0;
+
+    function diagramShell(label) {
+      const idx = diagramIndex++;
+      return { idx, label: label || DIAGRAM_LABELS[idx] || ('Diagram ' + (idx + 1)) };
+    }
+
+    async function render() {
+      const docEl = document.getElementById('doc');
+      let md;
+      try {
+        const res = await fetch('/pipeline-info/source', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        md = await res.text();
+      } catch (e) {
+        docEl.innerHTML =
+          '<div class="mermaid-error">Could not load the pipeline document (' + e.message + ').' +
+          '\nIt is served from docs/PIPELINES.md inside the API container.</div>';
+        return;
+      }
+
+      // Pull the mermaid blocks out before marked touches them, so nothing inside
+      // a diagram gets escaped or re-formatted as markdown.
+      const blocks = [];
+      md = md.replace(/```mermaid\n([\s\S]*?)```/g, (_m, code) => {
+        blocks.push(code.trim());
+        return '\n@@MERMAID_' + (blocks.length - 1) + '@@\n';
+      });
+
+      marked.setOptions({ gfm: true, breaks: false, headerIds: false, mangle: false });
+      docEl.innerHTML = marked.parse(md);
+
+      // Put the diagram shells back in place of the placeholders.
+      docEl.querySelectorAll('p').forEach((p) => {
+        const match = /^@@MERMAID_(\d+)@@$/.exec(p.textContent.trim());
+        if (!match) return;
+        const i = Number(match[1]);
+        const meta = diagramShell();
+        const wrap = document.createElement('div');
+        wrap.className = 'diagram';
+        wrap.innerHTML =
+          '<div class="diagram-bar">' +
+            '<span class="diagram-label">' + meta.label + '</span>' +
+            '<span class="diagram-actions">' +
+              '<button class="dbtn" data-zoom="-1" title="Zoom out">−</button>' +
+              '<button class="dbtn" data-zoom="1" title="Zoom in">+</button>' +
+              '<button class="dbtn" data-fit="1" title="Fit to view">Fit</button>' +
+              '<button class="dbtn" data-expand="1">Expand ⤢</button>' +
+            '</span>' +
+          '</div>' +
+          '<div class="diagram-stage"><div class="mermaid"></div>' +
+            '<span class="diagram-hint">drag to pan · scroll to zoom</span></div>';
+        wrap.querySelector('.mermaid').textContent = blocks[i];
+        p.replaceWith(wrap);
+      });
+
+      // Tables get their own scroll container so a wide one never squashes the page.
+      docEl.querySelectorAll('table').forEach((t) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'table-wrap';
+        t.replaceWith(wrap);
+        wrap.appendChild(t);
+      });
+
+      // Anchors for the sidebar.
+      docEl.querySelectorAll('h1, h2').forEach((h, i) => {
+        h.id = h.id || 'sec-' + i;
+      });
+
+      await runMermaid();
+      buildToc();
+      wireDiagramControls();
+      if (location.hash) {
+        const target = document.querySelector(location.hash);
+        if (target) target.scrollIntoView();
+      }
+    }
+
+    async function runMermaid() {
+      const nodes = Array.from(document.querySelectorAll('.mermaid'));
+      for (const node of nodes) {
+        const source = node.textContent;
+        try {
+          const { svg } = await mermaid.render('mmd-' + Math.random().toString(36).slice(2), source);
+          node.innerHTML = svg;
+          node.removeAttribute('data-processed');
+        } catch (e) {
+          const err = document.createElement('div');
+          err.className = 'mermaid-error';
+          err.textContent = 'Diagram failed to render:\n' + (e && e.message ? e.message : e);
+          node.replaceWith(err);
+        }
+      }
+    }
+
+    // Every diagram becomes a real pan/zoom surface: drag to move, wheel to zoom,
+    // pinch on touch. svg-pan-zoom needs the SVG sized to its container rather than to its
+    // own intrinsic width, which is why mermaid runs with useMaxWidth:false and the CSS
+    // stretches the svg to 100%/100% of .diagram-stage.
+    const panZoomInstances = new WeakMap();
+
+    function makePanZoom(svg, opts) {
+      return svgPanZoom(svg, Object.assign({
+        zoomEnabled: true,
+        panEnabled: true,
+        controlIconsEnabled: false,
+        dblClickZoomEnabled: true,
+        mouseWheelZoomEnabled: true,
+        preventMouseEventsDefault: true,
+        fit: true,
+        center: true,
+        contain: false,
+        minZoom: 0.3,
+        maxZoom: 12,
+        zoomScaleSensitivity: 0.3,
+      }, opts || {}));
+    }
+
+    function prepareSvg(svg) {
+      // Mermaid emits a viewBox but often no usable width/height for a flexible container.
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '100%');
+      svg.style.maxWidth = 'none';
+      if (!svg.getAttribute('viewBox')) {
+        try {
+          const b = svg.getBBox();
+          svg.setAttribute('viewBox', [b.x, b.y, b.width, b.height].join(' '));
+        } catch (e) { /* not laid out yet — svg-pan-zoom still copes via its own sizing */ }
+      }
+      return svg;
+    }
+
+    function wireDiagramControls() {
+      document.querySelectorAll('.diagram').forEach((d) => {
+        const svg = d.querySelector('.diagram-stage svg');
+        if (!svg) return;
+
+        let pz;
+        try {
+          pz = makePanZoom(prepareSvg(svg));
+        } catch (e) {
+          return; // leave the static diagram in place rather than breaking the page
+        }
+        panZoomInstances.set(d, pz);
+
+        d.querySelectorAll('[data-zoom]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            Number(btn.getAttribute('data-zoom')) > 0 ? pz.zoomIn() : pz.zoomOut();
+          });
+        });
+        const fit = d.querySelector('[data-fit]');
+        if (fit) fit.addEventListener('click', () => { pz.resize(); pz.fit(); pz.center(); });
+
+        const expand = d.querySelector('[data-expand]');
+        if (expand) expand.addEventListener('click', () => openLightbox(svg.outerHTML));
+
+        // Keep the diagram framed when the column width changes.
+        if (window.ResizeObserver) {
+          let raf;
+          new ResizeObserver(() => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => { pz.resize(); pz.fit(); pz.center(); });
+          }).observe(d.querySelector('.diagram-stage'));
+        }
+      });
+    }
+
+    let lbPanZoom = null;
+
+    function openLightbox(svgHtml) {
+      const body = document.getElementById('lightbox-body');
+      body.innerHTML = svgHtml;
+      document.getElementById('lightbox').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      const svg = body.querySelector('svg');
+      if (!svg) return;
+      // Instantiate after the overlay is visible, so fit/center measure a real box.
+      requestAnimationFrame(() => {
+        try { lbPanZoom = makePanZoom(prepareSvg(svg)); } catch (e) { lbPanZoom = null; }
+      });
+    }
+
+    function closeLightbox() {
+      if (lbPanZoom) { try { lbPanZoom.destroy(); } catch (e) {} lbPanZoom = null; }
+      document.getElementById('lightbox').classList.remove('open');
+      document.getElementById('lightbox-body').innerHTML = '';
+      document.body.style.overflow = '';
+    }
+
+    function lbZoom(delta) {
+      if (!lbPanZoom) return;
+      if (delta === 0) { lbPanZoom.resize(); lbPanZoom.fit(); lbPanZoom.center(); return; }
+      delta > 0 ? lbPanZoom.zoomIn() : lbPanZoom.zoomOut();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+    document.getElementById('lightbox').addEventListener('click', (e) => {
+      if (e.target.id === 'lightbox') closeLightbox();
+    });
+
+    function buildToc() {
+      const toc = document.getElementById('toc');
+      const heads = Array.from(document.querySelectorAll('#doc h1, #doc h2'));
+      heads.forEach((h) => {
+        if (h.offsetParent === null && h.tagName === 'H1' && h === heads[0]) return;
+        const a = document.createElement('a');
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        a.className = h.tagName === 'H1' ? 'lvl1' : '';
+        toc.appendChild(a);
+      });
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          toc.querySelectorAll('a').forEach((a) => a.classList.remove('active'));
+          const active = toc.querySelector('a[href="#' + entry.target.id + '"]');
+          if (active) active.classList.add('active');
+        });
+      }, { rootMargin: '-90px 0px -70% 0px' });
+      heads.forEach((h) => observer.observe(h));
+    }
+
+    render();
+  </script>
+</body>
+</html>

@@ -23,20 +23,20 @@ There are two pipelines and they never run together:
 flowchart TD
     U([Photo uploaded]) --> S1
 
-    S1["**Stage 1 — Classify**<br/>CATALOG / CROP / FULL_BODY"]
-    S2["**Stage 2 — Detect &amp; Label**<br/>faces, garment regions, spawn siblings"]
-    S3["**Stage 3 — Attributes**<br/>structured schema extraction"]
-    S4["**Stage 4 — Digitise**<br/>clean canonical image"]
-    S5["**Stage 5 — Embed**<br/>768-d vector + duplicate check"]
-    S6["**Stage 6 — Category**<br/>deterministic taxonomy lookup"]
-    S7["**Stage 7 — Layering**<br/>role &amp; warmth features"]
-    S8["**Stage 8 — Structure**<br/>slot, fit, silhouette features"]
-    S9["**Stage 9 — Visual**<br/>colour/pattern features, finalise"]
+    S1["<b>Stage 1 — Classify</b><br/>CATALOG / CROP / FULL_BODY"]
+    S2["<b>Stage 2 — Detect &amp; Label</b><br/>faces, garment regions, spawn siblings"]
+    S3["<b>Stage 3 — Attributes</b><br/>structured schema extraction"]
+    S4["<b>Stage 4 — Digitise</b><br/>clean canonical image"]
+    S5["<b>Stage 5 — Embed</b><br/>768-d vector + duplicate check"]
+    S6["<b>Stage 6 — Category</b><br/>deterministic taxonomy lookup"]
+    S7["<b>Stage 7 — Layering</b><br/>role &amp; warmth features"]
+    S8["<b>Stage 8 — Structure</b><br/>slot, fit, silhouette features"]
+    S9["<b>Stage 9 — Visual</b><br/>colour/pattern features, finalise"]
 
     S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
     S9 --> DONE([COMPLETED])
 
-    S3 -. verification disagrees .-> HALT([REVIEW_REQUIRED<br/>pipeline stops])
+    S3 -. verification disagrees .-> HALT(["REVIEW_REQUIRED<br/>pipeline stops"])
     S5 -. near-duplicate found .-> HALT
     S1 -. low confidence .-> ADV[/recorded, but advances/]
     S6 -. unknown class .-> ADV
@@ -210,12 +210,12 @@ attempts before this was changed.
 
 ```mermaid
 flowchart TD
-    A1[Attempt 1 · configured provider<br/>GPT-4o] --> V1{Verifier agrees?<br/>Gemini, score ≥ 0.60}
+    A1["Attempt 1 · configured provider<br/>GPT-4o"] --> V1{"Verifier agrees?<br/>Gemini, score ≥ 0.60"}
     V1 -->|yes| OK([SUCCEEDED])
-    V1 -->|no| A2[Attempt 2 · **different vendor**<br/>Gemini, or GPT-4o if primary was Gemini]
+    V1 -->|no| A2["Attempt 2 · <b>different vendor</b><br/>Gemini, or GPT-4o if primary was Gemini"]
     A2 --> V2{Verifier agrees?}
     V2 -->|yes| OK
-    V2 -->|no| RV([REVIEW_REQUIRED<br/>**pipeline stops**])
+    V2 -->|no| RV(["REVIEW_REQUIRED<br/><b>pipeline stops</b>"])
 
     A1 -.schema error or API error.-> A2
     A2 -.both attempts errored.-> FL([FAILED])
@@ -262,12 +262,12 @@ mismatches are appended to `previous_rejections` and injected into the next prom
 
 ```mermaid
 flowchart LR
-    G1[Generate ·<br/>attempt 1] --> V{score ≥ 0.75<br/>and valid?}
-    V -->|yes| S([SUCCEEDED<br/>store canonical])
-    V -->|no| F[append mismatches to<br/>previous_rejections]
-    F --> G2[Generate · attempt 2<br/>prompt now names the defect]
+    G1["Generate ·<br/>attempt 1"] --> V{"score ≥ 0.75<br/>and valid?"}
+    V -->|yes| S(["SUCCEEDED<br/>store canonical"])
+    V -->|no| F["append mismatches to<br/>previous_rejections"]
+    F --> G2["Generate · attempt 2<br/>prompt now names the defect"]
     G2 --> V
-    G2 -.after attempt 3.-> R([REVIEW_REQUIRED<br/>non-halting])
+    G2 -.after attempt 3.-> R(["REVIEW_REQUIRED<br/>non-halting"])
 
     V -.verifier unavailable.-> X([FAILED immediately])
 
@@ -400,20 +400,20 @@ Two subtleties, both from live bugs:
 flowchart TD
     REQ([Request: free text and/or anchor garments]) --> S1
 
-    S1["**1 · Normalisation** — LLM<br/>text → structured intent"]
-    S2["**2 · Context**<br/>StyleProfile + member history"]
-    S3["**3 · Wardrobe Behaviour**<br/>*stub — neutral 0.5*"]
-    S4["**4 · Filtering** — SQL<br/>COMPLETED + APPROVED/PENDING"]
-    S5["**5 · Retrieval**<br/>role groups, cosine or versatility, cap 6/role"]
-    S6["**6 · Compatibility**<br/>≤60 combos, pairwise rules + VLM"]
-    S7["**7 · Ranking**<br/>10 weighted components + LLM aesthetics"]
-    S8["**8 · Semantic Validation** — LLM<br/>drop FAIL, keep NEEDS_REVIEW"]
-    S9["**9 · Image Generation**<br/>only on the final shortlist"]
-    S10["**10 · Gates**<br/>visual + semantic, in parallel"]
+    S1["<b>1 · Normalisation</b> — LLM<br/>text → structured intent"]
+    S2["<b>2 · Context</b><br/>StyleProfile + member history"]
+    S3["<b>3 · Wardrobe Behaviour</b><br/><i>stub — neutral 0.5</i>"]
+    S4["<b>4 · Filtering</b> — SQL<br/>COMPLETED + APPROVED/PENDING"]
+    S5["<b>5 · Retrieval</b><br/>role groups, cosine or versatility, cap 6/role"]
+    S6["<b>6 · Compatibility</b><br/>≤60 combos, pairwise rules + VLM"]
+    S7["<b>7 · Ranking</b><br/>10 weighted components + LLM aesthetics"]
+    S8["<b>8 · Semantic Validation</b> — LLM<br/>drop FAIL, keep NEEDS_REVIEW"]
+    S9["<b>9 · Image Generation</b><br/>only on the final shortlist"]
+    S10["<b>10 · Gates</b><br/>visual + semantic, in parallel"]
 
     S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9 --> S10
     S10 --> OUT([top_k outfits, persisted])
-    S10 -. all candidates fail .-> NONE([empty result<br/>+ plain-language reason])
+    S10 -. all candidates fail .-> NONE(["empty result<br/>+ plain-language reason"])
 
     style OUT fill:#bbf7d0,stroke:#15803d,color:#000
     style NONE fill:#fde68a,stroke:#b45309,color:#000
@@ -424,13 +424,13 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    W["Whole wardrobe<br/>~1,170 garments"] --> F["**Stage 4**<br/>filtered candidates"]
-    F --> R["**Stage 5**<br/>≤6 per role<br/>sampled from top 18"]
-    R --> C["**Stage 6**<br/>≤60 combinations<br/>diversity-capped"]
-    C --> K["**Stage 7**<br/>top_k × 2 shortlist"]
-    K --> V["**Stage 8**<br/>top_k + 2 validated"]
-    V --> G["**Stages 9–10**<br/>generated &amp; gated"]
-    G --> O["**top_k** returned"]
+    W["Whole wardrobe<br/>~1,170 garments"] --> F["<b>Stage 4</b><br/>filtered candidates"]
+    F --> R["<b>Stage 5</b><br/>≤6 per role<br/>sampled from top 18"]
+    R --> C["<b>Stage 6</b><br/>≤60 combinations<br/>diversity-capped"]
+    C --> K["<b>Stage 7</b><br/>top_k × 2 shortlist"]
+    K --> V["<b>Stage 8</b><br/>top_k + 2 validated"]
+    V --> G["<b>Stages 9–10</b><br/>generated &amp; gated"]
+    G --> O["<b>top_k</b> returned"]
 ```
 
 The narrowing is the whole design: expensive work only ever happens on a small set. Image
@@ -564,17 +564,17 @@ flowchart TD
     R1 --> H{INCOMPATIBLE?}
     R2 --> H
     R3 --> H
-    H -->|yes| REJ([**Hard reject** —<br/>whole combination dropped])
+    H -->|yes| REJ(["<b>Hard reject</b> —<br/>whole combination dropped"])
     H -->|no| SC[average the scores]
 
     R4 --> CONF{rules confident?}
-    CONF -->|no| VLM[VLM second opinion<br/>on both images]
+    CONF -->|no| VLM["VLM second opinion<br/>on both images"]
     CONF -->|yes| SOFT
-    VLM --> SOFT[**Soft only** — can lower<br/>the score, never hard-reject]
+    VLM --> SOFT["<b>Soft only</b> — can lower<br/>the score, never hard-reject"]
     SOFT --> SC
 
     SC --> COORD{same source photo?}
-    COORD -->|yes| OVR["**Co-ord override**<br/>score floor 0.95"]
+    COORD -->|yes| OVR["<b>Co-ord override</b><br/>score floor 0.95"]
     COORD -->|no| OUT([pair score])
     OVR --> OUT
 
@@ -654,15 +654,15 @@ One function, `generate_and_run_gates()`, run **concurrently across all survivin
 
 ```mermaid
 flowchart TD
-    A[Load canonical images<br/>for every garment] --> B{any images?}
+    A["Load canonical images<br/>for every garment"] --> B{any images?}
     B -->|no| X([skip candidate])
     B -->|yes| C[Generate composite outfit image]
-    C --> D[Visual Gate + Semantic Gate<br/>**in parallel**]
-    D --> E{visual ≥ 6.0<br/>AND semantic = PASS}
+    C --> D["Visual Gate + Semantic Gate<br/><b>in parallel</b>"]
+    D --> E{"visual ≥ 6.0<br/>AND semantic = PASS"}
     E -->|yes| P([PASS — becomes a real Outfit row])
-    E -->|no| F{attempts left?<br/>max 2}
+    E -->|no| F{"attempts left?<br/>max 2"}
     F -->|yes| C
-    F -->|no| R([rejected — image still persisted<br/>and shown as a rejected candidate])
+    F -->|no| R(["rejected — image still persisted<br/>and shown as a rejected candidate"])
 
     style P fill:#bbf7d0,stroke:#15803d,color:#000
     style R fill:#fde68a,stroke:#b45309,color:#000

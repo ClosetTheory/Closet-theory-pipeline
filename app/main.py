@@ -52,7 +52,7 @@ app.include_router(api_router, prefix=settings.API_PREFIX)
 
 
 from pathlib import Path
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_INDEX = STATIC_DIR / "index.html"
@@ -62,6 +62,10 @@ STATIC_STYLING = STATIC_DIR / "styling.html"
 STATIC_LOGIN = STATIC_DIR / "login.html"
 STATIC_PROFILE = STATIC_DIR / "profile.html"
 STATIC_REVIEW = STATIC_DIR / "review.html"
+STATIC_PIPELINES = STATIC_DIR / "pipelines.html"
+# The engineering reference is authored as markdown and rendered client-side, so the
+# page and docs/PIPELINES.md can never drift apart.
+PIPELINES_DOC = Path(__file__).parent.parent / "docs" / "PIPELINES.md"
 
 
 def _serve_static(path: Path, label: str) -> HTMLResponse:
@@ -112,6 +116,21 @@ async def get_review_page():
     outfits. Not part of the user-facing app — for company stylists reviewing dressing sense
     and overall aesthetics."""
     return _serve_static(STATIC_REVIEW, "Stylist review queue")
+
+
+@app.get("/pipeline-info", response_class=HTMLResponse, tags=["Visualizer"])
+async def get_pipeline_info_page():
+    """Stage-by-stage engineering reference for both pipelines, with live Mermaid diagrams."""
+    return _serve_static(STATIC_PIPELINES, "Pipeline info")
+
+
+@app.get("/pipeline-info/source", response_class=PlainTextResponse, tags=["Visualizer"])
+async def get_pipeline_info_source():
+    """The raw markdown behind /pipeline-info, so the page renders the doc itself rather than
+    a hand-copied duplicate of it."""
+    if PIPELINES_DOC.exists():
+        return PlainTextResponse(PIPELINES_DOC.read_text(encoding="utf-8"))
+    return PlainTextResponse("Pipeline documentation not found.", status_code=404)
 
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
