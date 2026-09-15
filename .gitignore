@@ -70,3 +70,6 @@ PRODUCTION_DATABASE_CONNECTION*.txt
 
 # Production member data extracts — never commit
 reports/
+
+# Production garment samples (member images and metadata) — local only
+unknown_material_samples/
