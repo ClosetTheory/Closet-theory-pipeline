@@ -62,3 +62,11 @@ DESIGN-pinterest.md
 # Vendor docs (may contain credentials) — local only
 Hopit_ClosetTheory_Integration_Scope.pdf
 *.pdf
+
+# Production DB credentials — local only, never commit
+PRDUCTION_DATABSE_CONNECTION.txt
+PRODUCTION_DATABASE_CONNECTION*.txt
+*_CONNECTION.txt
+
+# Production member data extracts — never commit
+reports/
