@@ -58,3 +58,7 @@ terraform/tfplan*
 # Personal notes (not for the repo)
 UPDATES.md
 DESIGN-pinterest.md
+
+# Vendor docs (may contain credentials) — local only
+Hopit_ClosetTheory_Integration_Scope.pdf
+*.pdf
