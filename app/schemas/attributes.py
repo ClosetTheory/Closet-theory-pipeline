@@ -541,6 +541,15 @@ class GarmentAttributes(BaseModel):
         default=None,
         description="Visible brand label or text",
     )
+    casual_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Short human name for this specific garment, as its owner would refer to it — "
+            "e.g. 'RED SPIDERMAN TSHIRT', 'BLACK LEATHER BIKER JACKET'. Leads with colour and "
+            "any distinguishing print/graphic/feature, then the garment type. Purely a label "
+            "for humans: nothing in the styling pipeline reads it."
+        ),
+    )
 
     # --- Enriched attributes (trimmed subset of the 144-field schema, added 2026-09-06) ---
     colour_secondary_name: Optional[str] = Field(default=None, description="Secondary/accent colour name")
@@ -576,7 +585,7 @@ class GarmentAttributes(BaseModel):
 
     @field_validator(
         "visual_description", "pattern_detail", "pocket_detail", "button_detail",
-        "collar_detail", "brand_label", "colour_secondary_name",
+        "collar_detail", "brand_label", "colour_secondary_name", "casual_name",
         mode="before",
     )
     @classmethod

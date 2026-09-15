@@ -137,7 +137,8 @@ class OpenRouterGPTProvider(
   "formality": "loungewear | casual | smart_casual | business | formal | ceremonial",
   "mood_intensity": "low_key | balanced | statement",
   "vibe_words": ["2-4 short styling/vibe descriptor words, e.g. \\"breezy\\", \\"festive\\", \\"structured\\""],
-  "wash_state_visible": "raw | mid_wash | heavily_washed | faded | none"
+  "wash_state_visible": "raw | mid_wash | heavily_washed | faded | none",
+  "casual_name": "The short everyday name a person would actually call this garment when picking it out of their own wardrobe, in UPPERCASE. Lead with what makes THIS piece recognisable at a glance — its colour, and any print/graphic/character/logo or standout feature — then the garment type. 2-5 words, e.g. \\"RED SPIDERMAN TSHIRT\\", \\"RED SPIDERMAN POLO TSHIRT\\", \\"BLACK LEATHER BIKER JACKET\\", \\"BEIGE RED STRIPED BELT\\", \\"WHITE RUFFLED BLOUSE\\". Describe only what is actually visible — never invent a character, brand or motif that is not there. If the piece is plain, colour plus type is the right answer (e.g. \\"NAVY CREWNECK TSHIRT\\"). No punctuation or quotes."
 }}
 
 Use null for any of the above fields that genuinely do not apply to this garment type (e.g. shoe_silhouette/accessory_kind on a shirt, rise/leg_shape/waistband_style on a top, neckline/collar_type/sleeve_type on footwear/bags) rather than guessing a value."""

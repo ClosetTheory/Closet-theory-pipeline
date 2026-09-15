@@ -181,8 +181,8 @@
             ${imgLabel ? `<span class="absolute bottom-2 left-2 right-2 text-[10px] text-amber-300 bg-slate-950/80 px-2 py-1 rounded font-mono text-center">${imgLabel}</span>` : ""}
           </div>
           <div>
-            <h2 class="text-3xl font-bold text-ct-ink tracking-tight capitalize mb-1.5">${(attrs.subcategory || g.category || "Garment").replace(/_/g, " ")}</h2>
-            <p class="text-sm text-slate-500 mb-6">${g.quality_status} · ${g.category || "—"}</p>
+            <h2 class="text-3xl font-bold text-ct-ink tracking-tight capitalize mb-1.5">${((attrs.casual_name || attrs.subcategory || g.category || "Garment")).toLowerCase().replace(/_/g, " ")}</h2>
+            <p class="text-sm text-slate-500 mb-6">${(attrs.subcategory || g.category || "—").replace(/_/g, " ")} · ${g.quality_status}</p>
 
             ${duplicateBanner(g)}
 
