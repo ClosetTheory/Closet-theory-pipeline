@@ -107,7 +107,15 @@
           body: JSON.stringify(body),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Something went wrong");
+        if (!res.ok) {
+          // The email is trimmed above but the password deliberately is not — a password may
+          // legitimately contain spaces. That makes a stray leading or trailing space from a
+          // copy-paste fail with a message that tells you nothing, so name it explicitly.
+          if (res.status === 401 && password !== password.trim()) {
+            throw new Error("Your password starts or ends with a space — remove it and try again.");
+          }
+          throw new Error(data.detail || "Something went wrong");
+        }
         localStorage.setItem("ct_auth_token", data.token);
         // A stylist has no wardrobe of their own — every wardrobe page refuses until they pick
         // a character to work as — so send them to their roster rather than to a Catalogue that
