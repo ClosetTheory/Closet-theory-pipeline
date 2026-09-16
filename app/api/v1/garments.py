@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.dependencies import get_current_user, get_db_session, get_storage
+from app.api.dependencies import ActingScope, get_acting_scope, get_db_session, get_storage
 from app.config import settings
 from app.models.embedding import GarmentEmbedding
 from app.models.garment import Garment
@@ -74,10 +74,28 @@ class StepRequest(BaseModel):
     force: bool = Field(default=False, description="Force re-run even if already completed")
 
 
+async def _record_persona_upload(session, scope, garment_id: str) -> None:
+    """Notes which stylist put this garment into which character's wardrobe.
+
+    A column on `garments` would be the natural place, but this project has no migrations and
+    `create_all` cannot add a column to an existing table — so the audit lives in a side table.
+    No-op for ordinary members, who are working on their own wardrobe.
+    """
+    if not scope.is_acting_as_persona:
+        return
+    from app.models.persona import PersonaGarmentUpload
+
+    session.add(PersonaGarmentUpload(
+        garment_id=garment_id,
+        persona_id=scope.persona_id,
+        uploaded_by_user_id=scope.actor.id,
+    ))
+    await session.commit()
+
 @router.post("", response_model=CanonicalGarment, status_code=status.HTTP_202_ACCEPTED)
 async def create_garment(
     request: GarmentCreateRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """
@@ -90,12 +108,12 @@ async def create_garment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Source image '{request.source_image_id}' not found",
         )
-    if source_image.tenant_id != current_user.tenant_id:
+    if source_image.tenant_id != scope.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Source image belongs to another account")
 
     garment = Garment(
-        tenant_id=current_user.tenant_id,
-        member_id=current_user.member_id,
+        tenant_id=scope.tenant_id,
+        member_id=scope.member_id,
         source_image_id=source_image.id,
         status=GarmentState.RECEIVED.value,
         quality_status="PENDING",
@@ -103,6 +121,7 @@ async def create_garment(
     session.add(garment)
     await session.commit()
     await session.refresh(garment)
+    await _record_persona_upload(session, scope, garment.id)
 
     # Enqueue pipeline execution asynchronously — unless the caller intends to drive every
     # stage itself (the interactive demo UI), in which case auto-enqueuing here would race the
@@ -129,7 +148,7 @@ async def create_garment(
 @router.post("/bulk", response_model=BulkGarmentUploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def bulk_create_garments(
     files: List[UploadFile] = File(...),
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -151,14 +170,14 @@ async def bulk_create_garments(
     for file in files:
         filename = file.filename or "unnamed"
         try:
-            image_asset = await store_uploaded_image(file, current_user, session, storage)
+            image_asset = await store_uploaded_image(file, scope, session, storage)
         except HTTPException as e:
             results.append(BulkGarmentUploadResult(filename=filename, status="error", error=e.detail))
             continue
 
         garment = Garment(
-            tenant_id=current_user.tenant_id,
-            member_id=current_user.member_id,
+            tenant_id=scope.tenant_id,
+            member_id=scope.member_id,
             source_image_id=image_asset.id,
             status=GarmentState.RECEIVED.value,
             quality_status="PENDING",
@@ -166,6 +185,7 @@ async def bulk_create_garments(
         session.add(garment)
         await session.commit()
         await session.refresh(garment)
+        await _record_persona_upload(session, scope, garment.id)
 
         await enqueue_garment_pipeline(garment.id)
         results.append(BulkGarmentUploadResult(
@@ -186,12 +206,12 @@ async def list_garments(
     status_filter: str = Query(default="COMPLETED", alias="status"),
     limit: int = Query(default=24, ge=1, le=3000),
     offset: int = Query(default=0, ge=0),
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Catalogue listing of ingested garments — the ingestion pipeline's real, persisted output.
     Always scoped to the authenticated user's own tenant — a wardrobe is private."""
-    stmt = select(Garment).options(selectinload(Garment.canonical_image)).where(Garment.tenant_id == current_user.tenant_id)
+    stmt = select(Garment).options(selectinload(Garment.canonical_image)).where(Garment.tenant_id == scope.tenant_id)
 
     if category:
         stmt = stmt.where(Garment.category == category)
@@ -221,7 +241,7 @@ async def list_garments(
 @router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_garment(
     garment_id: str,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Permanently deletes a garment (and, via DB cascade, its pipeline stage runs, embedding,
@@ -230,7 +250,7 @@ async def delete_garment(
     garment = await session.get(Garment, garment_id)
     if not garment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Garment '{garment_id}' not found")
-    if garment.tenant_id != current_user.tenant_id:
+    if garment.tenant_id != scope.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This garment belongs to another account")
 
     await session.delete(garment)
@@ -612,7 +632,7 @@ async def _execute_step_with_keys_applied(
 async def retry_garment_pipeline(
     garment_id: str,
     request: RetryRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Retries a failed or reviewable stage in the garment pipeline."""
@@ -622,7 +642,7 @@ async def retry_garment_pipeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Garment '{garment_id}' not found",
         )
-    if garment.tenant_id != current_user.tenant_id:
+    if garment.tenant_id != scope.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This garment belongs to another account")
 
     # Enqueue pipeline run
@@ -634,7 +654,7 @@ async def retry_garment_pipeline(
 async def review_garment_pipeline(
     garment_id: str,
     request: ReviewRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Submits operator review or overrides for a garment flagged for human review."""
@@ -644,7 +664,7 @@ async def review_garment_pipeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Garment '{garment_id}' not found",
         )
-    if garment.tenant_id != current_user.tenant_id:
+    if garment.tenant_id != scope.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This garment belongs to another account")
 
     if request.decision == ReviewDecision.APPROVE:

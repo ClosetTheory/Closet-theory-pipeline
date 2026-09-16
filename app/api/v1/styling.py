@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.dependencies import get_current_user, get_db_session, get_storage
+from app.api.dependencies import ActingScope, get_acting_scope, get_db_session, get_storage
 from app.models.garment import Garment
 from app.models.ootd import OOTDSubscription
 from app.models.style_profile import StyleProfile
@@ -51,7 +51,7 @@ router = APIRouter(prefix="/wardrobe/styling", tags=["Styling"])
 @router.post("/recommendations", response_model=StylingRecommendationResponse)
 async def get_outfit_recommendations(
     request: StylingRecommendationRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -62,7 +62,7 @@ async def get_outfit_recommendations(
     """
     try:
         orchestrator = StylingOrchestrator(session, storage)
-        return await orchestrator.run(request, current_user.tenant_id, current_user.member_id)
+        return await orchestrator.run(request, scope.tenant_id, scope.member_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -70,7 +70,7 @@ async def get_outfit_recommendations(
 @router.post("/recommendations/stream")
 async def stream_outfit_recommendations(
     request: StylingRecommendationRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -92,7 +92,7 @@ async def stream_outfit_recommendations(
     async def runner() -> None:
         try:
             orchestrator = StylingOrchestrator(session, storage, on_stage=on_stage)
-            result = await orchestrator.run(request, current_user.tenant_id, current_user.member_id)
+            result = await orchestrator.run(request, scope.tenant_id, scope.member_id)
             await queue.put(("done", result))
         except Exception as e:
             await queue.put(("error", str(e)))
@@ -123,14 +123,14 @@ async def stream_outfit_recommendations(
 @router.get("/requests/{request_id}", response_model=StylingRecommendationResponse)
 async def get_styling_request(
     request_id: str,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Replays a past recommendation result from persisted Outfit/OutfitGarment rows."""
     styling_request = await session.get(StylingRequest, request_id)
     if not styling_request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Styling request '{request_id}' not found")
-    if styling_request.tenant_id != current_user.tenant_id:
+    if styling_request.tenant_id != scope.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This styling request belongs to another account")
 
     return await replay_styling_request(session, styling_request)
@@ -140,7 +140,7 @@ async def get_styling_request(
 async def vote_outfit(
     outfit_id: str,
     request: OutfitVoteRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """
@@ -152,7 +152,7 @@ async def vote_outfit(
     outfit = await session.get(Outfit, outfit_id)
     if not outfit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outfit '{outfit_id}' not found")
-    if outfit.tenant_id != current_user.tenant_id:
+    if outfit.tenant_id != scope.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This outfit belongs to another account")
 
     boldness = outfit_boldness((outfit.score_breakdown or {}).get("visual_harmony", 0.7))
@@ -201,7 +201,7 @@ def _review_to_result(review: StylistReview) -> StylistReviewResult:
 @router.get("/review-queue", response_model=List[OutfitReviewQueueItem])
 async def get_review_queue(
     limit: int = 50,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Internal QA panel (see app/static/review.html): every outfit ever generated for this
@@ -211,7 +211,7 @@ async def get_review_queue(
     stmt = (
         select(Outfit, StylingRequest.raw_text)
         .join(StylingRequest, StylingRequest.id == Outfit.request_id)
-        .where(Outfit.tenant_id == current_user.tenant_id, Outfit.member_id == current_user.member_id)
+        .where(Outfit.tenant_id == scope.tenant_id, Outfit.member_id == scope.member_id)
         .order_by(Outfit.created_at.desc())
         .limit(limit)
     )
@@ -240,7 +240,7 @@ async def get_review_queue(
 async def review_outfit(
     outfit_id: str,
     request: StylistReviewRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """Records (or updates) a stylist's like/dislike + comment on one of their own account's
@@ -249,7 +249,7 @@ async def review_outfit(
     outfit = await session.get(Outfit, outfit_id)
     if not outfit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outfit '{outfit_id}' not found")
-    if outfit.tenant_id != current_user.tenant_id:
+    if outfit.tenant_id != scope.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This outfit belongs to another account")
 
     review = (await session.execute(select(StylistReview).where(StylistReview.outfit_id == outfit_id))).scalars().first()
@@ -273,14 +273,14 @@ async def review_outfit(
 
 @router.get("/profile", response_model=StyleProfileResponse)
 async def get_style_profile(
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """The authenticated user's learned styling preferences — boldness plus every tracked
     categorical attribute's per-value affinity (see app/rules/style_profile.py)."""
     profile_stmt = select(StyleProfile).where(
-        StyleProfile.tenant_id == current_user.tenant_id,
-        StyleProfile.member_id == current_user.member_id,
+        StyleProfile.tenant_id == scope.tenant_id,
+        StyleProfile.member_id == scope.member_id,
     )
     profile = (await session.execute(profile_stmt)).scalars().first()
     if not profile:
@@ -310,7 +310,7 @@ async def get_style_profile(
 @router.post("/outfit-of-the-day", response_model=OutfitOfTheDayResponse)
 async def generate_outfit_of_the_day(
     request: OutfitOfTheDayRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -323,7 +323,7 @@ async def generate_outfit_of_the_day(
     exists, unless force_regenerate is set.
     """
     return await get_or_generate_ootd(
-        session, storage, current_user.tenant_id, current_user.member_id,
+        session, storage, scope.tenant_id, scope.member_id,
         location=request.location, extra_hint=request.extra_hint, force=request.force_regenerate,
         generation_source="on_demand",
     )
@@ -333,14 +333,14 @@ async def generate_outfit_of_the_day(
 async def read_outfit_of_the_day(
     location: str,
     extra_hint: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
     """Convenience GET form of POST /outfit-of-the-day (e.g. for a browser/dashboard to just
     load a URL) — always returns today's cached pick if one exists; never force-regenerates."""
     return await get_or_generate_ootd(
-        session, storage, current_user.tenant_id, current_user.member_id,
+        session, storage, scope.tenant_id, scope.member_id,
         location=location, extra_hint=extra_hint, force=False, generation_source="on_demand",
     )
 
@@ -348,7 +348,7 @@ async def read_outfit_of_the_day(
 @router.put("/outfit-of-the-day/subscription", response_model=OOTDSubscriptionResponse)
 async def set_ootd_subscription(
     request: OOTDSubscriptionRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """
@@ -357,12 +357,12 @@ async def set_ootd_subscription(
     subscription and pre-generates that day's pick, so it's already there before anyone checks.
     """
     stmt = select(OOTDSubscription).where(
-        OOTDSubscription.tenant_id == current_user.tenant_id,
-        OOTDSubscription.member_id == current_user.member_id,
+        OOTDSubscription.tenant_id == scope.tenant_id,
+        OOTDSubscription.member_id == scope.member_id,
     )
     sub = (await session.execute(stmt)).scalars().first()
     if not sub:
-        sub = OOTDSubscription(tenant_id=current_user.tenant_id, member_id=current_user.member_id, location=request.location)
+        sub = OOTDSubscription(tenant_id=scope.tenant_id, member_id=scope.member_id, location=request.location)
         session.add(sub)
     sub.location = request.location
     sub.extra_hint = request.extra_hint
@@ -373,13 +373,13 @@ async def set_ootd_subscription(
 
 @router.get("/outfit-of-the-day/subscription", response_model=OOTDSubscriptionResponse)
 async def get_ootd_subscription(
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """This member's current outfit-of-the-day auto-generation settings, if any."""
     stmt = select(OOTDSubscription).where(
-        OOTDSubscription.tenant_id == current_user.tenant_id,
-        OOTDSubscription.member_id == current_user.member_id,
+        OOTDSubscription.tenant_id == scope.tenant_id,
+        OOTDSubscription.member_id == scope.member_id,
     )
     sub = (await session.execute(stmt)).scalars().first()
     if not sub:
@@ -391,7 +391,7 @@ async def get_ootd_subscription(
 async def get_swap_candidates(
     outfit_id: str,
     role: str,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
 ):
     """
@@ -401,7 +401,7 @@ async def get_swap_candidates(
     the actual swap so a caller can see all real options before committing.
     """
     try:
-        candidates = await list_swap_candidates(session, current_user.tenant_id, current_user.member_id, outfit_id, role)
+        candidates = await list_swap_candidates(session, scope.tenant_id, scope.member_id, outfit_id, role)
     except SwapError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     return [
@@ -418,7 +418,7 @@ async def get_swap_candidates(
 async def swap_outfit_garment(
     outfit_id: str,
     request: SwapGarmentRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -430,7 +430,7 @@ async def swap_outfit_garment(
     """
     try:
         return await swap_garment_direct(
-            session, storage, current_user.tenant_id, current_user.member_id,
+            session, storage, scope.tenant_id, scope.member_id,
             outfit_id, request.role, request.new_garment_id,
         )
     except SwapError as e:
@@ -441,7 +441,7 @@ async def swap_outfit_garment(
 async def chat_swap_outfit_garment(
     outfit_id: str,
     request: ChatSwapRequest,
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -454,7 +454,7 @@ async def chat_swap_outfit_garment(
     """
     try:
         return await swap_garment_by_chat(
-            session, storage, current_user.tenant_id, current_user.member_id,
+            session, storage, scope.tenant_id, scope.member_id,
             outfit_id, request.instruction,
         )
     except SwapError as e:

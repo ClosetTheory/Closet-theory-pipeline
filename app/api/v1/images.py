@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.dependencies import get_current_user, get_db_session, get_storage
+from app.api.dependencies import ActingScope, get_acting_scope, get_current_user, get_db_session, get_storage
 from app.config import settings
 from app.models.image_asset import ImageAsset
 from app.models.user import User
@@ -22,7 +22,7 @@ Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
 
 async def store_uploaded_image(
     file: UploadFile,
-    current_user: User,
+    scope: ActingScope,
     session: AsyncSession,
     storage: StorageClient,
 ) -> ImageAsset:
@@ -70,15 +70,15 @@ async def store_uploaded_image(
 
     # 5. Generate secure, non-client key
     ext = "jpg" if "jpeg" in file.content_type else "png"
-    storage_key = f"raw/{current_user.tenant_id}/{sha256_hash[:16]}_{uuid.uuid4().hex[:8]}.{ext}"
+    storage_key = f"raw/{scope.tenant_id}/{sha256_hash[:16]}_{uuid.uuid4().hex[:8]}.{ext}"
 
     # 6. Save bytes to storage
     object_uri = await storage.put_object(storage_key, content, content_type=file.content_type)
 
     # 7. Persist ImageAsset record
     image_asset = ImageAsset(
-        tenant_id=current_user.tenant_id,
-        member_id=current_user.member_id,
+        tenant_id=scope.tenant_id,
+        member_id=scope.member_id,
         object_uri=object_uri,
         mime_type=file.content_type,
         width=width,
@@ -94,7 +94,7 @@ async def store_uploaded_image(
 @router.post("", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_image(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    scope: ActingScope = Depends(get_acting_scope),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
@@ -102,7 +102,7 @@ async def upload_image(
     Securely uploads a raw wardrobe/catalog image.
     Validates MIME type, byte size, decompression limits, generates immutable SHA256 key.
     """
-    image_asset = await store_uploaded_image(file, current_user, session, storage)
+    image_asset = await store_uploaded_image(file, scope, session, storage)
 
     return ImageUploadResponse(
         image_id=image_asset.id,
