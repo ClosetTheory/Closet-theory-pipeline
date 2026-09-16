@@ -236,6 +236,8 @@ async def main() -> None:
                     help="password for the seeded stylist accounts")
     ap.add_argument("--reset-stylist-passwords", action="store_true",
                     help="reset existing stylist accounts to --stylist-password")
+    ap.add_argument("--grant-admin", default="",
+                    help="grant the admin role to this existing account (email)")
     ap.add_argument("--with-portraits", action="store_true",
                     help="generate a portrait for any character missing one (costs real image calls)")
     ap.add_argument("--reseed-portraits", action="store_true",
@@ -259,6 +261,31 @@ async def main() -> None:
             stylists = await _ensure_stylists(
                 session, args.dry_run, args.stylist_password, args.reset_stylist_passwords
             )
+
+        if args.grant_admin and not args.dry_run:
+            # The alternative is ADMIN_EMAILS, which lives in a deploy secret and so cannot be
+            # changed without a redeploy. Granting here keeps bootstrapping an admin to one
+            # command in whichever environment is being seeded.
+            from app.models.role import ROLE_ADMIN
+
+            target = (
+                await session.execute(select(User).where(User.email == args.grant_admin.lower()))
+            ).scalars().first()
+            if not target:
+                print(f"  ! no account with email {args.grant_admin!r}; skipping admin grant")
+            else:
+                held = (
+                    await session.execute(
+                        select(UserRole).where(
+                            UserRole.user_id == target.id, UserRole.role == ROLE_ADMIN
+                        )
+                    )
+                ).scalars().first()
+                if held:
+                    print(f"  {target.email} is already an admin")
+                else:
+                    session.add(UserRole(user_id=target.id, role=ROLE_ADMIN))
+                    print(f"  granted admin to {target.email}")
 
         created = updated = assigned = 0
         portraits: Dict[str, int] = {}

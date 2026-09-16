@@ -1,0 +1,44 @@
+# Seeds the evaluation-character roster into a deployed environment.
+#
+# The roster is rows, not code, so deploying the panel gets you empty tables. This runs the same
+# idempotent seeder used locally, inside the running api container.
+#
+# Manual trigger only, and deliberately so: it writes to the deployed database, and nothing about
+# it should happen as a side effect of a push. Safe to re-run — the seeder keys on `slug` and
+# updates in place rather than duplicating.
+name: Seed evaluation characters
+
+on:
+  workflow_dispatch:
+    inputs:
+      with_portraits:
+        description: "Also generate portraits for characters that have none (costs image calls)"
+        type: boolean
+        default: false
+      grant_admin:
+        description: "Email of an existing account to grant the admin role"
+        type: string
+        default: "demo@closettheory.local"
+      reset_stylist_passwords:
+        description: "Reset the three stylist accounts to the default password"
+        type: boolean
+        default: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Seed characters, stylists and roles
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: root
+          key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/closet-theory
+            docker compose exec -T api python -m scripts.seed_personas \
+              --with-stylists \
+              ${{ inputs.reset_stylist_passwords && '--reset-stylist-passwords' || '' }} \
+              ${{ inputs.with_portraits && '--with-portraits' || '' }} \
+              ${{ inputs.grant_admin != '' && format('--grant-admin {0}', inputs.grant_admin) || '' }}
