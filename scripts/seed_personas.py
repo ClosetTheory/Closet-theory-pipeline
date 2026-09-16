@@ -33,6 +33,8 @@ from app.models.style_profile import StyleProfile
 from app.models.base import generate_uuid
 from app.models.user import User
 from app.personas import load_roster
+from app.personas.portraits import generate_and_persist_portrait
+from app.storage import get_storage_client
 from app.schemas.persona import PersonaSeed
 
 # `verify_password` splits on "$" and expects four parts, so any value without them can never
@@ -222,6 +224,10 @@ async def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     ap.add_argument("--only", help="seed a single character by slug")
     ap.add_argument("--with-stylists", action="store_true", help="also create the 3 stylist accounts")
+    ap.add_argument("--with-portraits", action="store_true",
+                    help="generate a portrait for any character missing one (costs real image calls)")
+    ap.add_argument("--reseed-portraits", action="store_true",
+                    help="regenerate portraits even where one already exists")
     ap.add_argument("--no-assign", action="store_true", help="skip stylist assignment")
     args = ap.parse_args()
 
@@ -241,6 +247,7 @@ async def main() -> None:
             stylists = await _ensure_stylists(session, args.dry_run)
 
         created = updated = assigned = 0
+        portraits: Dict[str, int] = {}
         for seed in roster:
             existed = (
                 await session.execute(select(Persona.id).where(Persona.slug == seed.slug))
@@ -253,6 +260,12 @@ async def main() -> None:
             if persona and seed.assigned_stylist and not args.no_assign:
                 if await _assign(session, persona, seed.assigned_stylist, stylists):
                     assigned += 1
+            if persona and (args.with_portraits or args.reseed_portraits):
+                _, status = await generate_and_persist_portrait(
+                    session, get_storage_client(), persona, force=args.reseed_portraits
+                )
+                portraits[status] = portraits.get(status, 0) + 1
+                print(f"  portrait {seed.slug:26} {status}")
 
         if args.dry_run:
             print("\nnothing written.")

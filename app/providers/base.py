@@ -215,6 +215,23 @@ class BaseOutfitImageProvider(ABC):
         pass
 
 
+class BasePortraitProvider(ABC):
+    """Renders an evaluation character as a styling figure.
+
+    Deliberately faceless, following the same rule BaseOutfitImageProvider's implementation
+    already applies to mannequins. Three reasons, in order of weight: image models systematically
+    lighten South Asian skin, which would bake into the panel the exact bias it exists to detect;
+    these characters carry realistic Indian names, so a photorealistic face risks resembling a
+    real person; and a stylist shown a face judges the face instead of the attributes, which
+    contaminates the measurement being taken.
+    """
+
+    @abstractmethod
+    async def generate(self, prompt: str) -> Optional[bytes]:
+        """Returns image bytes for the given prompt, or None on failure."""
+        pass
+
+
 class BaseVisualValidatorProvider(ABC):
     """Styling Stage 10: SPEC.md Section 34 Visual Gate — evaluates the generated outfit image."""
 
