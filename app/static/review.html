@@ -38,32 +38,39 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
 
   <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-6">
       <a href="/" class="flex items-center space-x-3 shrink-0">
-        <div class="w-10 h-10 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
-        <div>
-          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight leading-tight">ClosetTheory Wardrobe</h1>
-          <p class="text-xs text-slate-400 leading-tight">Catalogue &amp; AI Styling</p>
+        <div class="w-9 h-9 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-base text-white">CT</div>
+        <div class="hidden sm:block">
+          <h1 class="text-sm font-bold text-ct-ink tracking-tight leading-tight">ClosetTheory Wardrobe</h1>
+          <p class="text-[11px] text-slate-400 leading-tight">Catalogue &amp; AI Styling</p>
         </div>
       </a>
-      <nav class="flex flex-wrap items-center gap-1.5 text-xs font-medium">
-        <a href="/" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Catalogue</a>
-        <a href="/visualizer" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Ingestion Pipeline</a>
-        <a href="/styling" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Styling Pipeline</a>
-        <a href="/pipeline-info" class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Pipeline Info</a>
-        <a href="/stylist" data-role-link="stylist" hidden class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">My Characters</a>
-        <a href="/admin" data-role-link="admin" hidden class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Admin</a>
-        <a href="/review" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Review Queue</a>
-        <a href="/profile" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Profile</a>
-        <a href="/docs" target="_blank" class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap font-semibold">API Docs ↗</a>
-        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition whitespace-nowrap">Log out</button>
+      <nav class="ct-navbar flex items-center gap-1 text-xs font-medium overflow-x-auto">
+        <a href="/" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Catalogue</a>
+        <a href="/visualizer" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Ingestion</a>
+        <a href="/styling" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Styling</a>
+        <a href="/pipeline-info" class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Pipeline Info</a>
+        <a href="/stylist" data-role-link="stylist" data-nav-characters hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">My Characters</a>
+        <a href="/admin" data-role-link="admin" hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Admin</a>
+        <a href="/review" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Review</a>
+        <a href="/profile" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Profile</a>
+        <a href="/docs" target="_blank" class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition whitespace-nowrap">Log out</button>
       </nav>
     </div>
   </header>
 
+  <style>
+    /* The nav scrolls rather than wraps: its item count varies by role, and a wrapping bar makes
+       the header taller on exactly the pages that show the extra tabs. */
+    .ct-navbar { scrollbar-width: none; -ms-overflow-style: none; }
+    .ct-navbar::-webkit-scrollbar { display: none; }
+  </style>
+
   <script>
-    // The active tab is derived from the URL, not hardcoded per page. Hardcoding it is exactly
-    // how this navbar ended up highlighting correctly on three pages out of nine.
+    // Active tab is derived from the URL, not hardcoded per page. Hardcoding it is exactly how
+    // this navbar ended up highlighting correctly on three pages out of nine.
     (function ctMarkActiveNav() {
       var here = window.location.pathname.replace(/\/$/, "") || "/";
       document.querySelectorAll("a.ct-nav").forEach(function (el) {
@@ -76,7 +83,38 @@
         if (active) el.setAttribute("aria-current", "page");
       });
     })();
+
+    // Role decides both which tabs exist and what the characters tab is called: an admin sees
+    // the whole roster there, so "My Characters" would be a lie.
+    (async function ctGateNav() {
+      try {
+        var token = localStorage.getItem("ct_auth_token");
+        if (!token) return;
+        var res = await fetch("/api/v1/auth/me", {headers: {Authorization: "Bearer " + token}});
+        if (!res.ok) return;
+        var roles = (await res.json()).roles || [];
+        var isAdmin = roles.indexOf("admin") !== -1;
+        var isStylistOnly = roles.indexOf("stylist") !== -1 && !isAdmin;
+
+        document.querySelectorAll("[data-role-link]").forEach(function (el) {
+          var needed = el.getAttribute("data-role-link");
+          if (roles.indexOf(needed) !== -1 || (needed === "stylist" && isAdmin)) el.hidden = false;
+        });
+
+        var characters = document.querySelector("[data-nav-characters]");
+        if (characters && isAdmin) characters.textContent = "All Characters";
+
+        // A stylist has no wardrobe of their own: those endpoints resolve scope from the
+        // character being worked as and refuse outright when none is selected.
+        var acting = "";
+        try { acting = localStorage.getItem("ct_acting_persona") || ""; } catch (e) {}
+        if (isStylistOnly && !acting) {
+          document.querySelectorAll("[data-needs-wardrobe]").forEach(function (el) { el.hidden = true; });
+        }
+      } catch (e) { /* nav state is cosmetic; never break the page over it */ }
+    })();
   </script>
+
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
 
@@ -261,34 +299,5 @@
     loadQueue();
   </script>
 
-  <script>
-    // Nav reflects what the account can actually reach. Cosmetic only — every endpoint behind
-    // these links re-checks server-side — but showing a stylist a Catalogue link that answers
-    // 403 is worse than not showing it.
-    //
-    // A stylist has no wardrobe of their own: the wardrobe endpoints resolve scope from the
-    // character being worked as, and refuse outright when none is selected. So the wardrobe
-    // pages appear for a stylist only once a character is active.
-    (async function ctGateNav() {
-      try {
-        const token = localStorage.getItem("ct_auth_token");
-        if (!token) return;
-        const res = await fetch("/api/v1/auth/me", {headers: {Authorization: `Bearer ${token}`}});
-        if (!res.ok) return;
-        const roles = (await res.json()).roles || [];
-        const isStylistOnly = roles.includes("stylist") && !roles.includes("admin");
-        let acting = "";
-        try { acting = localStorage.getItem("ct_acting_persona") || ""; } catch (e) {}
-
-        document.querySelectorAll("[data-role-link]").forEach(function (el) {
-          const needed = el.getAttribute("data-role-link");
-          if (roles.includes(needed) || (needed === "stylist" && roles.includes("admin"))) el.hidden = false;
-        });
-        if (isStylistOnly && !acting) {
-          document.querySelectorAll("[data-needs-wardrobe]").forEach(function (el) { el.hidden = true; });
-        }
-      } catch (e) { /* nav gating is cosmetic; never break the page over it */ }
-    })();
-  </script>
 </body>
 </html>
