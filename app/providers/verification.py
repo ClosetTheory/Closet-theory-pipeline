@@ -16,6 +16,7 @@ from typing import List, Optional, Tuple
 import httpx
 
 from app.config import settings
+from app.providers.json_parsing import parse_model_json
 from app.observability import logger
 from app.schemas.attributes import GarmentAttributes
 
@@ -43,10 +44,7 @@ async def _call_verifier_vision(prompt_text: str, images_b64: List[str], api_key
         resp = await client.post(f"{settings.OPENROUTER_BASE_URL}/chat/completions", headers=headers, json=payload)
         resp.raise_for_status()
         text = resp.json()["choices"][0]["message"]["content"].strip()
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            text = match.group(0)
-        return json.loads(text)
+        return parse_model_json(text, context=f"verifier {model}")
 
 
 async def verify_crop_region(

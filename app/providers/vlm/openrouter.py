@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import httpx
 from PIL import Image
 from app.config import settings
+from app.providers.json_parsing import parse_model_json
 from app.observability import logger
 from app.providers.base import (
     BaseAttributeExtractorProvider,
@@ -317,8 +318,7 @@ Output ONLY raw JSON, no markdown:
                 resp = await client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
                 resp.raise_for_status()
                 content = resp.json()["choices"][0]["message"]["content"].strip()
-                match = re.search(r"\{.*\}", content, re.DOTALL)
-                data = json.loads(match.group(0) if match else content)
+                data = parse_model_json(content, context="visual compatibility")
                 decision = data.get("decision", "REVIEW_REQUIRED")
                 if decision not in ("COMPATIBLE", "INCOMPATIBLE", "REVIEW_REQUIRED"):
                     decision = "REVIEW_REQUIRED"
@@ -512,7 +512,7 @@ FULL_BODY: a person wearing the garment is visible, showing most/all of their bo
             if not content:
                 continue
             try:
-                data = json.loads(content)
+                data = parse_model_json(content, context=f"classify ({model_id})")
                 image_type = ImageType(data["image_type"])
                 confidence = max(0.0, min(1.0, float(data["confidence"])))
                 return ClassificationResult(
@@ -596,7 +596,7 @@ visible, cropped out of frame, in shadow, or obscured, give that entry LOW confi
             if not content:
                 continue
             try:
-                data = json.loads(content)
+                data = parse_model_json(content, context=f"detection ({model_id})")
                 garments_raw = data.get("garments") or []
                 # Discard low-confidence entries — a region the model itself wasn't sure about
                 # (e.g. feet cropped out of frame) becomes a blank/uninformative crop that Stage
@@ -757,7 +757,7 @@ Known attributes already extracted (do not repeat, do not contradict): {json.dum
         if not content:
             return {}
         try:
-            return json.loads(content)
+            return parse_model_json(content, context="soft-attribute top-up")
         except Exception as e:
             logger.warning(f"Soft-attribute top-up parse failed: {e}")
             return {}

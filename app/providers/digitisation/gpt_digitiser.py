@@ -10,6 +10,7 @@ import httpx
 import numpy as np
 from PIL import Image, ImageFilter
 from app.config import settings
+from app.providers.json_parsing import parse_model_json
 from app.observability import logger
 from app.providers.base import BaseDigitisationProvider, VerifierUnavailableError
 from app.rules.garment_class import bundle_garment_class, infer_garment_class_from_subcategory
@@ -445,10 +446,7 @@ Output ONLY raw JSON, no markdown:
                 )
                 resp.raise_for_status()
                 content = resp.json()["choices"][0]["message"]["content"].strip()
-                json_match = re.search(r"\{.*\}", content, re.DOTALL)
-                if json_match:
-                    content = json_match.group(0)
-                parsed = json.loads(content)
+                parsed = parse_model_json(content, context="digitisation verifier")
 
                 is_match = bool(parsed.get("is_match", False))
                 score = float(parsed.get("score", 0.0))

@@ -12,6 +12,7 @@ import json
 from typing import List, Optional
 import httpx
 from app.config import settings
+from app.providers.json_parsing import parse_model_json
 from app.observability import logger
 from app.providers.base import BaseAestheticProvider
 from app.schemas.styling import AestheticScoreResult, GarmentSummary, StylingContext
@@ -97,7 +98,7 @@ Output ONLY JSON:
                 resp = await client.post(f"{self.base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
                 resp.raise_for_status()
                 content = resp.json()["choices"][0]["message"]["content"]
-                data = json.loads(content)
+                data = parse_model_json(content, context="aesthetic scoring")
             score = max(0.0, min(1.0, float(data.get("score", 5)) / 10.0))
             reasoning = str(data.get("reasoning", "") or "")
             return AestheticScoreResult(

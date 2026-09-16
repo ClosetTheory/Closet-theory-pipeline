@@ -18,6 +18,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
+from app.providers.json_parsing import parse_model_json
 from app.models.garment import Garment
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
 from app.observability import logger
@@ -184,7 +185,7 @@ Identify which ONE role they want to replace, and any style/attribute hint for t
             resp = await client.post(f"{settings.OPENROUTER_BASE_URL}/chat/completions", headers=headers, json=payload)
             resp.raise_for_status()
             content = resp.json()["choices"][0]["message"]["content"]
-            data = json.loads(content)
+            data = parse_model_json(content, context="swap instruction")
     except SwapError:
         raise
     except Exception as e:
