@@ -11,7 +11,7 @@ second one that drifts.
 """
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -173,14 +173,26 @@ def _to_read(persona: Persona, counts: Dict[str, Any], stylists: List[str]) -> P
 @router.get("", response_model=List[PersonaRead])
 async def list_personas(
     mine_only: bool = Query(default=False, description="stylists always see only their own"),
+    x_acting_as_persona: str = Header(default=""),
     current_user: User = Depends(require_stylist),
     session: AsyncSession = Depends(get_db_session),
 ):
-    """Admins see the whole roster; stylists see only what is assigned to them."""
+    """Admins see the whole roster; stylists see only what is assigned to them.
+
+    While a character is being acted as, the roster narrows to that one character. Acting as
+    someone is a scope, not a costume: if every other character stayed listed, the stylist would
+    be looking at a roster they cannot currently touch, since every wardrobe call in that state
+    resolves to the active character.
+    """
     roles = await get_user_roles(current_user, session)
     stmt = select(Persona).where(Persona.status != "archived").order_by(Persona.display_name)
 
-    if ROLE_ADMIN not in roles or mine_only:
+    acting_id = (x_acting_as_persona or "").strip()
+    if acting_id:
+        persona = await _load_persona_or_404(session, acting_id)
+        await _require_access(session, current_user, persona)
+        stmt = stmt.where(Persona.id == persona.id)
+    elif ROLE_ADMIN not in roles or mine_only:
         assigned = await _assigned_persona_ids(session, current_user.id)
         if not assigned:
             return []

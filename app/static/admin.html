@@ -85,6 +85,8 @@
 
     <section id="panel" class="hidden space-y-12">
 
+      <div id="toast" class="hidden rounded-2xl px-5 py-3 text-sm font-semibold"></div>
+
       <div id="stats" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
 
       <section class="space-y-4">
@@ -187,15 +189,18 @@
     }
 
     function assignRow(p) {
-      const current = (p.stylists || []).map(s => s.name).join(", ") || "—";
+      const holders = (p.stylists || []).map(s => s.name);
+      const current = holders.length
+        ? `<span class="inline-block px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold">${esc(holders.join(", "))}</span>`
+        : `<span class="text-slate-500">unassigned</span>`;
       const options = STYLISTS.map(s =>
         `<option value="${esc(s.stylist_user_id)}" ${(p.stylists || []).some(x => x.stylist_user_id === s.stylist_user_id) ? "selected" : ""}>${esc(s.name)}</option>`).join("");
       return `<tr>
         <td class="font-semibold text-ct-ink">${esc(p.display_name)}</td>
         <td class="text-slate-500">${esc(p.city)}</td>
-        <td class="text-slate-500">${esc(current)}</td>
+        <td>${current}</td>
         <td>
-          <select id="as-${esc(p.persona_id)}" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-100">
+          <select id="as-${esc(p.persona_id)}" data-character="${esc(p.display_name)}" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-100">
             <option value="">— choose —</option>${options}
           </select>
           <button onclick="assign('${esc(p.persona_id)}')"
@@ -205,10 +210,22 @@
       </tr>`;
     }
 
+    function toast(message, ok) {
+      const el = document.getElementById("toast");
+      el.textContent = message;
+      el.className = ok
+        ? "rounded-2xl px-5 py-3 text-sm font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
+        : "rounded-2xl px-5 py-3 text-sm font-semibold bg-red-50 text-red-800 border border-red-200";
+      el.scrollIntoView({behavior: "smooth", block: "nearest"});
+    }
+
     async function assign(personaId) {
       const select = document.getElementById("as-" + personaId);
       const note = document.getElementById("ar-" + personaId);
       if (!select.value) { note.textContent = "Pick a stylist."; return; }
+
+      const characterName = select.getAttribute("data-character") || "character";
+      const stylistName = select.options[select.selectedIndex].textContent;
       note.textContent = "Saving…";
       try {
         await api(`/personas/${personaId}/assignments`, {
@@ -216,9 +233,22 @@
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({stylist_user_id: select.value, exclusive: true}),
         });
-        note.textContent = "Assigned.";
-        loadAll();
-      } catch (e) { note.textContent = "Failed: " + e.message; }
+        // Re-read the matrix and confirm against what came back, not against the request
+        // merely not throwing — otherwise a silently-ignored assignment still reads as success.
+        await loadAll();
+        const matrix = await api("/admin/assignments");
+        const row = (matrix.personas || []).find(p => p.persona_id === personaId);
+        const holders = (row && row.stylists || []).map(x => x.name);
+        if (holders.length === 1 && holders[0] === stylistName) {
+          toast(`${characterName} is now assigned to ${stylistName}.`, true);
+        } else if (holders.length) {
+          toast(`${characterName} is now assigned to ${holders.join(", ")}.`, true);
+        } else {
+          toast(`${characterName} still shows no stylist — the assignment did not stick.`, false);
+        }
+      } catch (e) {
+        toast(`Could not assign ${characterName}: ${e.message}`, false);
+      }
     }
 
     function userRow(u) {
@@ -246,8 +276,9 @@
           method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({role}),
         });
         note.textContent = "";
-        loadAll();
-      } catch (e) { note.textContent = e.message.slice(0, 80); }
+        await loadAll();
+        toast(granted ? `Revoked ${role}.` : `Granted ${role}.`, true);
+      } catch (e) { toast(`Could not change role: ${e.message}`, false); }
     }
 
     async function loadAll() {

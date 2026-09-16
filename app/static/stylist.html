@@ -67,8 +67,8 @@
 
     <div>
       <p class="text-[11px] font-semibold tracking-[0.14em] uppercase text-slate-500 mb-2">Evaluation panel</p>
-      <h2 class="text-3xl font-extrabold text-ct-ink tracking-tight mb-2">My characters</h2>
-      <p class="text-sm text-slate-500 max-w-3xl">
+      <h2 id="page-title" class="text-3xl font-extrabold text-ct-ink tracking-tight mb-2">My characters</h2>
+      <p id="page-intro" class="text-sm text-slate-500 max-w-3xl">
         Pick a character to work as them: build their wardrobe on the Ingestion Pipeline page,
         generate looks on the Styling page, then come back here and score what came out.
         Everything you upload while a character is active goes to their wardrobe, not yours.
@@ -186,16 +186,92 @@
 
     async function loadRoster() {
       const el = document.getElementById("roster");
+      const acting = ctActingAs();
       try {
-        const roster = await apiGet("/personas");
+        // ctFetch carries the acting header, so while a character is active the server returns
+        // only that character — the others are out of scope, not merely hidden.
+        const res = await ctFetch(API + "/personas");
+        if (!res.ok) throw new Error((await res.text()).slice(0, 160));
+        const roster = await res.json();
+
         if (!roster.length) {
-          el.innerHTML = `<p class="text-sm text-slate-500">No characters are assigned to you yet. An admin assigns them on the Admin page.</p>`;
+          el.innerHTML = acting
+            ? `<p class="text-sm text-red-500">That character is no longer assigned to you.
+                 <button onclick="ctSetActingAs(null); location.reload();" class="underline">Back to my characters</button></p>`
+            : `<p class="text-sm text-slate-500">No characters are assigned to you yet. An admin assigns them on the Admin page.</p>`;
           return;
         }
+
+        if (acting) {
+          // One character in scope: show who they are and their outfits, rather than a grid of
+          // a single card the stylist then has to click through.
+          const p = roster[0];
+          document.getElementById("page-title").textContent = p.display_name;
+          document.getElementById("page-intro").innerHTML =
+            "You are working as <strong>" + esc(p.display_name) + "</strong>. Build their wardrobe on the " +
+            "Ingestion Pipeline page, generate looks on the Styling page, then score them below. " +
+            "<button onclick=\"ctSetActingAs(null); location.href='/stylist';\" " +
+            "class=\"underline underline-offset-2 ml-1\">Switch character</button>";
+          el.className = "";
+          el.innerHTML = characterDetail(p);
+          openCharacter(p.persona_id);
+          return;
+        }
+
+        el.className = "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5";
         el.innerHTML = roster.map(characterCard).join("");
       } catch (e) {
-        el.innerHTML = `<p class="text-sm text-red-500">Could not load your characters: ${esc(e.message)}</p>`;
+        el.innerHTML = `<p class="text-sm text-red-500">Could not load: ${esc(e.message)}</p>`;
       }
+    }
+
+    // The full attribute sheet, shown once a character is the only thing in scope. Everything a
+    // stylist needs before judging an outfit: what suits them, and what must never appear.
+    function characterDetail(p) {
+      const ca = p.color_analysis || {};
+      const ew = p.ethnic_wear || {};
+      const hair = p.hair || {};
+      const mix = (p.preferences || {}).occasion_mix || {};
+      const occasions = Object.entries(mix).sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => esc(k.replace(/_/g, " ")) + " " + Math.round(v * 100) + "%").join(" · ");
+
+      const row = (label, value) => value
+        ? `<div class="flex gap-3 py-1.5 border-b border-slate-800 last:border-0">
+             <span class="w-32 flex-none text-[11px] font-semibold uppercase tracking-wider text-slate-500 pt-0.5">${label}</span>
+             <span class="text-sm text-slate-300 min-w-0">${value}</span></div>`
+        : "";
+
+      return `
+        <article class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 grid grid-cols-1 lg:grid-cols-[200px_minmax(0,1fr)] gap-6">
+          <div>
+            ${p.portrait_url
+              ? `<img src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}" class="w-full rounded-xl bg-slate-800">`
+              : `<div class="w-full aspect-[2/3] rounded-xl bg-slate-800"></div>`}
+            <div class="flex flex-wrap items-center gap-1.5 mt-3">${paletteRow(ca.palette)}</div>
+          </div>
+          <div>
+            <p class="text-sm text-slate-500 mb-3">
+              ${esc(p.age || "")} · ${esc(p.gender)} · ${esc(p.occupation || "")} · ${esc(p.city)}
+            </p>
+            ${row("Body", `${esc(String(p.body_shape || "").replace(/_/g, " "))} · ${esc(p.height_cm || "?")}cm · ${esc(p.height_band || "")} · ${esc(p.build || "")}`)}
+            ${row("Skin tone", `Monk ${esc(p.skin_tone_monk || "?")}`)}
+            ${row("Colour", `${esc(ca.season || "?")}${ca.season_sub ? " (" + esc(ca.season_sub) + ")" : ""} · ${esc(ca.undertone || "")} undertone · ${esc(ca.depth || "")} depth · ${esc(ca.contrast || "")} contrast`)}
+            ${row("Hair", `${esc(String(hair.length || "").replace(/_/g, " "))}, ${esc(hair.texture || "")}, ${esc(String(hair.colour || "").replace(/_/g, " "))}${hair.head_covering && hair.head_covering !== "none" ? ", " + esc(hair.head_covering.replace(/_/g, " ")) : ""}`)}
+            ${row("Climate", esc(String(p.climate_zone || "").replace(/_/g, " ")))}
+            ${row("Occasions", occasions)}
+            ${row("Ethnic wear", `owns ${Math.round((ew.share_of_wardrobe || 0) * 100)}%, needs ${Math.round((ew.share_of_occasions || 0) * 100)}%${ew.daily_ethnic ? " · daily" : ""}`)}
+            ${row("Budget", esc(p.budget_tier || ""))}
+            ${row("Must avoid", (p.hard_constraints || []).map(c =>
+              `<span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100 mr-1 mb-1">${esc(c.replace(/_/g, " "))}</span>`).join(""))}
+            ${row("Fit problems", (p.fit_pain_points || []).map(esc).join("; "))}
+            ${p.bio ? `<p class="text-sm text-slate-500 mt-4">${esc(p.bio)}</p>` : ""}
+            <p class="text-xs text-slate-500 mt-4">
+              <strong class="text-ct-ink">${p.garment_count}</strong> garments ·
+              <strong class="text-ct-ink">${p.outfit_count}</strong> outfits ·
+              <strong class="text-ct-ink">${p.review_count}</strong> scored${p.average_rating != null ? " · avg " + p.average_rating : ""}
+            </p>
+          </div>
+        </article>`;
     }
 
     // --- reviewing -----------------------------------------------------------------------
