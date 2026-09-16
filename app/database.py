@@ -36,6 +36,48 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
     await _ensure_demo_user()
+    await _ensure_admin_roles()
+
+
+async def _ensure_admin_roles() -> None:
+    """Grants the "admin" role to any existing account listed in settings.ADMIN_EMAILS.
+
+    The bootstrap exists because the first admin cannot be created through the admin endpoints —
+    those require already being one. Idempotent, no network calls, and it only ever grants to
+    accounts that already exist, so a typo in the setting is inert rather than account-creating.
+
+    Note what is deliberately NOT here: seeding the evaluation characters. init_db()'s caller
+    wraps it in a try/except that only logs (app/main.py), so a partial seed of twenty characters
+    plus twenty image generations would fail invisibly and retry on every restart. That belongs
+    in a script run on purpose — see scripts/seed_personas.py.
+    """
+    emails = [e.strip().lower() for e in (settings.ADMIN_EMAILS or "").split(",") if e.strip()]
+    if not emails:
+        return
+
+    from sqlalchemy import select
+    from app.models.role import ROLE_ADMIN, UserRole
+    from app.models.user import User
+
+    async with AsyncSessionLocal() as session:
+        users = (await session.execute(select(User).where(User.email.in_(emails)))).scalars().all()
+        if not users:
+            return
+        existing = set(
+            (await session.execute(
+                select(UserRole.user_id).where(
+                    UserRole.user_id.in_([u.id for u in users]), UserRole.role == ROLE_ADMIN
+                )
+            )).scalars().all()
+        )
+        granted = 0
+        for user in users:
+            if user.id in existing:
+                continue
+            session.add(UserRole(user_id=user.id, role=ROLE_ADMIN))
+            granted += 1
+        if granted:
+            await session.commit()
 
 
 async def _ensure_demo_user() -> None:

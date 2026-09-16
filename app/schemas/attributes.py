@@ -65,6 +65,11 @@ class OccasionEnum(str, Enum):
     EVENING = "evening"
     PARTY = "party"
     CEREMONIAL = "ceremonial"
+    # Indian occasion wear is not one bucket. `ceremonial` was absorbing everything from a
+    # Diwali kurta to a three-day wedding, which are different formality ceilings and different
+    # garments. Production's own garment schema already carries both of these separately.
+    FESTIVE = "festive"
+    WEDDING = "wedding"
 
 
 class SeasonEnum(str, Enum):
@@ -73,6 +78,10 @@ class SeasonEnum(str, Enum):
     FALL = "fall"
     WINTER = "winter"
     ALL_SEASON = "all_season"
+    # The Indian year has four seasons only in the far north. Everywhere else the monsoon is the
+    # season that actually dictates fabric, footwear and colour — and it is the one production's
+    # garment schema has and ours did not.
+    MONSOON = "monsoon"
 
 
 class LayeringRoleEnum(str, Enum):

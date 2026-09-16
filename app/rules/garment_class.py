@@ -98,6 +98,32 @@ SUBCATEGORY_TO_CLASS: Dict[str, str] = {
     "joggers": "JOGGERS", "tube_top": "TUBE_TOP", "watch": "WATCH",
     "jewellery": "JEWELLERY", "innerwear": "INNERWEAR", "activewear": "ACTIVEWEAR",
     "kimono": "OUTERWEAR_OTHER",
+    # Regional Indian garments. The taxonomy above covers the pan-Indian set (saree, kurta,
+    # lehenga...) but stopped at the point where dress becomes regional — so a mekhela chador in
+    # Assam, a mundu in Kerala or a bush shirt in Bihar routed to REVIEW_REQUIRED even though
+    # each is ordinary daily wear for millions of people. These are everyday clothes, not edge
+    # cases, and a wardrobe built of them should not need a human to approve every item.
+    "mekhela_chador": "SAREE",      # two-piece Assamese drape; drapes and layers like a saree
+    "mundu": "DHOTI",               # Kerala/Tamil lower drape
+    "kasavu_saree": "SAREE",
+    "nauvari_saree": "SAREE",       # Maharashtrian nine-yard, draped as a bifurcated lower
+    "panjabi": "KURTA",             # Bengali kurta
+    "chikankari_kurta": "KURTA",
+    "angarkha": "KURTA",
+    "kediyu": "KURTA",              # Gujarati gathered upper, worn for garba
+    "bandhgala": "SHERWANI",        # Jodhpuri closed-neck jacket, formal ceiling below sherwani
+    "nehru_jacket": "VEST",         # sleeveless, worn over a kurta — layers like a vest
+    "chaniya_choli": "LEHENGA",     # Gujarati; same skirt+blouse+dupatta structure
+    "ghagra": "LEHENGA",
+    "choli": "BLOUSE",
+    "salwar_kameez": "SALWAR",
+    "churidar": "SALWAR",
+    "khada_dupatta": "DUPATTA",
+    "abaya": "TRADITIONAL_OTHER",   # outer over-layer; no existing class carries "worn over all"
+    "bakhu": "TRADITIONAL_OTHER",   # Sikkimese/Bhutia wrap dress
+    "honju": "BLOUSE",              # the blouse worn under a bakhu
+    "bush_shirt": "SHIRT",
+    "safari_suit": "TRADITIONAL_OTHER",
 }
 
 

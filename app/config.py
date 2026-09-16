@@ -144,6 +144,19 @@ class Settings(BaseSettings):
     # --- Auth (presentation-grade: stdlib-only hashing/signing, no OAuth/MFA/rate-limiting) ---
     AUTH_SECRET_KEY: str = "dev-insecure-secret-change-me"  # dev-only default, same convention as other local defaults above
     AUTH_TOKEN_EXPIRE_DAYS: int = 7
+    # Comma-separated emails granted the "admin" role at boot. Roles live in the user_roles
+    # table (see app/models/role.py); this is only the bootstrap, because the first admin cannot
+    # grant itself through an endpoint that requires being an admin.
+    ADMIN_EMAILS: str = ""
+
+    # --- Evaluation characters ("personas") — synthetic members used to measure styling quality
+    # (see app/models/persona.py). Portraits are faceless full-body styling figures, following
+    # the same rule the outfit image provider already uses: an image model's idea of a face adds
+    # nothing a stylist needs and reliably lightens South Asian skin, which is the exact bias the
+    # panel exists to detect. ---
+    PORTRAIT_PROVIDER: str = "gpt"  # "gpt" | "mock"
+    PORTRAIT_MODEL: str = ""  # blank -> falls back to OPENROUTER_IMAGE_MODEL
+    PORTRAIT_MAX_RETRIES: int = 2
 
     # --- Outfit of the Day (daily, weather-aware, persona-aware pick — wraps the existing
     # styling pipeline, see app/styling/ootd.py; no new recommendation logic) ---
