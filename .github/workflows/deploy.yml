@@ -101,11 +101,29 @@ jobs:
             set -e
             mkdir -p /opt/closet-theory
             cd /opt/closet-theory
+            export IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}
+
+            # Reclaim disk BEFORE anything writes. Every deploy pulls a fresh app image tagged
+            # with its commit SHA and nothing ever removed the superseded ones, so the droplet
+            # filled up and a deploy failed at `docker login` with "no space left on device" --
+            # a misleading error for a full disk, since all it was writing was a credentials
+            # file. This runs first so even a completely full disk recovers on its own.
+            #
+            # Deliberately narrow: only dangling layers, the build cache, and old tags of OUR
+            # image. The pinned third-party images (postgres/redis/minio/nginx/certbot) are left
+            # alone -- a blanket `system prune` would force `up -d` to re-pull all of them and
+            # walk straight into Docker Hub's 100-per-6h anonymous limit, which has broken a
+            # deploy here before (see the note on `docker compose pull` below).
+            echo "disk before cleanup:"; df -h / | tail -1
+            docker image prune -f || true
+            docker builder prune -af || true
+            docker images "${{ env.IMAGE }}" --format '{{.ID}} {{.Tag}}' | grep -v " $IMAGE_TAG$" | awk '{print $1}' | sort -u | xargs -r docker rmi -f 2>/dev/null || true
+            echo "disk after cleanup:"; df -h / | tail -1
+
             echo "$APP_ENV_FILE" > .env
             echo "$COMPOSE_B64" | base64 -d > docker-compose.yml
             echo "$NGINX_CONF_B64" | base64 -d > nginx.conf
             echo "$GHCR_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            export IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}
             # Only the app image changes per deploy; postgres/minio/redis/nginx/certbot are
             # pinned and already on the droplet. Pulling all of them every time meant several
             # anonymous Docker Hub pulls per deploy, which exhausted Docker Hub's 100-per-6h
