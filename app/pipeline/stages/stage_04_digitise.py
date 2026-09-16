@@ -76,7 +76,11 @@ class Stage04Digitise(BaseStage):
                 return StageExecutionResult(
                     status="FAILED",
                     input_refs={"crop_uri": crop_uri},
-                    output_refs={"attempts": attempt, "verification_history": verification_history},
+                    output_refs={
+                        "attempts": attempt,
+                        "verification_history": verification_history,
+                        "generation_errors": list(getattr(provider, "_last_generation_errors", []) or []),
+                    },
                     input_hash=input_hash,
                     model=provider.model_name,
                     model_version=provider.model_version,
@@ -110,7 +114,12 @@ class Stage04Digitise(BaseStage):
             return StageExecutionResult(
                 status="REVIEW_REQUIRED",
                 input_refs={"crop_uri": crop_uri},
-                output_refs={"attempts": max_retries, "reason": last_error, "verification_history": verification_history},
+                output_refs={
+                    "attempts": max_retries,
+                    "reason": last_error,
+                    "verification_history": verification_history,
+                    "generation_errors": list(getattr(provider, "_last_generation_errors", []) or []),
+                },
                 input_hash=input_hash,
                 model=provider.model_name,
                 model_version=provider.model_version,
@@ -145,6 +154,10 @@ class Stage04Digitise(BaseStage):
 
         prompt = getattr(provider, "_last_prompt", "")
         negative_prompt = getattr(provider, "_last_negative_prompt", "")
+        # Why the real image model declined, when it did. Without this the run records only
+        # that a "Studio-Segmenter-Protected" image was produced, and the reason lives in a
+        # container log that disappears on the next restart.
+        generation_errors = list(getattr(provider, "_last_generation_errors", []) or [])
 
         return StageExecutionResult(
             status="SUCCEEDED",
@@ -157,6 +170,8 @@ class Stage04Digitise(BaseStage):
                 "prompt": prompt,
                 "negative_prompt": negative_prompt,
                 "verification_history": verification_history,
+                "generation_errors": generation_errors,
+                "used_local_fallback": last_result.model == "Studio-Segmenter-Protected",
             },
             input_hash=input_hash,
             model=last_result.model,

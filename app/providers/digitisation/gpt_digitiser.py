@@ -36,6 +36,43 @@ def _meaningful(value: Optional[str]) -> Optional[str]:
     return None if cleaned.lower() in _PLACEHOLDER_TEXT else cleaned
 
 
+def _extract_provider_message(body: str) -> str:
+    """Pulls the human-readable message out of a provider error body, falling back to the raw
+    text. Providers nest it inconsistently, and the useful sentence is always the deepest one."""
+    try:
+        data = json.loads(body)
+    except Exception:
+        return (body or "").strip()[:400]
+    for path in (("error", "message"), ("error", "metadata", "raw"), ("message",), ("detail",)):
+        node = data
+        for key in path:
+            node = node.get(key) if isinstance(node, dict) else None
+            if node is None:
+                break
+        if isinstance(node, str) and node.strip():
+            return node.strip()[:400]
+    return (body or "").strip()[:400]
+
+
+def _classify_generation_failure(status: int, message: str) -> str:
+    """Names the failure so the UI can say something useful rather than showing a status code.
+
+    The distinction that matters is refusal versus outage: a safety rejection is a permanent
+    property of this garment's print and will never succeed on retry, whereas a rate limit or a
+    502 is worth coming back to.
+    """
+    text = (message or "").lower()
+    if "safety" in text or "content policy" in text or "rejected by the safety" in text:
+        return "safety_refusal"
+    if status in (401, 403) or "api key" in text or "unauthorized" in text:
+        return "auth"
+    if status == 429 or "rate limit" in text or "quota" in text or "credit" in text:
+        return "rate_limited"
+    if status and status >= 500:
+        return "provider_error"
+    return "rejected"
+
+
 class GPTStudioDigitisationProvider(BaseDigitisationProvider):
     """
     GPT-guided Canonical Studio Digitisation.
@@ -56,6 +93,9 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         self.model_version = model_version
         self.prompt_version = prompt_version
         self._last_generated_bytes: Optional[bytes] = None
+        # Why each image model declined or failed, in the order tried. Surfaced through the
+        # stage run so the reason survives a container restart and reaches the UI.
+        self._last_generation_errors: List[Dict[str, Any]] = []
         self._last_prompt: str = ""
         self._last_negative_prompt: str = ""
         self._active_model: str = "GPT-Studio-Segmenter-v1"
@@ -213,6 +253,7 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         )
         self._last_prompt = prompt
         self._last_negative_prompt = negative_prompt
+        self._last_generation_errors = []
 
         # 1. Generate real canonical studio image via OpenRouter Images API with reference image conditioning
         if self.api_key:
@@ -231,9 +272,23 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
                         attempts=attempt,
                     )
             except Exception as e:
+                self._last_generation_errors.append({
+                    "model": "(request)", "status": None,
+                    "reason": f"{type(e).__name__}: {e}", "kind": "transport",
+                })
                 logger.warning(f"OpenRouter image generation call could not be completed: {e}")
 
-        # 2. Local Studio Segmentation & Compositing Engine fallback
+        # 2. Local Studio Segmentation & Compositing Engine fallback.
+        # Reached only when every image model declined. The commonest cause by far is the
+        # provider's safety system refusing to reproduce a licensed character or logo printed on
+        # the garment — a Marvel tee, band merch, a club crest. That is a refusal, not an outage,
+        # and retrying will not change it, so the reason is recorded rather than retried.
+        if not self.api_key:
+            self._last_generation_errors.append({
+                "model": "(none)", "status": None,
+                "reason": "OPENROUTER_API_KEY is not set, so no image model was called.",
+                "kind": "not_configured",
+            })
         studio_bytes = self._segment_and_composite_studio(crop_bytes)
         self._last_generated_bytes = studio_bytes
         self._active_model = "Studio-Segmenter-Protected"
@@ -294,8 +349,23 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
                                 if img_resp.status_code == 200:
                                     return img_resp.content, model_id
                     else:
-                        logger.warning(f"OpenRouter image model {model_id} returned HTTP {resp.status_code}: {resp.text[:150]}")
+                        detail = _extract_provider_message(resp.text)
+                        self._last_generation_errors.append({
+                            "model": model_id,
+                            "status": resp.status_code,
+                            "reason": detail,
+                            "kind": _classify_generation_failure(resp.status_code, detail),
+                        })
+                        logger.warning(
+                            f"OpenRouter image model {model_id} returned HTTP {resp.status_code}: {detail[:150]}"
+                        )
                 except Exception as ex:
+                    self._last_generation_errors.append({
+                        "model": model_id,
+                        "status": None,
+                        "reason": f"{type(ex).__name__}: {ex}",
+                        "kind": "transport",
+                    })
                     logger.warning(f"OpenRouter model {model_id} request error: {ex}")
                     continue
 
