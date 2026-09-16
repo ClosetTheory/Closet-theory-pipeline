@@ -1,15 +1,11 @@
 """FLUX.2 Image Digitisation Provider with Image-to-Image Conditioning."""
 
 import base64
-import io
 from typing import Any, Dict, List, Optional, Tuple
-import cv2
 import httpx
-import numpy as np
-from PIL import Image, ImageFilter
 from app.config import settings
 from app.observability import logger
-from app.providers.base import BaseDigitisationProvider
+from app.providers.base import BaseDigitisationProvider, ImageGenerationRefusedError
 from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import DigitisationResult
 
@@ -100,36 +96,29 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         self._last_negative_prompt = negative_prompt
 
         # 1. Attempt FLUX Image Generation with Image-to-Image Reference Conditioning
-        if self.api_key:
-            try:
-                gen_bytes, model_used = await self._call_flux_image_gen(prompt, crop_bytes)
-                if gen_bytes:
-                    self._last_generated_bytes = gen_bytes
-                    self._active_model = model_used
-                    logger.info(f"FLUX.2 canonical studio image successfully generated via ({model_used}).")
-                    return DigitisationResult(
-                        canonical_image_uri="",
-                        quality_score=0.98,
-                        model=self._active_model,
-                        model_version=self.model_version,
-                        prompt_version=self.prompt_version,
-                        attempts=attempt,
-                    )
-            except Exception as e:
-                logger.warning(f"FLUX image generation error: {e}")
+        if not self.api_key:
+            raise ImageGenerationRefusedError(
+                "No API key is configured, so FLUX could not be called."
+            )
 
-        # 2. Local Fallback Segmentation
-        studio_bytes = self._segment_and_composite_studio(crop_bytes)
-        self._last_generated_bytes = studio_bytes
-        self._active_model = "Studio-Segmenter-Protected"
+        gen_bytes, model_used = await self._call_flux_image_gen(prompt, crop_bytes)
+        if gen_bytes:
+            self._last_generated_bytes = gen_bytes
+            self._active_model = model_used
+            logger.info(f"FLUX.2 canonical studio image successfully generated via ({model_used}).")
+            return DigitisationResult(
+                canonical_image_uri="",
+                quality_score=0.98,
+                model=self._active_model,
+                model_version=self.model_version,
+                prompt_version=self.prompt_version,
+                attempts=attempt,
+            )
 
-        return DigitisationResult(
-            canonical_image_uri="",
-            quality_score=0.92,
-            model=self._active_model,
-            model_version=self.model_version,
-            prompt_version=self.prompt_version,
-            attempts=attempt,
+        # 2. No local composite -- see ImageGenerationRefusedError. The garment goes to review
+        # rather than being reported as a successful digitisation of a cut-out.
+        raise ImageGenerationRefusedError(
+            f"FLUX ({self.model_name}) returned no image."
         )
 
     async def _call_flux_image_gen(self, prompt: str, crop_bytes: bytes) -> Tuple[Optional[bytes], str]:
@@ -194,70 +183,6 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
                     continue
 
         return None, ""
-
-    def _segment_and_composite_studio(self, crop_bytes: bytes) -> bytes:
-        """Local studio segmentation fallback with garment core protection."""
-        try:
-            np_arr = np.frombuffer(crop_bytes, np.uint8)
-            img_bgr = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            if img_bgr is None:
-                return crop_bytes
-
-            h, w = img_bgr.shape[:2]
-            margin_x = max(1, int(w * 0.05))
-            margin_y = max(1, int(h * 0.08))
-            rect = (margin_x, margin_y, w - 2 * margin_x, h - 2 * margin_y)
-
-            mask = np.zeros((h, w), np.uint8)
-            bgdModel = np.zeros((1, 65), np.float64)
-            fgdModel = np.zeros((1, 65), np.float64)
-
-            # Hole protection
-            mask[int(h * 0.25) : int(h * 0.80), int(w * 0.25) : int(w * 0.75)] = cv2.GC_FGD
-
-            cv2.grabCut(img_bgr, mask, rect, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_RECT)
-            mask2 = np.where((mask == 2) | (mask == 0), 0, 255).astype("uint8")
-            mask2 = cv2.GaussianBlur(mask2, (5, 5), 0)
-
-            b, g, r = cv2.split(img_bgr)
-            rgba = cv2.merge([r, g, b, mask2])
-            isolated_garment = Image.fromarray(rgba, "RGBA")
-
-            bbox = isolated_garment.getbbox()
-            if bbox:
-                isolated_garment = isolated_garment.crop(bbox)
-
-            gw, gh = isolated_garment.size
-            canvas_w, canvas_h = 768, 1024
-            studio_canvas = Image.new("RGBA", (canvas_w, canvas_h), (248, 250, 252, 255))
-
-            scale = min((canvas_w * 0.82) / gw, (canvas_h * 0.82) / gh)
-            scaled_w = max(10, int(gw * scale))
-            scaled_h = max(10, int(gh * scale))
-            scaled_garment = isolated_garment.resize((scaled_w, scaled_h), Image.Resampling.LANCZOS)
-
-            shadow = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-            shadow_x = (canvas_w - scaled_w) // 2
-            shadow_y = (canvas_h - scaled_h) // 2 + 10
-
-            alpha_channel = scaled_garment.split()[3]
-            blurred_shadow = alpha_channel.filter(ImageFilter.GaussianBlur(16))
-            shadow_layer = Image.new("RGBA", (scaled_w, scaled_h), (30, 41, 59, 50))
-            shadow.paste(shadow_layer, (shadow_x, shadow_y), blurred_shadow)
-            studio_canvas = Image.alpha_composite(studio_canvas, shadow)
-
-            paste_x = (canvas_w - scaled_w) // 2
-            paste_y = (canvas_h - scaled_h) // 2
-            studio_canvas.paste(scaled_garment, (paste_x, paste_y), scaled_garment)
-
-            final_rgb = studio_canvas.convert("RGB")
-            buf = io.BytesIO()
-            final_rgb.save(buf, format="JPEG", quality=95)
-            return buf.getvalue()
-
-        except Exception as e:
-            logger.warning(f"Studio segmentation fallback: {e}")
-            return crop_bytes
 
     async def validate_digitisation(
         self,

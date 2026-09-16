@@ -1,18 +1,18 @@
 """GPT Studio Image Digitisation Provider via OpenRouter."""
 
 import base64
-import io
 import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
-import cv2
 import httpx
-import numpy as np
-from PIL import Image, ImageFilter
 from app.config import settings
 from app.providers.json_parsing import parse_model_json
 from app.observability import logger
-from app.providers.base import BaseDigitisationProvider, VerifierUnavailableError
+from app.providers.base import (
+    BaseDigitisationProvider,
+    ImageGenerationRefusedError,
+    VerifierUnavailableError,
+)
 from app.rules.garment_class import bundle_garment_class, infer_garment_class_from_subcategory
 from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import DigitisationResult
@@ -96,6 +96,9 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         # Why each image model declined or failed, in the order tried. Surfaced through the
         # stage run so the reason survives a container restart and reaches the UI.
         self._last_generation_errors: List[Dict[str, Any]] = []
+        # Set when the image came from something other than the first-choice model, so the run
+        # can say which model drew the garment and what the preferred one said.
+        self._last_fallback: Optional[Dict[str, Any]] = None
         self._last_prompt: str = ""
         self._last_negative_prompt: str = ""
         self._active_model: str = "GPT-Studio-Segmenter-v1"
@@ -274,53 +277,49 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         self._last_prompt = prompt
         self._last_negative_prompt = negative_prompt
         self._last_generation_errors = []
+        self._last_fallback = None
 
         # 1. Generate real canonical studio image via OpenRouter Images API with reference image conditioning
-        if self.api_key:
-            try:
-                gen_bytes, model_used = await self._call_openrouter_image_gen(prompt, crop_bytes)
-                if gen_bytes:
-                    self._last_generated_bytes = gen_bytes
-                    self._active_model = f"OpenRouter ({model_used})"
-                    logger.info(f"Canonical studio image successfully generated via OpenRouter ({model_used}).")
-                    return DigitisationResult(
-                        canonical_image_uri="",
-                        quality_score=0.98,
-                        model=self._active_model,
-                        model_version=self.model_version,
-                        prompt_version=self.prompt_version,
-                        attempts=attempt,
-                    )
-            except Exception as e:
-                self._last_generation_errors.append({
-                    "model": "(request)", "status": None,
-                    "reason": f"{type(e).__name__}: {e}", "kind": "transport",
-                })
-                logger.warning(f"OpenRouter image generation call could not be completed: {e}")
-
-        # 2. Local Studio Segmentation & Compositing Engine fallback.
-        # Reached only when every image model declined. The commonest cause by far is the
-        # provider's safety system refusing to reproduce a licensed character or logo printed on
-        # the garment — a Marvel tee, band merch, a club crest. That is a refusal, not an outage,
-        # and retrying will not change it, so the reason is recorded rather than retried.
         if not self.api_key:
-            self._last_generation_errors.append({
-                "model": "(none)", "status": None,
-                "reason": "OPENROUTER_API_KEY is not set, so no image model was called.",
-                "kind": "not_configured",
-            })
-        studio_bytes = self._segment_and_composite_studio(crop_bytes)
-        self._last_generated_bytes = studio_bytes
-        self._active_model = "Studio-Segmenter-Protected"
+            raise ImageGenerationRefusedError(
+                "OPENROUTER_API_KEY is not set, so no image model could be called."
+            )
 
-        return DigitisationResult(
-            canonical_image_uri="",
-            quality_score=0.92,
-            model=self._active_model,
-            model_version=self.model_version,
-            prompt_version=self.prompt_version,
-            attempts=attempt,
-        )
+        gen_bytes, model_used = await self._call_openrouter_image_gen(prompt, crop_bytes)
+        if gen_bytes:
+            self._last_generated_bytes = gen_bytes
+            self._active_model = f"OpenRouter ({model_used})"
+            if model_used != settings.OPENROUTER_IMAGE_MODEL:
+                declined = [e for e in self._last_generation_errors if e["model"] != model_used]
+                self._last_fallback = {
+                    "model": model_used,
+                    "preferred_model": settings.OPENROUTER_IMAGE_MODEL,
+                    "declined": declined,
+                    "reason": declined[0]["reason"] if declined else "",
+                    "kind": declined[0]["kind"] if declined else "",
+                }
+                logger.info(
+                    f"Canonical studio image generated by fallback model {model_used}; "
+                    f"{settings.OPENROUTER_IMAGE_MODEL} declined."
+                )
+            else:
+                logger.info(f"Canonical studio image successfully generated via OpenRouter ({model_used}).")
+            return DigitisationResult(
+                canonical_image_uri="",
+                quality_score=0.98,
+                model=self._active_model,
+                model_version=self.model_version,
+                prompt_version=self.prompt_version,
+                attempts=attempt,
+            )
+
+        # 2. Nothing drew it. There is deliberately no local composite here — see
+        # ImageGenerationRefusedError. The garment goes to human review carrying the reason each
+        # model gave, which is a real answer; a grabCut cut-out reported as a 0.92 success is not.
+        summary = "; ".join(
+            f"{e['model']}: {e['reason']}" for e in self._last_generation_errors
+        ) or "no image model returned an image"
+        raise ImageGenerationRefusedError(summary)
 
     async def _call_openrouter_image_gen(self, prompt: str, crop_bytes: bytes) -> Tuple[Optional[bytes], str]:
         """Calls OpenRouter /api/v1/images API conditioned on reference crop."""
@@ -333,9 +332,14 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
         }
 
         # settings.OPENROUTER_IMAGE_MODEL is the single source of truth for which image model
-        # to try first (same setting the styling outfit-imaging provider uses); the second
-        # entry is a fixed fallback if that model is ever unavailable.
-        models_to_try = [settings.OPENROUTER_IMAGE_MODEL, "openai/gpt-5.4-image-2"]
+        # to try first (same setting the styling outfit-imaging provider uses); the rest of the
+        # ladder is OPENROUTER_IMAGE_FALLBACK_MODELS, which must reach a second vendor — see the
+        # note on that setting for why a same-vendor fallback is not a fallback at all.
+        models_to_try = [settings.OPENROUTER_IMAGE_MODEL] + [
+            m.strip() for m in settings.OPENROUTER_IMAGE_FALLBACK_MODELS.split(",") if m.strip()
+        ]
+        seen = set()
+        models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
 
         # Base64 encode the reference crop image for image-to-image conditioning
         b64_image = base64.b64encode(crop_bytes).decode("utf-8")
@@ -390,73 +394,6 @@ The garment floats with natural three-dimensional volume and shape, exactly as i
                     continue
 
         return None, ""
-
-    def _segment_and_composite_studio(self, crop_bytes: bytes) -> bytes:
-        """
-        Local studio fallback with hole-protection for high-frequency patterns (plaid, stripes).
-        """
-        try:
-            np_arr = np.frombuffer(crop_bytes, np.uint8)
-            img_bgr = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            if img_bgr is None:
-                return crop_bytes
-
-            h, w = img_bgr.shape[:2]
-
-            margin_x = max(1, int(w * 0.05))
-            margin_y = max(1, int(h * 0.08))
-            rect = (margin_x, margin_y, w - 2 * margin_x, h - 2 * margin_y)
-
-            mask = np.zeros((h, w), np.uint8)
-            bgdModel = np.zeros((1, 65), np.float64)
-            fgdModel = np.zeros((1, 65), np.float64)
-
-            # Mark center core as definite foreground (prevents cutting holes in plaid/stripes)
-            mask[int(h * 0.25) : int(h * 0.80), int(w * 0.25) : int(w * 0.75)] = cv2.GC_FGD
-
-            cv2.grabCut(img_bgr, mask, rect, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_RECT)
-            mask2 = np.where((mask == 2) | (mask == 0), 0, 255).astype("uint8")
-            mask2 = cv2.GaussianBlur(mask2, (5, 5), 0)
-
-            b, g, r = cv2.split(img_bgr)
-            rgba = cv2.merge([r, g, b, mask2])
-            isolated_garment = Image.fromarray(rgba, "RGBA")
-
-            bbox = isolated_garment.getbbox()
-            if bbox:
-                isolated_garment = isolated_garment.crop(bbox)
-
-            gw, gh = isolated_garment.size
-            canvas_w, canvas_h = 768, 1024
-            studio_canvas = Image.new("RGBA", (canvas_w, canvas_h), (248, 250, 252, 255))
-
-            scale = min((canvas_w * 0.82) / gw, (canvas_h * 0.82) / gh)
-            scaled_w = max(10, int(gw * scale))
-            scaled_h = max(10, int(gh * scale))
-            scaled_garment = isolated_garment.resize((scaled_w, scaled_h), Image.Resampling.LANCZOS)
-
-            shadow = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-            shadow_x = (canvas_w - scaled_w) // 2
-            shadow_y = (canvas_h - scaled_h) // 2 + 10
-
-            alpha_channel = scaled_garment.split()[3]
-            blurred_shadow = alpha_channel.filter(ImageFilter.GaussianBlur(16))
-            shadow_layer = Image.new("RGBA", (scaled_w, scaled_h), (30, 41, 59, 50))
-            shadow.paste(shadow_layer, (shadow_x, shadow_y), blurred_shadow)
-            studio_canvas = Image.alpha_composite(studio_canvas, shadow)
-
-            paste_x = (canvas_w - scaled_w) // 2
-            paste_y = (canvas_h - scaled_h) // 2
-            studio_canvas.paste(scaled_garment, (paste_x, paste_y), scaled_garment)
-
-            final_rgb = studio_canvas.convert("RGB")
-            buf = io.BytesIO()
-            final_rgb.save(buf, format="JPEG", quality=95)
-            return buf.getvalue()
-
-        except Exception as e:
-            logger.warning(f"Studio segmentation fallback: {e}")
-            return crop_bytes
 
     async def validate_digitisation(
         self,

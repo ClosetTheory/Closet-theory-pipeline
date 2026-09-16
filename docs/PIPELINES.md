@@ -249,7 +249,7 @@ placeholder values.
 
 ## Stage 4 — Digitisation
 
-`stage_04_digitise.py` · model: FLUX.2 Pro (or GPT image) · verifier: Gemini 2.5 Flash
+`stage_04_digitise.py` · model: an image-model ladder spanning OpenAI and Google · verifier: Gemini 2.5 Flash
 
 **In:** the full source photo + `detected_label` + the Stage 3 attributes.
 **Does:** generates a clean, standardised canonical image of just that garment — flat, neutral
@@ -259,6 +259,23 @@ background, consistent framing. Stores it as a new immutable `ImageAsset` and li
 **The retry loop carries the defect forward.** A rejected attempt doesn't just re-roll; its
 mismatches are appended to `previous_rejections` and injected into the next prompt as a
 "Corrections — a previous attempt at THIS garment was REJECTED" block.
+
+**The generator is a ladder across two vendors.** `OPENROUTER_IMAGE_MODEL` is tried first, then
+each entry of `OPENROUTER_IMAGE_FALLBACK_MODELS` in turn. The ladder deliberately reaches Google
+as well as OpenAI, because a same-vendor fallback is not a fallback: both OpenAI image models
+share one safety system, so a garment one refuses the other refuses identically. Measured on a
+Venom graphic tee — `gpt-image-2` and `gpt-5.4-image-2` both returned HTTP 400 "rejected by the
+safety system"; all three Gemini image models rendered it correctly. When a fallback model draws
+the garment, the run records which one and what the preferred model said, and the pipeline page
+shows both.
+
+**Nothing is ever composited locally.** If every model declines, the stage returns
+`REVIEW_REQUIRED` with no canonical image. It used to fall back to an OpenCV grabCut cut-out of
+the member's own photo pasted on a blank canvas, reported as `SUCCEEDED` at 0.92 — and the
+verifier passed it, because it compares the canonical image against that same photo and they were
+identical. So a garment no model would draw was indistinguishable from one that generated
+cleanly, while Stage 5 embedded a background-flecked cut-out as the garment's identity for search
+and duplicate detection.
 
 ```mermaid
 flowchart LR
@@ -289,6 +306,7 @@ and then embedded, as dress shirts.
 |---|---|
 | `SUCCEEDED` | an attempt scored ≥ 0.75 |
 | `REVIEW_REQUIRED` (non-halting) | all 3 attempts below threshold |
+| `REVIEW_REQUIRED` (non-halting) | **no image model would generate** — stops at once, since a content-policy refusal is a fixed property of the photo and retrying returns the same answer |
 | `FAILED` | verifier unavailable |
 
 ---

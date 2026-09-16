@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = "openai/gpt-4o"
     OPENROUTER_IMAGE_MODEL: str = "openai/gpt-image-2"
+    # Tried in order after OPENROUTER_IMAGE_MODEL declines, and deliberately spans vendors.
+    # A same-vendor ladder is not a fallback: gpt-image-2 and gpt-5.4-image-2 share OpenAI's
+    # safety system, so both refuse the same garment for the same reason and the chain is one
+    # policy decision deep. Measured on a Venom graphic tee: both OpenAI models returned HTTP 400
+    # "rejected by the safety system", all three Gemini image models rendered it correctly.
+    OPENROUTER_IMAGE_FALLBACK_MODELS: str = (
+        "openai/gpt-5.4-image-2,google/gemini-3-pro-image,google/gemini-3.1-flash-image"
+    )
 
     # NVIDIA NIM API Configuration
     NVIDIA_API_KEY: Optional[str] = None

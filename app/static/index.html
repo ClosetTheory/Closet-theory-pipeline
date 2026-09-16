@@ -1008,27 +1008,33 @@
           canImg.src = arts.canonical_image_url;
           canImg.classList.remove('hidden');
 
-          // A local composite is not a generated studio image, and the score alone cannot tell
-          // them apart — both come back around 0.92-0.98. Say which one this is.
-          const usedFallback = data.output_data.used_local_fallback
-            || (data.model || '').indexOf('Studio-Segmenter') !== -1;
+          // Which model actually drew this. The score cannot distinguish the preferred model
+          // from a cross-vendor fallback, and the refusal that forced the fallback is the part
+          // worth reading.
+          const fb = data.output_data.fallback || null;
+          const usedFallback = !!(data.output_data.used_fallback_model || fb);
           const errors = data.output_data.generation_errors || [];
 
           document.getElementById('stage4-data').innerHTML = `
-            <div>Quality Score: <span class="${usedFallback ? 'text-amber-400' : 'text-emerald-400'} font-bold">${(data.output_data.quality_score * 100).toFixed(0)}%</span></div>
-            <div>Renderer: <span class="text-ct-ink font-bold">${data.model || 'FLUX.2'}</span> (${data.output_data.attempts} attempt)</div>
+            <div>Quality Score: <span class="text-emerald-400 font-bold">${(data.output_data.quality_score * 100).toFixed(0)}%</span></div>
+            <div>Renderer: <span class="text-ct-ink font-bold">${esc4(data.model || 'FLUX.2')}</span> (${data.output_data.attempts} attempt)</div>
             ${usedFallback ? `
               <div class="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
-                <div class="font-bold text-[11px] uppercase tracking-wide">Local fallback — no image model produced this</div>
+                <div class="font-bold text-[11px] uppercase tracking-wide">Fallback model drew this garment</div>
                 <div class="text-[11px] mt-0.5">
-                  This is the original photo cut out and composited onto a blank studio canvas, not a
-                  regenerated garment. Stage 5 embeds this image, so the garment's identity for search
-                  and duplicate detection comes from it.
+                  <span class="font-mono font-bold">${esc4(fb && fb.preferred_model || 'the preferred model')}</span>
+                  declined, so
+                  <span class="font-mono font-bold">${esc4(fb && fb.model || data.model || '')}</span>
+                  produced the canonical image instead. The image is a real studio render — only the
+                  model differs.
+                  ${fb && fb.kind === 'safety_refusal' ? `<br/><span class="font-bold">Why:</span>
+                    the preferred vendor's content policy refused this garment's print. That is a
+                    property of what is printed on it, not an outage, so it will refuse again.` : ''}
                 </div>
               </div>` : ''}
             ${errors.length ? `
               <div class="mt-2 space-y-1">
-                <div class="text-[10px] uppercase tracking-wide text-slate-500 font-bold">Why each image model declined</div>
+                <div class="text-[10px] uppercase tracking-wide text-slate-500 font-bold">Models that declined, in order tried</div>
                 ${errors.map(e => `
                   <div class="text-[10px] bg-slate-950 p-2 rounded border border-red-800/60">
                     <div class="flex items-center justify-between gap-2">
@@ -1037,18 +1043,22 @@
                     </div>
                     <div class="text-slate-400 mt-0.5">${esc4(e.reason || '')}</div>
                   </div>`).join('')}
-                ${errors.some(e => e.kind === 'safety_refusal') ? `
-                  <div class="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                    A safety refusal is a property of this garment's print, not an outage — most often a
-                    licensed character, logo or club crest. Retrying will produce the same answer.
-                  </div>` : ''}
               </div>` : ''}
           `;
         } else {
           canImg.classList.add('hidden');
           const failErrors = data.output_data.generation_errors || [];
+          const nothingDrew = !!data.output_data.no_image_generated;
           document.getElementById('stage4-data').innerHTML = `
             <div class="text-red-400 font-bold">${data.status}: ${esc4((data.output_data.reason || 'Digitisation failed verification').slice(0, 200))}</div>
+            ${nothingDrew ? `
+              <div class="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
+                <div class="font-bold uppercase tracking-wide text-[11px]">No canonical image exists for this garment</div>
+                Every model in the chain declined, across vendors, so nothing was stored and the
+                garment is waiting on a person. It is deliberately not substituted with a cut-out of
+                the original photo — that would have been embedded in Stage 5 and become the
+                garment's identity for search and duplicate detection.
+              </div>` : ''}
             ${failErrors.map(e => `
               <div class="text-[10px] bg-slate-950 p-2 rounded border border-red-800/60 mt-1">
                 <span class="font-mono text-red-400 font-bold">${esc4(e.model)}</span>

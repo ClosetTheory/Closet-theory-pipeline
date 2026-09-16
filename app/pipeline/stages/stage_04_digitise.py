@@ -12,7 +12,7 @@ from app.models.image_asset import ImageAsset
 from app.pipeline.idempotency import compute_stage_input_hash
 from app.pipeline.stages.base import BaseStage, StageExecutionContext, StageExecutionResult
 from app.pipeline.state_machine import PipelineStage
-from app.providers.base import VerifierUnavailableError
+from app.providers.base import ImageGenerationRefusedError, VerifierUnavailableError
 from app.providers.digitisation import get_digitisation_provider
 from app.schemas.attributes import GarmentAttributes
 
@@ -44,13 +44,36 @@ class Stage04Digitise(BaseStage):
         previous_rejections: list = []
 
         for attempt in range(1, max_retries + 1):
-            digit_res = await provider.digitise(
-                crop_bytes,
-                attributes,
-                attempt=attempt,
-                garment_label=garment_label,
-                previous_rejections=previous_rejections,
-            )
+            try:
+                digit_res = await provider.digitise(
+                    crop_bytes,
+                    attributes,
+                    attempt=attempt,
+                    garment_label=garment_label,
+                    previous_rejections=previous_rejections,
+                )
+            except ImageGenerationRefusedError as e:
+                # No model would draw this garment. Retrying the same ladder costs money and
+                # returns the same answer, because the commonest cause is a content-policy
+                # refusal on what is printed on the garment, which is a fixed property of the
+                # photo. Stop here and show a person the reason each model gave.
+                return StageExecutionResult(
+                    status="REVIEW_REQUIRED",
+                    input_refs={"crop_uri": crop_uri},
+                    output_refs={
+                        "attempts": attempt,
+                        "reason": f"No image model produced a canonical image: {e}",
+                        "verification_history": verification_history,
+                        "generation_errors": list(getattr(provider, "_last_generation_errors", []) or []),
+                        "no_image_generated": True,
+                    },
+                    input_hash=input_hash,
+                    model=provider.model_name,
+                    model_version=provider.model_version,
+                    algorithm_version="digitise_v1",
+                    error=str(e),
+                    quality_status="REVIEW_REQUIRED",
+                )
             last_result = digit_res
 
             # Generate synthetic or actual canonical image bytes
@@ -154,10 +177,11 @@ class Stage04Digitise(BaseStage):
 
         prompt = getattr(provider, "_last_prompt", "")
         negative_prompt = getattr(provider, "_last_negative_prompt", "")
-        # Why the real image model declined, when it did. Without this the run records only
-        # that a "Studio-Segmenter-Protected" image was produced, and the reason lives in a
+        # Why any image model declined, when one did. Without this the run records only which
+        # model eventually drew the garment, and the reason the preferred one refused lives in a
         # container log that disappears on the next restart.
         generation_errors = list(getattr(provider, "_last_generation_errors", []) or [])
+        fallback = getattr(provider, "_last_fallback", None)
 
         return StageExecutionResult(
             status="SUCCEEDED",
@@ -171,7 +195,8 @@ class Stage04Digitise(BaseStage):
                 "negative_prompt": negative_prompt,
                 "verification_history": verification_history,
                 "generation_errors": generation_errors,
-                "used_local_fallback": last_result.model == "Studio-Segmenter-Protected",
+                "used_fallback_model": bool(fallback),
+                "fallback": fallback,
             },
             input_hash=input_hash,
             model=last_result.model,

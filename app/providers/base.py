@@ -38,6 +38,20 @@ class VerifierUnavailableError(RuntimeError):
     """
 
 
+class ImageGenerationRefusedError(RuntimeError):
+    """No image model would produce the canonical studio image.
+
+    Raised instead of compositing one locally. The local grabCut fallback returned the member's
+    own photograph cut out and pasted on a blank canvas, then reported it as a SUCCEEDED
+    digitisation scoring 0.92 — and the verifier passed it, because it compares the canonical
+    image against that same photograph and they were identical. So a garment no model would draw
+    was indistinguishable, in the database and in the UI, from one that generated cleanly, while
+    Stage 5 embedded a background-flecked cut-out as the garment's identity for search and
+    duplicate detection. Failing loudly into review is the honest outcome: the garment is visible
+    as needing attention instead of silently wrong.
+    """
+
+
 class BaseClassifierProvider(ABC):
     """Stage 1: Image Classifier provider interface."""
 
