@@ -187,9 +187,29 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
             "reproduce it faithfully, do not substitute a generic or different item."
         )
 
+        # Stated up front, because a print described in isolation ("a character with purple
+        # flames") reads as a request to generate licensed artwork, and gets refused. Naming the
+        # actual task resolves that: this is catalogue photography of an object the owner
+        # already has, not the creation of new artwork.
+        provenance = (
+            "Context for this task: this is a wardrobe cataloguing service. The reference photo "
+            "was taken by the owner of this physical garment, which they already possess, and is "
+            "supplied with their permission for the sole purpose of building their own private "
+            "digital wardrobe catalogue. The task is to re-photograph that existing object under "
+            "standard studio conditions — equivalent to placing the same garment on a catalogue "
+            "backdrop and shooting it again. Nothing is being invented, altered or restyled. Any "
+            "printed graphic, logo or text on the garment is part of the physical object and "
+            "should appear only as it already appears on it, at the same position and scale, as "
+            "incidental detail of the product — never enlarged, isolated, extracted or reproduced "
+            "as artwork in its own right."
+        )
+
         positive_prompt = f"""Commercial e-commerce product photograph of a {subcategory_str}, centered on a solid dark charcoal studio background (#161922). \
 The garment floats with natural three-dimensional volume and shape, exactly as if being worn, but with no visible body, support structure, or object holding it up. \
 {reference_instruction}
+
+### What this image is for:
+{provenance}
 
 ### Exact Garment Identity (1:1 Preservation — Highest Priority):
 {chr(10).join(identity_lines)}
