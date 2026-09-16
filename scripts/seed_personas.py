@@ -20,7 +20,6 @@ as (via an assignment) but never logged into.
 
 import argparse
 import asyncio
-import secrets
 from typing import Dict, List, Optional
 
 from sqlalchemy import select
@@ -44,6 +43,11 @@ LOCKED_PASSWORD_HASH = "!locked-persona-account"
 
 STYLIST_SLOTS = ("stylist1", "stylist2", "stylist3")
 STYLIST_EMAIL = "{slot}@closettheory.co"
+# A known password rather than a generated one. These are placeholder accounts on an internal
+# evaluation panel, and a random string printed once is the kind of thing that gets mistyped,
+# lost, and then debugged as "login is broken". Override with --stylist-password before this
+# ever runs anywhere that matters.
+DEFAULT_STYLIST_PASSWORD = "stylist1234"
 
 
 def _persona_fields(seed: PersonaSeed) -> Dict:
@@ -86,7 +90,9 @@ def _persona_fields(seed: PersonaSeed) -> Dict:
     }
 
 
-async def _ensure_stylists(session, dry_run: bool) -> Dict[str, User]:
+async def _ensure_stylists(
+    session, dry_run: bool, password: str = DEFAULT_STYLIST_PASSWORD, reset: bool = False
+) -> Dict[str, User]:
     """Creates the three stylist accounts if they are missing and grants each the stylist role.
 
     Placeholder addresses on purpose — real ones get swapped in once the panel is in use. The
@@ -97,12 +103,14 @@ async def _ensure_stylists(session, dry_run: bool) -> Dict[str, User]:
         email = STYLIST_EMAIL.format(slot=slot)
         user = (await session.execute(select(User).where(User.email == email))).scalars().first()
         if user:
+            if reset and not dry_run:
+                user.password_hash = hash_password(password)
+                print(f"  reset {email} -> {password}")
             accounts[slot] = user
         elif dry_run:
             print(f"  would create stylist account {email}")
             continue
         else:
-            password = secrets.token_urlsafe(9)
             # tenant_id/member_id are NOT NULL, so the id has to exist before the insert rather
             # than being back-filled after the flush.
             user_id = generate_uuid("user")
@@ -119,7 +127,7 @@ async def _ensure_stylists(session, dry_run: bool) -> Dict[str, User]:
             session.add(user)
             await session.flush()
             accounts[slot] = user
-            print(f"  created stylist {email}  password: {password}   <- save this now")
+            print(f"  created stylist {email}  password: {password}")
 
         if dry_run:
             continue
@@ -224,6 +232,10 @@ async def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     ap.add_argument("--only", help="seed a single character by slug")
     ap.add_argument("--with-stylists", action="store_true", help="also create the 3 stylist accounts")
+    ap.add_argument("--stylist-password", default=DEFAULT_STYLIST_PASSWORD,
+                    help="password for the seeded stylist accounts")
+    ap.add_argument("--reset-stylist-passwords", action="store_true",
+                    help="reset existing stylist accounts to --stylist-password")
     ap.add_argument("--with-portraits", action="store_true",
                     help="generate a portrait for any character missing one (costs real image calls)")
     ap.add_argument("--reseed-portraits", action="store_true",
@@ -244,7 +256,9 @@ async def main() -> None:
     async with AsyncSessionLocal() as session:
         stylists: Dict[str, User] = {}
         if args.with_stylists or not args.no_assign:
-            stylists = await _ensure_stylists(session, args.dry_run)
+            stylists = await _ensure_stylists(
+                session, args.dry_run, args.stylist_password, args.reset_stylist_passwords
+            )
 
         created = updated = assigned = 0
         portraits: Dict[str, int] = {}
