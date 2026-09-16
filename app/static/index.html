@@ -276,10 +276,10 @@
             </div>
           </div>
 
-          <!-- Card 4: Digitisation (FLUX.2 Canonical) -->
+          <!-- Card 4: Digitisation (canonical studio image) -->
           <div id="card-stage-4" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-50 transition">
             <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span class="text-xs font-bold text-ct-ink">Stage 4: FLUX.2 Digitisation</span>
+              <span class="text-xs font-bold text-ct-ink">Stage 4: Digitisation</span>
               <span id="badge-stage-4" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
             </div>
             <div class="h-44 bg-slate-950 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-800 relative">
@@ -293,7 +293,7 @@
             <!-- Prompt Display Box -->
             <div id="stage4-prompt-container" class="hidden pt-2 border-t border-slate-800 space-y-1.5">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">FLUX.2 Studio Prompt</span>
+                <span class="text-[10px] font-bold text-slate-400 uppercase font-mono">Digitisation Prompt</span>
                 <button type="button" onclick="copyGptPrompt()" class="text-[10px] text-ct-ink-soft hover:text-ct-ink font-mono">📋 Copy</button>
               </div>
               <div id="stage4-prompt-text" class="text-[10px] text-slate-300 bg-slate-950 p-2 rounded border border-slate-800 max-h-20 overflow-y-auto font-sans leading-relaxed"></div>
@@ -728,7 +728,7 @@
           { key: "STAGE_01_CLASSIFY", card: "card-stage-1", badge: "badge-stage-1", title: "Stage 1: Image Classifier" },
           { key: "STAGE_02_CROP", card: "card-stage-2", badge: "badge-stage-2", title: "Stage 2: Detection & Crop" },
           { key: "STAGE_03_ATTRIBUTES", card: "card-stage-3", badge: "badge-stage-3", title: "Stage 3: Garment Attributes" },
-          { key: "STAGE_04_DIGITISE", card: "card-stage-4", badge: "badge-stage-4", title: "Stage 4: FLUX.2 Digitisation" },
+          { key: "STAGE_04_DIGITISE", card: "card-stage-4", badge: "badge-stage-4", title: "Stage 4: Digitisation" },
           { key: "STAGE_05_EMBED", card: "card-stage-5", badge: "badge-stage-5", title: "Stage 5: SigLIP Embedding" },
           { key: "STAGE_06_CATEGORY", card: "card-stage-6", badge: "badge-stage-6", title: "Stage 6: Category Bundling" },
           { key: "STAGE_07_LAYERING", card: "card-stage-7", badge: "badge-stage-7", title: "Stage 7: Layering Analysis" },
@@ -1017,7 +1017,7 @@
 
           document.getElementById('stage4-data').innerHTML = `
             <div>Quality Score: <span class="text-emerald-400 font-bold">${(data.output_data.quality_score * 100).toFixed(0)}%</span></div>
-            <div>Renderer: <span class="text-ct-ink font-bold">${esc4(data.model || 'FLUX.2')}</span> (${data.output_data.attempts} attempt)</div>
+            <div>Renderer: <span class="text-ct-ink font-bold">${esc4(data.model || 'unknown')}</span> (${data.output_data.attempts} attempt)</div>
             ${usedFallback ? `
               <div class="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
                 <div class="font-bold text-[11px] uppercase tracking-wide">Fallback model drew this garment</div>
@@ -1362,7 +1362,7 @@
       const el = document.getElementById('stage4-prompt-text');
       if (!el) return;
       navigator.clipboard.writeText(el.innerText);
-      alert("GPT Studio prompt copied to clipboard!");
+      alert("Digitisation prompt copied to clipboard!");
     }
     const copyFluxPrompt = copyGptPrompt;
 

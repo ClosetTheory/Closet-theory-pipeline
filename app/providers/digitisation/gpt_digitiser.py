@@ -101,7 +101,9 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
         self._last_fallback: Optional[Dict[str, Any]] = None
         self._last_prompt: str = ""
         self._last_negative_prompt: str = ""
-        self._active_model: str = "GPT-Studio-Segmenter-v1"
+        # Replaced with "OpenRouter (<model>)" as soon as a model produces an image; digitise()
+        # raises rather than returning with this still set.
+        self._active_model: str = "unstarted"
         self.verifier_model_name: str = settings.DIGITISATION_VERIFIER_MODEL
         self._last_verification: Optional[dict] = None
 
