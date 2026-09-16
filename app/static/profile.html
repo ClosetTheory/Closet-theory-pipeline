@@ -38,30 +38,47 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
 
   <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-      <a href="/" class="flex items-center space-x-3">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <a href="/" class="flex items-center space-x-3 shrink-0">
         <div class="w-10 h-10 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
         <div>
-          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight">Style Profile</h1>
-          <p class="text-xs text-slate-400">What we've learned from your likes/dislikes</p>
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight leading-tight">ClosetTheory Wardrobe</h1>
+          <p class="text-xs text-slate-400 leading-tight">Catalogue &amp; AI Styling</p>
         </div>
       </a>
-      <nav class="flex flex-wrap items-center gap-2 text-xs font-medium">
-        <a href="/" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
-        <a href="/visualizer" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
-        <a href="/styling" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
-        <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Pipeline Info</a>
-        <a href="/stylist" data-role-link="stylist" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">My Characters</a>
-        <a href="/admin" data-role-link="admin" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Admin</a>
-        <a href="/review" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
-        <a href="/profile" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
-        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
-        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
+      <nav class="flex flex-wrap items-center gap-1.5 text-xs font-medium">
+        <a href="/" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Catalogue</a>
+        <a href="/visualizer" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Ingestion Pipeline</a>
+        <a href="/styling" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Styling Pipeline</a>
+        <a href="/pipeline-info" class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Pipeline Info</a>
+        <a href="/stylist" data-role-link="stylist" hidden class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">My Characters</a>
+        <a href="/admin" data-role-link="admin" hidden class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Admin</a>
+        <a href="/review" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Review Queue</a>
+        <a href="/profile" data-needs-wardrobe class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap">Profile</a>
+        <a href="/docs" target="_blank" class="ct-nav px-3 py-1.5 rounded-lg transition whitespace-nowrap font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition whitespace-nowrap">Log out</button>
       </nav>
     </div>
   </header>
 
-  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+  <script>
+    // The active tab is derived from the URL, not hardcoded per page. Hardcoding it is exactly
+    // how this navbar ended up highlighting correctly on three pages out of nine.
+    (function ctMarkActiveNav() {
+      var here = window.location.pathname.replace(/\/$/, "") || "/";
+      document.querySelectorAll("a.ct-nav").forEach(function (el) {
+        var href = el.getAttribute("href");
+        if (href === "/docs" || el.target === "_blank") { el.className += " text-ct-ink-soft hover:bg-black/5"; return; }
+        var path = href.replace(/\/$/, "") || "/";
+        // /garment is a detail view of the catalogue, so the Catalogue tab stays lit there.
+        var active = path === here || (path === "/" && here === "/garment");
+        el.className += active ? " bg-ct-primary text-white" : " text-slate-400 hover:text-slate-200";
+        if (active) el.setAttribute("aria-current", "page");
+      });
+    })();
+  </script>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
 
     <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-8">
       <div class="flex items-center justify-between mb-2">
