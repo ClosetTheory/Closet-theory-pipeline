@@ -63,6 +63,8 @@ STATIC_LOGIN = STATIC_DIR / "login.html"
 STATIC_PROFILE = STATIC_DIR / "profile.html"
 STATIC_REVIEW = STATIC_DIR / "review.html"
 STATIC_PIPELINES = STATIC_DIR / "pipelines.html"
+STATIC_ADMIN = STATIC_DIR / "admin.html"
+STATIC_STYLIST = STATIC_DIR / "stylist.html"
 # The engineering reference is authored as markdown and rendered client-side, so the
 # page and docs/PIPELINES.md can never drift apart.
 PIPELINES_DOC = Path(__file__).parent.parent / "docs" / "PIPELINES.md"
@@ -131,6 +133,20 @@ async def get_pipeline_info_source():
     if PIPELINES_DOC.exists():
         return PlainTextResponse(PIPELINES_DOC.read_text(encoding="utf-8"))
     return PlainTextResponse("Pipeline documentation not found.", status_code=404)
+
+
+@app.get("/admin", response_class=HTMLResponse, tags=["Evaluation Characters"])
+async def get_admin_page():
+    """Character roster, stylist assignment and role management. The page itself is public HTML;
+    every endpoint behind it requires the admin role, and the page shows a notice rather than
+    content to anyone without it."""
+    return _serve_static(STATIC_ADMIN, "Admin panel")
+
+
+@app.get("/stylist", response_class=HTMLResponse, tags=["Evaluation Characters"])
+async def get_stylist_page():
+    """A stylist's assigned characters, and the scoring form for outfits generated for them."""
+    return _serve_static(STATIC_STYLIST, "Stylist panel")
 
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])

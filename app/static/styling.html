@@ -57,6 +57,8 @@
         <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
         <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
         <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Pipeline Info</a>
+        <a href="/stylist" data-role-link="stylist" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">My Characters</a>
+        <a href="/admin" data-role-link="admin" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Admin</a>
         <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
         <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
@@ -155,13 +157,45 @@
     const API_BASE = "/api/v1/wardrobe";
 
     if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    // Character context: when a stylist is working on an assigned evaluation character, every
+    // wardrobe and styling call is made AS that character. One header does it — the server
+    // resolves the scope and the existing endpoints operate on that character's wardrobe, so
+    // these pages need no other change. See app/api/dependencies.py.
+    function ctActingAs() { try { return localStorage.getItem("ct_acting_persona") || ""; } catch (e) { return ""; } }
+    function ctSetActingAs(personaId, name) {
+      try {
+        if (personaId) { localStorage.setItem("ct_acting_persona", personaId); localStorage.setItem("ct_acting_persona_name", name || personaId); }
+        else { localStorage.removeItem("ct_acting_persona"); localStorage.removeItem("ct_acting_persona_name"); }
+      } catch (e) {}
+    }
     async function ctFetch(url, opts = {}) {
       const token = localStorage.getItem("ct_auth_token");
-      const headers = Object.assign({}, opts.headers || {}, token ? {Authorization: `Bearer ${token}`} : {});
+      const acting = ctActingAs();
+      const headers = Object.assign({}, opts.headers || {},
+        token ? {Authorization: `Bearer ${token}`} : {},
+        acting ? {"X-Acting-As-Persona": acting} : {});
       const res = await fetch(url, Object.assign({}, opts, {headers}));
       if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
       return res;
     }
+
+    // A persistent reminder of whose wardrobe you are editing. Without it a stylist can easily
+    // ingest forty garments into the wrong character and not find out until review.
+    function ctRenderActingBanner() {
+      const id = ctActingAs();
+      const existing = document.getElementById("ct-acting-banner");
+      if (existing) existing.remove();
+      if (!id) return;
+      let name = "this character";
+      try { name = localStorage.getItem("ct_acting_persona_name") || name; } catch (e) {}
+      const bar = document.createElement("div");
+      bar.id = "ct-acting-banner";
+      bar.className = "sticky top-0 z-40 bg-ct-primary text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-3";
+      bar.innerHTML = '<span>Working as <strong>' + name + '</strong> — uploads and outfits go to their wardrobe</span>' +
+        '<button onclick="ctSetActingAs(null); location.reload();" class="underline underline-offset-2 hover:opacity-80">Exit</button>';
+      document.body.prepend(bar);
+    }
+    document.addEventListener("DOMContentLoaded", ctRenderActingBanner);
     function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
 
     (function prefillFromQuery() {
@@ -871,6 +905,25 @@
         btn.textContent = "✨ Run Styling Pipeline";
       }
     }
+  </script>
+
+  <script>
+    // Show the role-gated nav links only to accounts that hold the role. Purely cosmetic: every
+    // endpoint behind them re-checks server-side, so this hides clutter rather than enforcing
+    // anything.
+    (async function ctGateNav() {
+      try {
+        const token = localStorage.getItem("ct_auth_token");
+        if (!token) return;
+        const res = await fetch("/api/v1/auth/me", {headers: {Authorization: `Bearer ${token}`}});
+        if (!res.ok) return;
+        const roles = (await res.json()).roles || [];
+        document.querySelectorAll("[data-role-link]").forEach(function (el) {
+          const needed = el.getAttribute("data-role-link");
+          if (roles.includes(needed) || (needed === "stylist" && roles.includes("admin"))) el.hidden = false;
+        });
+      } catch (e) { /* nav gating is cosmetic; never break the page over it */ }
+    })();
   </script>
 </body>
 </html>

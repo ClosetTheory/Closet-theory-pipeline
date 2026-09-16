@@ -176,6 +176,8 @@
         <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
         <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
         <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg bg-ct-primary text-white transition">Pipeline Info</a>
+        <a href="/stylist" data-role-link="stylist" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">My Characters</a>
+        <a href="/admin" data-role-link="admin" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Admin</a>
         <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
         <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
@@ -233,7 +235,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/svg-pan-zoom/3.6.1/svg-pan-zoom.min.js"></script>
   <script>
     function ctLogout() {
-      try { localStorage.removeItem('ct_token'); } catch (e) {}
+      // Every other page stores the session under "ct_auth_token"; this one cleared "ct_token",
+      // so logging out from here left the user signed in everywhere else.
+      try { localStorage.removeItem('ct_auth_token'); } catch (e) {}
       window.location.href = '/login';
     }
 
@@ -501,6 +505,25 @@
     }
 
     render();
+  </script>
+
+  <script>
+    // Show the role-gated nav links only to accounts that hold the role. Purely cosmetic: every
+    // endpoint behind them re-checks server-side, so this hides clutter rather than enforcing
+    // anything.
+    (async function ctGateNav() {
+      try {
+        const token = localStorage.getItem("ct_auth_token");
+        if (!token) return;
+        const res = await fetch("/api/v1/auth/me", {headers: {Authorization: `Bearer ${token}`}});
+        if (!res.ok) return;
+        const roles = (await res.json()).roles || [];
+        document.querySelectorAll("[data-role-link]").forEach(function (el) {
+          const needed = el.getAttribute("data-role-link");
+          if (roles.includes(needed) || (needed === "stylist" && roles.includes("admin"))) el.hidden = false;
+        });
+      } catch (e) { /* nav gating is cosmetic; never break the page over it */ }
+    })();
   </script>
 </body>
 </html>

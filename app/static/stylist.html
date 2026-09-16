@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Characters</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#18181b', 200: '#2b2b27', 300: '#3f3f3a',
+              400: '#63635b', 500: '#84847a', 600: '#a3a39a', 700: '#c7c7be',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --ct-hairline: #dadad3; }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+    .swatch { width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); }
+    .star { cursor: pointer; font-size: 22px; line-height: 1; color: #c7c7be; transition: color .1s; }
+    .star.on { color: #e60023; }
+    .star:hover { color: #e60023; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight">ClosetTheory Wardrobe</h1>
+          <p class="text-xs text-slate-400">Catalogue &amp; AI Styling</p>
+        </div>
+      </div>
+      <nav class="flex flex-wrap items-center gap-2 text-xs font-medium">
+        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
+        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
+        <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Pipeline Info</a>
+        <a href="/stylist" data-role-link="stylist" hidden class="px-3 py-1.5 rounded-lg bg-ct-primary text-white transition">My Characters</a>
+        <a href="/admin" data-role-link="admin" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Admin</a>
+        <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
+        <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+
+    <div>
+      <p class="text-[11px] font-semibold tracking-[0.14em] uppercase text-slate-500 mb-2">Evaluation panel</p>
+      <h2 class="text-3xl font-extrabold text-ct-ink tracking-tight mb-2">My characters</h2>
+      <p class="text-sm text-slate-500 max-w-3xl">
+        Pick a character to work as them: build their wardrobe on the Ingestion Pipeline page,
+        generate looks on the Styling page, then come back here and score what came out.
+        Everything you upload while a character is active goes to their wardrobe, not yours.
+      </p>
+    </div>
+
+    <section id="roster" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></section>
+
+    <section id="detail" class="hidden space-y-6"></section>
+  </main>
+
+  <script>
+    const API = "/api/v1";
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+
+    function ctActingAs() { try { return localStorage.getItem("ct_acting_persona") || ""; } catch (e) { return ""; } }
+    function ctSetActingAs(personaId, name) {
+      try {
+        if (personaId) { localStorage.setItem("ct_acting_persona", personaId); localStorage.setItem("ct_acting_persona_name", name || personaId); }
+        else { localStorage.removeItem("ct_acting_persona"); localStorage.removeItem("ct_acting_persona_name"); }
+      } catch (e) {}
+    }
+    async function ctFetch(url, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const acting = ctActingAs();
+      const headers = Object.assign({}, opts.headers || {},
+        token ? {Authorization: `Bearer ${token}`} : {},
+        acting ? {"X-Acting-As-Persona": acting} : {});
+      const res = await fetch(url, Object.assign({}, opts, {headers}));
+      if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      return res;
+    }
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
+    // This page reads the roster as the stylist, never as a character — sending the acting-as
+    // header here would scope the request to one character and hide the rest.
+    async function apiGet(path) {
+      const token = localStorage.getItem("ct_auth_token");
+      const res = await fetch(API + path, {headers: {Authorization: `Bearer ${token}`}});
+      if (res.status === 401) { window.location.href = "/login"; throw new Error("unauth"); }
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+      {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+    function paletteRow(colours) {
+      return (colours || []).map(c => `<span class="swatch inline-block" style="background:${esc(c)}"></span>`).join("");
+    }
+
+    function characterCard(p) {
+      const ca = p.color_analysis || {};
+      const ew = p.ethnic_wear || {};
+      const active = ctActingAs() === p.persona_id;
+      return `
+        <article class="bg-slate-900/70 border ${active ? 'border-ct-primary' : 'border-slate-800'} rounded-2xl overflow-hidden flex flex-col">
+          <div class="flex gap-4 p-5">
+            ${p.portrait_url
+              ? `<img src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}"
+                      class="w-24 h-32 object-cover rounded-xl bg-slate-800 flex-none" loading="lazy">`
+              : `<div class="w-24 h-32 rounded-xl bg-slate-800 flex-none"></div>`}
+            <div class="min-w-0">
+              <h3 class="font-bold text-ct-ink leading-tight">${esc(p.display_name)}</h3>
+              <p class="text-xs text-slate-500 mt-0.5">${esc(p.age || "")} · ${esc(p.gender)} · ${esc(p.city)}</p>
+              <p class="text-xs text-slate-500 mt-2">${esc(p.occupation || "")}</p>
+              <div class="flex items-center gap-1.5 mt-3">${paletteRow(ca.palette)}</div>
+              <p class="text-[11px] text-slate-500 mt-2">
+                ${esc(ca.season || "?")} · ${esc(ca.undertone || "?")} · Monk ${esc(p.skin_tone_monk || "?")} · ${esc(p.body_shape)}
+              </p>
+            </div>
+          </div>
+          <div class="px-5 pb-3 flex flex-wrap gap-1.5">
+            ${(p.hard_constraints || []).map(c =>
+              `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100">${esc(c.replace(/_/g, " "))}</span>`).join("")}
+            ${ew.daily_ethnic ? `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-100">daily ethnic wear</span>` : ""}
+          </div>
+          <div class="mt-auto border-t border-slate-800 px-5 py-3 flex items-center justify-between text-xs">
+            <span class="text-slate-500">
+              <strong class="text-ct-ink">${p.garment_count}</strong> garments ·
+              <strong class="text-ct-ink">${p.outfit_count}</strong> outfits ·
+              <strong class="text-ct-ink">${p.review_count}</strong> reviewed
+              ${p.average_rating != null ? ` · avg ${p.average_rating}` : ""}
+            </span>
+          </div>
+          <div class="px-5 pb-5 flex gap-2">
+            <button onclick="enterCharacter('${esc(p.persona_id)}', '${esc(p.display_name)}')"
+                    class="flex-1 px-3 py-2 rounded-xl ${active ? 'bg-slate-800 text-ct-ink' : 'bg-ct-primary hover:bg-ct-primary-pressed text-white'} text-xs font-bold transition">
+              ${active ? "Currently active" : "Work as " + esc(p.display_name.split(" ")[0])}
+            </button>
+            <button onclick="openCharacter('${esc(p.persona_id)}')"
+                    class="px-3 py-2 rounded-xl border border-slate-800 text-xs font-semibold text-slate-400 hover:text-ct-ink transition">
+              Review outfits
+            </button>
+          </div>
+        </article>`;
+    }
+
+    function enterCharacter(id, name) {
+      ctSetActingAs(id, name);
+      // The wardrobe pages are where the actual work happens; land the stylist there rather
+      // than making them navigate manually.
+      window.location.href = "/visualizer";
+    }
+
+    async function loadRoster() {
+      const el = document.getElementById("roster");
+      try {
+        const roster = await apiGet("/personas");
+        if (!roster.length) {
+          el.innerHTML = `<p class="text-sm text-slate-500">No characters are assigned to you yet. An admin assigns them on the Admin page.</p>`;
+          return;
+        }
+        el.innerHTML = roster.map(characterCard).join("");
+      } catch (e) {
+        el.innerHTML = `<p class="text-sm text-red-500">Could not load your characters: ${esc(e.message)}</p>`;
+      }
+    }
+
+    // --- reviewing -----------------------------------------------------------------------
+
+    const DIMENSIONS = [
+      ["colour_harmony", "Colour harmony"],
+      ["fit_and_silhouette", "Fit &amp; silhouette"],
+      ["occasion_fit", "Occasion fit"],
+      ["persona_fit", "Right for this person"],
+    ];
+
+    function stars(name, value, outfitId) {
+      return [1,2,3,4,5].map(n =>
+        `<span class="star ${n <= value ? 'on' : ''}" data-outfit="${esc(outfitId)}" data-field="${esc(name)}" data-value="${n}"
+               onclick="setStar(this)" role="button" aria-label="${n} of 5">★</span>`).join("");
+    }
+
+    const pending = {};
+
+    function setStar(el) {
+      const outfitId = el.dataset.outfit, field = el.dataset.field, value = Number(el.dataset.value);
+      pending[outfitId] = pending[outfitId] || {rating: 0, dimension_ratings: {}};
+      if (field === "rating") pending[outfitId].rating = value;
+      else pending[outfitId].dimension_ratings[field] = value;
+      el.parentElement.querySelectorAll(".star").forEach(s =>
+        s.classList.toggle("on", Number(s.dataset.value) <= value));
+    }
+
+    function outfitCard(item, personaId) {
+      const o = item.outfit || {};
+      const mine = item.my_review;
+      const others = (item.reviews || []).filter(r => !mine || r.id !== mine.id);
+      if (mine) pending[o.outfit_id] = {rating: mine.rating, dimension_ratings: mine.dimension_ratings || {}};
+      return `
+        <article class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
+          <div>
+            ${o.generated_image_url
+              ? `<img src="${esc(o.generated_image_url)}" alt="Generated outfit" class="w-full rounded-xl bg-slate-800" loading="lazy">`
+              : `<div class="w-full aspect-[3/4] rounded-xl bg-slate-800 flex items-center justify-center text-xs text-slate-500">No image generated</div>`}
+            <p class="text-[11px] text-slate-500 mt-2">${esc((item.generated_at || "").slice(0,10))} · ${(o.garments || []).length} pieces</p>
+          </div>
+          <div class="space-y-4">
+            <div class="flex flex-wrap gap-1.5">
+              ${(o.garments || []).map(g =>
+                `<span class="text-[11px] px-2 py-1 rounded-lg bg-slate-800 text-slate-300">${esc((g.attributes && g.attributes.casual_name) || g.subcategory || g.category || "piece")}</span>`).join("")}
+            </div>
+            ${o.compatibility_reason ? `<p class="text-xs text-slate-500 line-clamp-3">${esc(o.compatibility_reason)}</p>` : ""}
+
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Overall</p>
+              <div>${stars("rating", mine ? mine.rating : 0, o.outfit_id)}</div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              ${DIMENSIONS.map(([key, label]) => `
+                <div>
+                  <p class="text-[11px] text-slate-500 mb-0.5">${label}</p>
+                  <div>${stars(key, mine && mine.dimension_ratings ? (mine.dimension_ratings[key] || 0) : 0, o.outfit_id)}</div>
+                </div>`).join("")}
+            </div>
+
+            <label class="flex items-center gap-2 text-xs text-slate-500">
+              <input type="checkbox" id="ww-${esc(o.outfit_id)}" ${mine && mine.would_wear ? "checked" : ""} class="rounded">
+              I would actually put a client in this
+            </label>
+
+            <textarea id="cm-${esc(o.outfit_id)}" rows="2" placeholder="What works, what doesn't, and why"
+                      class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary">${esc(mine ? (mine.comment || "") : "")}</textarea>
+
+            <div class="flex items-center gap-3">
+              <button onclick="saveReview('${esc(personaId)}', '${esc(o.outfit_id)}')"
+                      class="px-4 py-2 rounded-xl bg-ct-primary hover:bg-ct-primary-pressed text-white text-xs font-bold transition">
+                ${mine ? "Update score" : "Save score"}
+              </button>
+              <span id="st-${esc(o.outfit_id)}" class="text-xs text-slate-500"></span>
+            </div>
+
+            ${others.length ? `
+              <div class="pt-3 border-t border-slate-800">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Other reviewers</p>
+                ${others.map(r => `<p class="text-xs text-slate-500"><strong class="text-ct-ink">${esc(r.reviewer_name || "Reviewer")}</strong> — ${r.rating}/5${r.comment ? " · " + esc(r.comment) : ""}</p>`).join("")}
+              </div>` : ""}
+          </div>
+        </article>`;
+    }
+
+    async function saveReview(personaId, outfitId) {
+      const el = document.getElementById("st-" + outfitId);
+      const state = pending[outfitId] || {rating: 0, dimension_ratings: {}};
+      if (!state.rating) { el.textContent = "Give an overall score first."; return; }
+      el.textContent = "Saving…";
+      try {
+        const res = await fetch(`${API}/personas/${personaId}/outfits/${outfitId}/review`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("ct_auth_token")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rating: state.rating,
+            dimension_ratings: state.dimension_ratings,
+            comment: document.getElementById("cm-" + outfitId).value || null,
+            would_wear: document.getElementById("ww-" + outfitId).checked,
+            vote: state.rating >= 4 ? "like" : (state.rating <= 2 ? "dislike" : null),
+          }),
+        });
+        el.textContent = res.ok ? "Saved." : "Could not save: " + (await res.text()).slice(0, 120);
+      } catch (e) {
+        el.textContent = "Could not save: " + e.message;
+      }
+    }
+
+    async function openCharacter(personaId) {
+      const detail = document.getElementById("detail");
+      detail.classList.remove("hidden");
+      detail.innerHTML = `<p class="text-sm text-slate-500">Loading outfits…</p>`;
+      detail.scrollIntoView({behavior: "smooth"});
+      try {
+        const [persona, outfits] = await Promise.all([
+          apiGet(`/personas/${personaId}`),
+          apiGet(`/personas/${personaId}/outfits`),
+        ]);
+        detail.innerHTML = `
+          <div class="flex items-baseline justify-between gap-4 border-b border-slate-800 pb-4">
+            <h3 class="text-2xl font-extrabold text-ct-ink tracking-tight">Outfits for ${esc(persona.display_name)}</h3>
+            <button onclick="document.getElementById('detail').classList.add('hidden')"
+                    class="text-xs text-slate-500 hover:text-ct-ink">Close</button>
+          </div>
+          ${persona.bio ? `<p class="text-sm text-slate-500 max-w-3xl">${esc(persona.bio)}</p>` : ""}
+          ${outfits.length
+            ? outfits.map(item => outfitCard(item, personaId)).join("")
+            : `<p class="text-sm text-slate-500">No outfits generated yet. Work as ${esc(persona.display_name)},
+                 build their wardrobe on the Ingestion Pipeline page, then generate looks on the Styling page.</p>`}`;
+      } catch (e) {
+        detail.innerHTML = `<p class="text-sm text-red-500">Could not load: ${esc(e.message)}</p>`;
+      }
+    }
+
+    function renderActingBanner() {
+      const id = ctActingAs();
+      if (!id) return;
+      let name = "a character";
+      try { name = localStorage.getItem("ct_acting_persona_name") || name; } catch (e) {}
+      const bar = document.createElement("div");
+      bar.className = "sticky top-0 z-40 bg-ct-primary text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-3";
+      bar.innerHTML = `<span>Working as <strong>${esc(name)}</strong> — uploads and outfits go to their wardrobe</span>
+        <button onclick="ctSetActingAs(null); location.reload();" class="underline underline-offset-2 hover:opacity-80">Exit</button>`;
+      document.body.prepend(bar);
+    }
+
+    (async function gateNav() {
+      try {
+        const me = await apiGet("/auth/me");
+        (me.roles || []).forEach(() => {});
+        document.querySelectorAll("[data-role-link]").forEach(el => {
+          const needed = el.getAttribute("data-role-link");
+          if ((me.roles || []).includes(needed) || (needed === "stylist" && (me.roles || []).includes("admin"))) el.hidden = false;
+        });
+      } catch (e) {}
+    })();
+
+    renderActingBanner();
+    loadRoster();
+  </script>
+</body>
+</html>

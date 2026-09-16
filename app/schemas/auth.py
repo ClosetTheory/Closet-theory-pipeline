@@ -1,6 +1,6 @@
 """Auth request/response schemas."""
 
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 GENDER_VALUES = {"women", "men", "unisex"}
@@ -61,3 +61,7 @@ class MeResponse(BaseModel):
     email: str
     display_name: str
     gender: Optional[str] = None
+    # Roles come from the user_roles table, not from the token. The frontend uses them only to
+    # decide which nav links to show; every endpoint re-checks server-side, so a tampered
+    # response buys nothing but a link that 403s.
+    roles: List[str] = Field(default_factory=list)

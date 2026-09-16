@@ -45,12 +45,18 @@ async def login(request: LoginRequest, session: AsyncSession = Depends(get_db_se
 
 
 @router.get("/me", response_model=MeResponse)
-async def me(current_user: User = Depends(get_current_user)):
+async def me(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.api.dependencies import get_user_roles
+
     return MeResponse(
         user_id=current_user.id,
         email=current_user.email,
         display_name=current_user.display_name,
         gender=current_user.gender,
+        roles=sorted(await get_user_roles(current_user, session)),
     )
 
 

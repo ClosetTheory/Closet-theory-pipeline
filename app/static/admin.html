@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evaluation Panel Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#18181b', 200: '#2b2b27', 300: '#3f3f3a',
+              400: '#63635b', 500: '#84847a', 600: '#a3a39a', 700: '#c7c7be',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --ct-hairline: #dadad3; }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+    .swatch { width: 18px; height: 18px; border-radius: 5px; border: 1px solid rgba(0,0,0,.12); }
+    table { border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid #e5e5e0; font-size: 13px; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #84847a; font-weight: 600; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-lg text-white">CT</div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-ct-ink tracking-tight">ClosetTheory Wardrobe</h1>
+          <p class="text-xs text-slate-400">Catalogue &amp; AI Styling</p>
+        </div>
+      </div>
+      <nav class="flex flex-wrap items-center gap-2 text-xs font-medium">
+        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
+        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
+        <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Pipeline Info</a>
+        <a href="/stylist" data-role-link="stylist" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">My Characters</a>
+        <a href="/admin" data-role-link="admin" hidden class="px-3 py-1.5 rounded-lg bg-ct-primary text-white transition">Admin</a>
+        <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
+        <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
+
+    <div>
+      <p class="text-[11px] font-semibold tracking-[0.14em] uppercase text-slate-500 mb-2">Evaluation panel</p>
+      <h2 class="text-3xl font-extrabold text-ct-ink tracking-tight mb-2">Characters &amp; assignment</h2>
+      <p class="text-sm text-slate-500 max-w-3xl">
+        The roster stylists work through. Each character is a deliberately specified member —
+        body shape, colour season, climate, wardrobe need and hard constraints — chosen so the
+        set spans the axes that actually change styling advice.
+      </p>
+    </div>
+
+    <div id="denied" class="hidden bg-red-50 border border-red-200 rounded-2xl p-6">
+      <p class="text-sm text-red-800 font-semibold">This page is for administrators.</p>
+      <p class="text-xs text-red-700 mt-1">
+        Ask an existing admin to grant you the role, or set ADMIN_EMAILS and restart the API to
+        bootstrap the first one.
+      </p>
+    </div>
+
+    <section id="panel" class="hidden space-y-12">
+
+      <div id="stats" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+
+      <section class="space-y-4">
+        <h3 class="text-lg font-bold text-ct-ink tracking-tight">Assignment</h3>
+        <p class="text-sm text-slate-500 max-w-3xl">
+          Assigning is exclusive by default — two stylists independently building the same
+          wardrobe is almost always an accident rather than an intent.
+        </p>
+        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-x-auto">
+          <table class="w-full min-w-[720px]">
+            <thead><tr>
+              <th>Character</th><th>City</th><th>Assigned to</th><th>Reassign</th>
+            </tr></thead>
+            <tbody id="assign-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="space-y-4">
+        <h3 class="text-lg font-bold text-ct-ink tracking-tight">Roster</h3>
+        <div id="roster" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+      </section>
+
+      <section class="space-y-4">
+        <h3 class="text-lg font-bold text-ct-ink tracking-tight">Accounts</h3>
+        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-x-auto">
+          <table class="w-full min-w-[640px]">
+            <thead><tr><th>Email</th><th>Name</th><th>Roles</th><th>Grant</th></tr></thead>
+            <tbody id="users-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  <script>
+    const API = "/api/v1";
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
+    // The admin view is always the stylist's own identity — never scoped to a character — so
+    // this page deliberately does not send the acting-as header.
+    async function api(path, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const res = await fetch(API + path, Object.assign({}, opts, {
+        headers: Object.assign({Authorization: `Bearer ${token}`}, opts.headers || {}),
+      }));
+      if (res.status === 401) { window.location.href = "/login"; throw new Error("unauth"); }
+      if (!res.ok) throw new Error((await res.text()).slice(0, 200));
+      return res.status === 204 ? null : res.json();
+    }
+
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+      {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+    let STYLISTS = [];
+
+    function statTile(label, value, sub) {
+      return `<div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4">
+        <p class="text-2xl font-extrabold text-ct-ink tabular-nums">${esc(value)}</p>
+        <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mt-1">${esc(label)}</p>
+        ${sub ? `<p class="text-[11px] text-slate-500 mt-0.5">${esc(sub)}</p>` : ""}
+      </div>`;
+    }
+
+    function rosterCard(p) {
+      const ca = p.color_analysis || {};
+      const ew = p.ethnic_wear || {};
+      return `
+        <article class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden">
+          <div class="flex gap-4 p-5">
+            ${p.portrait_url
+              ? `<img src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}"
+                      class="w-20 h-28 object-cover rounded-xl bg-slate-800 flex-none" loading="lazy">`
+              : `<div class="w-20 h-28 rounded-xl bg-slate-800 flex-none"></div>`}
+            <div class="min-w-0">
+              <h4 class="font-bold text-ct-ink leading-tight">${esc(p.display_name)}</h4>
+              <p class="text-xs text-slate-500 mt-0.5">${esc(p.age || "")} · ${esc(p.gender)} · ${esc(p.city)}</p>
+              <div class="flex items-center gap-1 mt-2">${(ca.palette || []).map(c => `<span class="swatch inline-block" style="background:${esc(c)}"></span>`).join("")}</div>
+              <p class="text-[11px] text-slate-500 mt-2">
+                ${esc(ca.season || "?")}/${esc(ca.undertone || "?")} · Monk ${esc(p.skin_tone_monk || "?")} ·
+                ${esc(p.body_shape)} · ${esc(p.height_band || "")} ${esc(p.build || "")}
+              </p>
+              <p class="text-[11px] text-slate-500">
+                ${esc(p.climate_zone || "")} · ethnic ${Math.round((ew.share_of_occasions || 0) * 100)}% · ${esc(p.budget_tier || "")}
+              </p>
+            </div>
+          </div>
+          ${p.rationale ? `<p class="px-5 pb-3 text-[11px] text-slate-500 italic">${esc(p.rationale)}</p>` : ""}
+          <div class="border-t border-slate-800 px-5 py-3 flex items-center justify-between text-xs">
+            <span class="text-slate-500">
+              <strong class="text-ct-ink">${p.garment_count}</strong> garments ·
+              <strong class="text-ct-ink">${p.outfit_count}</strong> outfits ·
+              <strong class="text-ct-ink">${p.review_count}</strong> reviewed${p.average_rating != null ? ` · avg ${p.average_rating}` : ""}
+            </span>
+            <span class="text-slate-500">${esc((p.assigned_stylists || []).join(", ") || "unassigned")}</span>
+          </div>
+        </article>`;
+    }
+
+    function assignRow(p) {
+      const current = (p.stylists || []).map(s => s.name).join(", ") || "—";
+      const options = STYLISTS.map(s =>
+        `<option value="${esc(s.stylist_user_id)}" ${(p.stylists || []).some(x => x.stylist_user_id === s.stylist_user_id) ? "selected" : ""}>${esc(s.name)}</option>`).join("");
+      return `<tr>
+        <td class="font-semibold text-ct-ink">${esc(p.display_name)}</td>
+        <td class="text-slate-500">${esc(p.city)}</td>
+        <td class="text-slate-500">${esc(current)}</td>
+        <td>
+          <select id="as-${esc(p.persona_id)}" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-100">
+            <option value="">— choose —</option>${options}
+          </select>
+          <button onclick="assign('${esc(p.persona_id)}')"
+                  class="ml-2 px-2.5 py-1 rounded-lg bg-ct-primary hover:bg-ct-primary-pressed text-white text-[11px] font-bold transition">Assign</button>
+          <span id="ar-${esc(p.persona_id)}" class="ml-2 text-[11px] text-slate-500"></span>
+        </td>
+      </tr>`;
+    }
+
+    async function assign(personaId) {
+      const select = document.getElementById("as-" + personaId);
+      const note = document.getElementById("ar-" + personaId);
+      if (!select.value) { note.textContent = "Pick a stylist."; return; }
+      note.textContent = "Saving…";
+      try {
+        await api(`/personas/${personaId}/assignments`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({stylist_user_id: select.value, exclusive: true}),
+        });
+        note.textContent = "Assigned.";
+        loadAll();
+      } catch (e) { note.textContent = "Failed: " + e.message; }
+    }
+
+    function userRow(u) {
+      const has = (r) => (u.roles || []).includes(r);
+      return `<tr>
+        <td class="text-ct-ink">${esc(u.email)}</td>
+        <td class="text-slate-500">${esc(u.display_name || "")}</td>
+        <td class="text-slate-500">${esc((u.roles || []).join(", ") || "—")}</td>
+        <td>
+          ${["stylist", "admin"].map(r =>
+            `<button onclick="toggleRole('${esc(u.user_id)}','${r}',${has(r)})"
+                     class="mr-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold border ${has(r) ? 'bg-ct-primary text-white border-ct-primary' : 'border-slate-700 text-slate-400'} transition">
+               ${has(r) ? "revoke " + r : "grant " + r}</button>`).join("")}
+          <span id="ur-${esc(u.user_id)}" class="ml-1 text-[11px] text-slate-500"></span>
+        </td>
+      </tr>`;
+    }
+
+    async function toggleRole(userId, role, granted) {
+      const note = document.getElementById("ur-" + userId);
+      note.textContent = "…";
+      try {
+        if (granted) await api(`/admin/users/${userId}/roles/${role}`, {method: "DELETE"});
+        else await api(`/admin/users/${userId}/roles`, {
+          method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({role}),
+        });
+        note.textContent = "";
+        loadAll();
+      } catch (e) { note.textContent = e.message.slice(0, 80); }
+    }
+
+    async function loadAll() {
+      const [roster, matrix, users] = await Promise.all([
+        api("/personas"), api("/admin/assignments"), api("/admin/users"),
+      ]);
+      STYLISTS = matrix.stylists || [];
+
+      const assigned = (matrix.personas || []).filter(p => (p.stylists || []).length).length;
+      const garments = roster.reduce((n, p) => n + p.garment_count, 0);
+      const outfits = roster.reduce((n, p) => n + p.outfit_count, 0);
+      const reviews = roster.reduce((n, p) => n + p.review_count, 0);
+      const rated = roster.filter(p => p.average_rating != null);
+      const avg = rated.length ? (rated.reduce((n, p) => n + p.average_rating, 0) / rated.length).toFixed(2) : "—";
+
+      document.getElementById("stats").innerHTML =
+        statTile("Characters", roster.length, `${assigned} assigned`) +
+        statTile("Stylists", STYLISTS.length) +
+        statTile("Garments ingested", garments) +
+        statTile("Outfits generated", outfits) +
+        statTile("Scores collected", reviews, avg !== "—" ? `avg ${avg} / 5` : "none yet");
+
+      document.getElementById("assign-body").innerHTML = (matrix.personas || []).map(assignRow).join("");
+      document.getElementById("roster").innerHTML = roster.map(rosterCard).join("");
+      document.getElementById("users-body").innerHTML = (users || []).map(userRow).join("");
+    }
+
+    (async function start() {
+      let me;
+      try { me = await api("/auth/me"); } catch (e) { return; }
+      const roles = me.roles || [];
+      document.querySelectorAll("[data-role-link]").forEach(el => {
+        const needed = el.getAttribute("data-role-link");
+        if (roles.includes(needed) || (needed === "stylist" && roles.includes("admin"))) el.hidden = false;
+      });
+      if (!roles.includes("admin")) { document.getElementById("denied").classList.remove("hidden"); return; }
+      document.getElementById("panel").classList.remove("hidden");
+      try { await loadAll(); }
+      catch (e) { document.getElementById("panel").innerHTML = `<p class="text-sm text-red-500">Could not load: ${esc(e.message)}</p>`; }
+    })();
+  </script>
+</body>
+</html>
