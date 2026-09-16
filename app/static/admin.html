@@ -49,14 +49,14 @@
         </div>
       </div>
       <nav class="flex flex-wrap items-center gap-2 text-xs font-medium">
-        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
-        <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
-        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
+        <a href="/" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/visualizer" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
+        <a href="/styling" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
         <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Pipeline Info</a>
         <a href="/stylist" data-role-link="stylist" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">My Characters</a>
         <a href="/admin" data-role-link="admin" hidden class="px-3 py-1.5 rounded-lg bg-ct-primary text-white transition">Admin</a>
-        <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
-        <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
+        <a href="/review" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
+        <a href="/profile" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
         <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
       </nav>
@@ -283,7 +283,16 @@
         const needed = el.getAttribute("data-role-link");
         if (roles.includes(needed) || (needed === "stylist" && roles.includes("admin"))) el.hidden = false;
       });
-      if (!roles.includes("admin")) { document.getElementById("denied").classList.remove("hidden"); return; }
+      if (roles.includes("stylist") && !roles.includes("admin")) {
+        document.querySelectorAll("[data-needs-wardrobe]").forEach(el => { el.hidden = true; });
+      }
+      if (!roles.includes("admin")) {
+        // A stylist who lands here has somewhere better to be. Redirect rather than leaving them
+        // on a page that can only tell them no.
+        if (roles.includes("stylist")) { window.location.replace("/stylist"); return; }
+        document.getElementById("denied").classList.remove("hidden");
+        return;
+      }
       document.getElementById("panel").classList.remove("hidden");
       try { await loadAll(); }
       catch (e) { document.getElementById("panel").innerHTML = `<p class="text-sm text-red-500">Could not load: ${esc(e.message)}</p>`; }

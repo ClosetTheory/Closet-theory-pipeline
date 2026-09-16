@@ -109,7 +109,18 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Something went wrong");
         localStorage.setItem("ct_auth_token", data.token);
-        window.location.href = "/";
+        // A stylist has no wardrobe of their own — every wardrobe page refuses until they pick
+        // a character to work as — so send them to their roster rather than to a Catalogue that
+        // would greet them with errors. Admins and ordinary members go to the Catalogue as before.
+        let destination = "/";
+        try {
+          const me = await (await fetch("/api/v1/auth/me", {
+            headers: {Authorization: `Bearer ${data.token}`},
+          })).json();
+          const roles = me.roles || [];
+          if (roles.includes("stylist") && !roles.includes("admin")) destination = "/stylist";
+        } catch (e) { /* fall back to the Catalogue rather than block the login */ }
+        window.location.href = destination;
       } catch (e) {
         errorEl.textContent = e.message;
         errorEl.classList.remove("hidden");

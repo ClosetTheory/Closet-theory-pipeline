@@ -172,14 +172,14 @@
         </div>
       </div>
       <nav class="flex flex-wrap items-center gap-2 text-xs font-medium">
-        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
-        <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
-        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
+        <a href="/" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/visualizer" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
+        <a href="/styling" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
         <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg bg-ct-primary text-white transition">Pipeline Info</a>
         <a href="/stylist" data-role-link="stylist" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">My Characters</a>
         <a href="/admin" data-role-link="admin" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Admin</a>
-        <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
-        <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
+        <a href="/review" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
+        <a href="/profile" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
         <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
       </nav>
@@ -508,9 +508,13 @@
   </script>
 
   <script>
-    // Show the role-gated nav links only to accounts that hold the role. Purely cosmetic: every
-    // endpoint behind them re-checks server-side, so this hides clutter rather than enforcing
-    // anything.
+    // Nav reflects what the account can actually reach. Cosmetic only — every endpoint behind
+    // these links re-checks server-side — but showing a stylist a Catalogue link that answers
+    // 403 is worse than not showing it.
+    //
+    // A stylist has no wardrobe of their own: the wardrobe endpoints resolve scope from the
+    // character being worked as, and refuse outright when none is selected. So the wardrobe
+    // pages appear for a stylist only once a character is active.
     (async function ctGateNav() {
       try {
         const token = localStorage.getItem("ct_auth_token");
@@ -518,10 +522,17 @@
         const res = await fetch("/api/v1/auth/me", {headers: {Authorization: `Bearer ${token}`}});
         if (!res.ok) return;
         const roles = (await res.json()).roles || [];
+        const isStylistOnly = roles.includes("stylist") && !roles.includes("admin");
+        let acting = "";
+        try { acting = localStorage.getItem("ct_acting_persona") || ""; } catch (e) {}
+
         document.querySelectorAll("[data-role-link]").forEach(function (el) {
           const needed = el.getAttribute("data-role-link");
           if (roles.includes(needed) || (needed === "stylist" && roles.includes("admin"))) el.hidden = false;
         });
+        if (isStylistOnly && !acting) {
+          document.querySelectorAll("[data-needs-wardrobe]").forEach(function (el) { el.hidden = true; });
+        }
       } catch (e) { /* nav gating is cosmetic; never break the page over it */ }
     })();
   </script>

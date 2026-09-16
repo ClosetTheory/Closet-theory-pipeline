@@ -49,14 +49,14 @@
         </div>
       </div>
       <nav class="flex flex-wrap items-center gap-2 text-xs font-medium">
-        <a href="/" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
-        <a href="/visualizer" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
-        <a href="/styling" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
+        <a href="/" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Catalogue</a>
+        <a href="/visualizer" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Ingestion Pipeline</a>
+        <a href="/styling" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Styling Pipeline</a>
         <a href="/pipeline-info" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Pipeline Info</a>
         <a href="/stylist" data-role-link="stylist" hidden class="px-3 py-1.5 rounded-lg bg-ct-primary text-white transition">My Characters</a>
         <a href="/admin" data-role-link="admin" hidden class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Admin</a>
-        <a href="/review" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
-        <a href="/profile" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
+        <a href="/review" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Review Queue</a>
+        <a href="/profile" data-needs-wardrobe class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Profile</a>
         <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-ct-ink-soft hover:bg-black/5 transition font-semibold">API Docs ↗</a>
         <button onclick="ctLogout()" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition">Log out</button>
       </nav>
@@ -99,6 +99,16 @@
         acting ? {"X-Acting-As-Persona": acting} : {});
       const res = await fetch(url, Object.assign({}, opts, {headers}));
       if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      // A stylist with no character selected is refused by every wardrobe endpoint, by design —
+      // it stops them silently ingesting into their own account. Send them to pick one rather
+      // than leaving a page full of errors they cannot act on.
+      if (res.status === 403 && !acting) {
+        const body = await res.clone().text().catch(() => "");
+        if (body.includes("act as an assigned character")) {
+          window.location.href = "/stylist";
+          throw new Error("Pick a character first");
+        }
+      }
       return res;
     }
     function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
@@ -339,11 +349,16 @@
     (async function gateNav() {
       try {
         const me = await apiGet("/auth/me");
-        (me.roles || []).forEach(() => {});
+        const roles = me.roles || [];
         document.querySelectorAll("[data-role-link]").forEach(el => {
           const needed = el.getAttribute("data-role-link");
-          if ((me.roles || []).includes(needed) || (needed === "stylist" && (me.roles || []).includes("admin"))) el.hidden = false;
+          if (roles.includes(needed) || (needed === "stylist" && roles.includes("admin"))) el.hidden = false;
         });
+        // A stylist has no wardrobe of their own, so the wardrobe pages only make sense — and
+        // only answer anything but 403 — once a character is active.
+        if (roles.includes("stylist") && !roles.includes("admin") && !ctActingAs()) {
+          document.querySelectorAll("[data-needs-wardrobe]").forEach(el => { el.hidden = true; });
+        }
       } catch (e) {}
     })();
 
