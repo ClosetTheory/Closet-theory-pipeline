@@ -1,0 +1,1415 @@
+# Evaluation characters — the panel roster.
+#
+# This file is the source of truth. The database is a projection of it, rebuilt by
+# `python -m scripts.seed_personas`, keyed on `slug` so re-running updates in place.
+#
+# It is YAML rather than Python so a stylist can read their own character, correct it
+# ("nobody in Kochi owns a coat") and open a pull request — and so `rationale` can sit
+# beside each entry. That field is not decoration: it names the axis this character is
+# the sole carrier of, and it is what stops the roster drifting back into twenty
+# variations of the same Mumbai marketer.
+#
+# Every entry is validated against the engine's LIVE enums by app/schemas/persona.py.
+# A character declaring an occasion the styling pipeline cannot filter on fails to
+# load. Add the enum value first.
+#
+# Coverage held deliberately: 11 women / 10 men / 1 non-binary; ages 19-62; 17 cities
+# across 14 climate zones; Monk 3-9; all five female and all five male body shapes;
+# 5 petite, 3 tall, 3 plus-size women, 4 heavy-set men; ethnic occasion share 0.04-0.85.
+# Monk tails matter most — the failure we are hunting is colour advice tuned at Monk 4
+# applied at Monk 8, where "wear pastels" and "avoid black" invert.
+
+version: panel-v1
+
+personas:
+
+  # ---------------------------------------------------------------- stylist1 ---
+  - slug: aarushi_deshpande
+    name: Aarushi Deshpande
+    age: 27
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: Brand manager, D2C beauty startup
+    lifestyle: corporate
+    work_dress_code: smart_casual
+    city: mumbai
+    state_region: Maharashtra
+    ootd_location: Mumbai, India
+    climate:
+      zone: coastal_humid
+      summer_severity: hot
+      winter_severity: none
+      humidity: very_humid
+      monsoon_intensity: extreme
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: rectangle
+    height_cm: 163
+    height_band: average
+    build: lean
+    measurements: {waist_cm: 71}
+    skin_tone_monk: 5
+    color_analysis:
+      season: Autumn
+      season_sub: Soft Autumn
+      undertone: olive
+      depth: medium
+      temperature: warm
+      contrast: medium
+      palette: ["#b25a3c", "#c19a6b", "#6b6b3a", "#9c4722", "#2f4f3a", "#efe3c8", "#7a4a2b"]
+      summary: >-
+        A warm-toned medium-depth Autumn with olive-brown skin, dark warm-brown eyes, and
+        near-black hair who is best flattered by earthy terracottas, warm khakis, deep forest
+        greens, and rich camel tones.
+    hair: {length: mid_back, texture: wavy, colour: near_black}
+    ethnic_wear:
+      share_of_wardrobe: 0.15
+      share_of_occasions: 0.06
+      drape_competence: learning
+      garment_classes: [KURTA, SAREE]
+      festival_calendar: [diwali, ganesh_chaturthi]
+    preferences:
+      occasion_mix: {work: 0.30, smart_casual: 0.25, casual: 0.20, party: 0.15, ceremonial: 0.10}
+      fits_loved: [relaxed, straight]
+      aesthetic_leanings: [minimal, contemporary_indian]
+      colour_preferences: {love: [terracotta, olive, cream], avoid: [neon, baby pink]}
+      styling_context: {brandsLiked: [Zara, Suta, Bhaane], brandsAvoided: [fast fashion haul brands]}
+      size_profile: {top_alpha: M, bottom_waist: [28], bra: 34B, shoe_uk: 5}
+      style_signals: {boldness_preference: 0.15}
+      gender_presentation: feminine
+    budget_tier: mid
+    bio: >-
+      Walks ten minutes to the office, so for eight months a year the only real question is what
+      survives 80% humidity. Owns three sarees she cannot drape unaided and a stack of kurtas she
+      wears as workwear. Wants to look expensive without looking like she tried; the word she uses
+      is "clean".
+    rationale: >-
+      The monsoon case. Eight months of heat and damp mean warmth should almost never exceed 0.4
+      and leather, suede and wool are all wrong — if the engine proposes a blazer in July for her,
+      it is not reading climate at all.
+    assigned_stylist: stylist1
+
+  - slug: gurpreet_singh_bhullar
+    name: Gurpreet Singh Bhullar
+    age: 41
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Textile manufacturing business owner
+    lifestyle: entrepreneur
+    work_dress_code: business_casual
+    city: ludhiana
+    state_region: Punjab
+    ootd_location: Ludhiana, India
+    climate:
+      zone: composite_north
+      summer_severity: extreme
+      winter_severity: cold
+      humidity: dry
+      monsoon_intensity: moderate
+      monsoon_months: [7, 8, 9]
+    body_shape: trapezoid
+    height_cm: 183
+    height_band: tall
+    build: solid
+    measurements: {waist_cm: 97}
+    skin_tone_monk: 5
+    color_analysis:
+      season: Autumn
+      season_sub: Deep Autumn
+      undertone: warm
+      depth: deep
+      temperature: warm
+      contrast: high
+      palette: ["#6b2c2c", "#1f3d2b", "#b8860b", "#8b4513", "#3e2723", "#c9a227", "#e5d3b3"]
+      summary: >-
+        A warm-toned deep Autumn with warm wheatish skin, dark brown eyes, and a black-and-grey
+        beard who is best flattered by oxblood, deep bottle green, antique gold and rich walnut
+        browns.
+    hair: {length: hip, texture: wavy, colour: black_grey, facial_hair: full_beard, head_covering: turban}
+    ethnic_wear:
+      share_of_wardrobe: 0.40
+      share_of_occasions: 0.38
+      drape_competence: expert
+      garment_classes: [KURTA, SHERWANI]
+      regional_garments: [bandhgala, nehru_jacket, kurta_pyjama]
+      festival_calendar: [lohri, baisakhi, gurpurab, wedding_season]
+    preferences:
+      occasion_mix: {work: 0.30, wedding: 0.25, smart_casual: 0.20, casual: 0.15, formal: 0.10}
+      aesthetic_leanings: [corporate_sharp, maximalist_festive]
+      colour_preferences: {love: [oxblood, bottle green, gold], avoid: [pastels, neon]}
+      styling_context: {brandsLiked: [Manyavar, Tasva, Raymond], brandsAvoided: [distressed denim]}
+      size_profile: {jacket: 44, bottom_waist: [38], shoe_uk: 10}
+      gender_presentation: masculine
+    hard_constraints: [turban_colour_coordination, no_headwear, no_sleeveless]
+    budget_tier: premium
+    bio: >-
+      November to February is wedding season and that is his social calendar — eight functions,
+      each needing a different look. Hats are not an option, ever.
+    rationale: >-
+      The hard-constraint test. His turban is the largest single block of colour in every outfit
+      he wears, and no styling engine currently knows that. Get it wrong and the whole look fails.
+    assigned_stylist: stylist1
+
+  - slug: devansh_patel
+    name: Devansh Patel
+    age: 19
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Second-year engineering undergraduate
+    lifestyle: student
+    work_dress_code: casual
+    city: ahmedabad
+    state_region: Gujarat
+    ootd_location: Ahmedabad, India
+    climate:
+      zone: hot_semi_arid_west
+      summer_severity: extreme
+      winter_severity: mild
+      humidity: dry
+      monsoon_intensity: moderate
+      monsoon_months: [7, 8, 9]
+    body_shape: rectangle
+    height_cm: 173
+    height_band: average
+    build: slight
+    measurements: {waist_cm: 71}
+    skin_tone_monk: 6
+    color_analysis:
+      season: Spring
+      undertone: warm
+      depth: medium
+      temperature: warm
+      contrast: medium
+      palette: ["#ff7f50", "#f2c14e", "#2eb8a8", "#ffb07c", "#7cb342", "#fff8e7", "#d2a679"]
+      summary: >-
+        A warm-toned medium-depth Spring with golden-brown skin, warm brown eyes, and near-black
+        hair who is best flattered by coral, marigold yellow, warm turquoise and fresh leaf green.
+    hair: {length: cropped, texture: wavy, colour: near_black}
+    ethnic_wear:
+      share_of_wardrobe: 0.20
+      share_of_occasions: 0.18
+      drape_competence: comfortable
+      garment_classes: [KURTA]
+      regional_garments: [kediyu, nehru_jacket]
+      festival_calendar: [navratri, uttarayan, diwali]
+    preferences:
+      occasion_mix: {casual: 0.40, activewear: 0.20, smart_casual: 0.15, festive: 0.15, party: 0.10}
+      aesthetic_leanings: [streetwear, athleisure]
+      colour_preferences: {love: [coral, turquoise], avoid: [beige, brown]}
+      styling_context: {brandsLiked: [Bewakoof, Snitch, Campus, Puma], brandsAvoided: [formal shoes]}
+      size_profile: {top_alpha: S, bottom_waist: [28], shoe_uk: 8}
+      gender_presentation: masculine
+    budget_tier: value
+    bio: >-
+      Lives in three t-shirts and a pair of cargos for most of the year, then needs nine distinct
+      looks for nine consecutive nights of Navratri garba on a student budget.
+    rationale: >-
+      The outfit-variety stress test. Nine looks from one small wardrobe in nine days is the
+      densest ethnic-dressing event in the country and nothing else on the roster provides it.
+      Dry heat also means he can wear denim in summer, unlike the coastal characters.
+    assigned_stylist: stylist1
+
+  - slug: riya_menon
+    name: Riya Menon
+    age: 25
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: MD resident, government medical college
+    lifestyle: corporate
+    work_dress_code: uniform
+    city: kochi
+    state_region: Kerala
+    ootd_location: Kochi, India
+    climate:
+      zone: equatorial_humid_southwest
+      summer_severity: hot
+      winter_severity: none
+      humidity: very_humid
+      monsoon_intensity: extreme
+      monsoon_months: [6, 7, 8, 9, 10, 11]
+    body_shape: triangle
+    height_cm: 163
+    height_band: average
+    build: average
+    measurements: {waist_cm: 76}
+    skin_tone_monk: 7
+    color_analysis:
+      season: Winter
+      season_sub: Deep Winter
+      undertone: cool
+      depth: deep
+      temperature: cool
+      contrast: high
+      palette: ["#1b2a49", "#c8102e", "#00674f", "#f7f7f5", "#4b2e83", "#2b2b2b", "#b0bec5"]
+      summary: >-
+        A cool-toned deep Winter with deep warm-brown skin, near-black eyes, and dense near-black
+        curls who is best flattered by true red, ink navy, emerald and stark white — not the earth
+        tones her skin tone is usually assumed to want.
+    hair: {length: hip, texture: curly, colour: near_black}
+    ethnic_wear:
+      share_of_wardrobe: 0.25
+      share_of_occasions: 0.20
+      drape_competence: comfortable
+      garment_classes: [SAREE, SALWAR]
+      regional_garments: [kasavu_saree, mundu]
+      festival_calendar: [onam, vishu, church_feasts]
+    preferences:
+      occasion_mix: {work: 0.50, casual: 0.25, festive: 0.15, smart_casual: 0.05, lounge: 0.05}
+      fits_loved: [relaxed]
+      aesthetic_leanings: [utilitarian, classic]
+      colour_preferences: {love: [navy, red, white], avoid: [mustard, terracotta]}
+      styling_context: {brandsLiked: [Fabindia, Crocs], brandsAvoided: [dry-clean only]}
+      size_profile: {top_alpha: M, bottom_waist: [30], shoe_eu: 38}
+      gender_presentation: feminine
+    hard_constraints: [no_heels, quick_dry_only, needs_pockets]
+    budget_tier: value
+    bio: >-
+      Thirty-six-hour shifts mean comfort beats everything. Kasavu for Onam, which inverts the
+      usual festive rule — her most celebratory garment is off-white and gold, not saturated
+      colour.
+    rationale: >-
+      Deep skin with a genuinely cool undertone, the single most commonly misread combination in
+      the Indian market. Warm-default advice will hand her mustard and terracotta and she will
+      look ill.
+    assigned_stylist: stylist1
+
+  - slug: lhamu_bhutia
+    name: Lhamu Bhutia
+    age: 33
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: Homestay owner and trekking guide
+    lifestyle: entrepreneur
+    work_dress_code: casual
+    city: gangtok
+    state_region: Sikkim
+    ootd_location: Gangtok, India
+    climate:
+      zone: subtropical_highland
+      summer_severity: mild
+      winter_severity: cold
+      humidity: humid
+      monsoon_intensity: heavy
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: rectangle
+    height_cm: 157
+    height_band: petite
+    build: athletic
+    measurements: {waist_cm: 69}
+    fit_pain_points: ["sleeves and trouser lengths always too long"]
+    skin_tone_monk: 3
+    color_analysis:
+      season: Summer
+      season_sub: Cool Summer
+      undertone: cool
+      depth: medium
+      temperature: cool
+      contrast: medium
+      palette: ["#3f5169", "#7e9bb5", "#a98a8a", "#6e7b5e", "#c8c3ba", "#4a3f55", "#8fa1a8"]
+      summary: >-
+        A cool-toned medium-depth Summer with fair cool-neutral skin, dark brown eyes, and
+        straight near-black hair who is best flattered by slate blue, muted rose, soft moss and
+        pewter grey.
+    hair: {length: mid_back, texture: straight, colour: near_black}
+    ethnic_wear:
+      share_of_wardrobe: 0.25
+      share_of_occasions: 0.22
+      drape_competence: expert
+      regional_garments: [bakhu, honju]
+      festival_calendar: [losar, saga_dawa]
+    preferences:
+      occasion_mix: {casual: 0.35, activewear: 0.25, work: 0.20, festive: 0.15, smart_casual: 0.05}
+      aesthetic_leanings: [outdoorsy_technical, handloom_revival]
+      colour_preferences: {love: [slate blue, moss], avoid: [white, pastels]}
+      styling_context: {brandsLiked: [Decathlon, Wildcraft], brandsAvoided: [heels]}
+      size_profile: {top_alpha: S, bottom_waist: [27], shoe_eu: 37}
+      gender_presentation: feminine
+    hard_constraints: [no_heels]
+    budget_tier: mid
+    bio: >-
+      Bakhu for Losar and weddings; fleece and waterproof boots for everything else.
+    rationale: >-
+      The only genuinely cold wardrobe on the roster and the only character whose outfits should
+      ever score warmth above 0.8. If the engine can dress Gangtok in January and Chennai in May
+      with the same rules, it is actually climate-aware.
+    assigned_stylist: stylist1
+
+  - slug: samar_ali_khan
+    name: Samar Ali Khan
+    age: 62
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Retired IAS officer, heritage trust boards
+    lifestyle: retired
+    work_dress_code: smart_casual
+    city: lucknow
+    state_region: Uttar Pradesh
+    ootd_location: Lucknow, India
+    climate:
+      zone: composite_north
+      summer_severity: extreme
+      winter_severity: moderate
+      humidity: moderate
+      monsoon_intensity: moderate
+      monsoon_months: [7, 8, 9]
+    body_shape: oval
+    height_cm: 175
+    height_band: average
+    build: full
+    measurements: {waist_cm: 91}
+    skin_tone_monk: 5
+    color_analysis:
+      season: Autumn
+      season_sub: Soft Autumn
+      undertone: neutral
+      depth: medium
+      temperature: neutral
+      contrast: low
+      palette: ["#d9cdb8", "#8a7b63", "#4a5d4e", "#6b4f3a", "#b7afa0", "#3e4a52", "#c9b79c"]
+      summary: >-
+        A neutral-toned medium-depth Autumn with light wheatish skin, hazel-brown eyes, and fully
+        silver hair whose low natural contrast is best flattered by ivory, oyster, sage and soft
+        taupe.
+    hair: {length: short, texture: straight, colour: grey, facial_hair: trimmed_beard, head_covering: cap}
+    ethnic_wear:
+      share_of_wardrobe: 0.70
+      share_of_occasions: 0.65
+      daily_ethnic: true
+      drape_competence: expert
+      garment_classes: [KURTA, SHERWANI]
+      regional_garments: [chikankari_kurta, angarkha, nehru_jacket]
+      festival_calendar: [eid, muharram, family_weddings]
+    preferences:
+      occasion_mix: {festive: 0.30, work: 0.25, casual: 0.20, smart_casual: 0.15, formal: 0.10}
+      aesthetic_leanings: [handloom_revival, classic]
+      colour_preferences: {love: [ivory, sage, oyster], avoid: [bright synthetics, black]}
+      styling_context: {brandsLiked: [SEWA Lucknow, Ada Chikan, Fabindia], brandsAvoided: [jeans, sneakers]}
+      size_profile: {kurta: 42, bottom_waist: [36], shoe_uk: 8}
+      gender_presentation: masculine
+    budget_tier: premium
+    bio: >-
+      Wears chikankari kurtas year-round and has never owned a pair of jeans.
+    rationale: >-
+      The lowest contrast on the roster — fully grey hair on light-wheatish skin. High-contrast
+      pairings, which the engine reaches for by default, will visually erase him. Also the
+      anti-Jaipur palette: an entirely muted festive wardrobe, testing whether "festive" is
+      hard-coded to mean "saturated".
+    assigned_stylist: stylist1
+
+  - slug: bhavna_chauhan
+    name: Bhavna Chauhan
+    age: 58
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: Runs a tiffin and catering business from home
+    lifestyle: entrepreneur
+    work_dress_code: casual
+    city: indore
+    state_region: Madhya Pradesh
+    ootd_location: Indore, India
+    climate:
+      zone: hot_semi_arid_central
+      summer_severity: extreme
+      winter_severity: mild
+      humidity: dry
+      monsoon_intensity: moderate
+      monsoon_months: [7, 8, 9]
+    body_shape: oval
+    height_cm: 155
+    height_band: petite
+    build: plus
+    measurements: {waist_cm: 102}
+    fit_pain_points: ["ready-made kameez lengths always need shortening"]
+    skin_tone_monk: 8
+    color_analysis:
+      season: Autumn
+      season_sub: Deep Autumn
+      undertone: warm
+      depth: deep
+      temperature: warm
+      contrast: high
+      palette: ["#8e3b2e", "#c9a227", "#3f5b3a", "#a84b2a", "#6b4423", "#e3cba5", "#7a1f2b"]
+      summary: >-
+        A warm-toned deep Autumn with deep golden-brown skin, near-black eyes, and heavily
+        silvered black hair who is best flattered by brick red, haldi, deep bottle green and warm
+        terracotta.
+    hair: {length: waist, texture: straight, colour: salt_pepper}
+    ethnic_wear:
+      share_of_wardrobe: 0.85
+      share_of_occasions: 0.85
+      daily_ethnic: true
+      drape_competence: expert
+      garment_classes: [KURTA, SALWAR, DUPATTA, SAREE]
+      regional_garments: [salwar_kameez, maheshwari_saree]
+      festival_calendar: [diwali, teej, karva_chauth]
+    preferences:
+      occasion_mix: {casual: 0.35, work: 0.25, festive: 0.25, smart_casual: 0.10, lounge: 0.05}
+      aesthetic_leanings: [classic, contemporary_indian]
+      colour_preferences: {love: [brick, haldi, bottle green], avoid: [black, grey]}
+      styling_context: {brandsLiked: [local market, W, Biba], brandsAvoided: [Western dresses]}
+      size_profile: {kameez: 44, bottom_waist: [40], shoe_eu: 39}
+      gender_presentation: feminine
+    hard_constraints: [no_sleeveless, no_above_knee]
+    budget_tier: value
+    bio: >-
+      Has never worn trousers in her life. Her wardrobe is twenty cotton salwar suits and eight
+      sarees, full stop.
+    rationale: >-
+      The engine has no top/bottom pairing decision to make, because a suit is bought as a set.
+      Represents the largest and least-served segment in the country and the character most likely
+      to expose a Western-separates assumption.
+    assigned_stylist: stylist1
+
+  # ---------------------------------------------------------------- stylist2 ---
+  - slug: rohan_iyer
+    name: Rohan Iyer
+    age: 34
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Staff engineer
+    lifestyle: corporate
+    work_dress_code: casual
+    city: bengaluru
+    state_region: Karnataka
+    ootd_location: Bengaluru, India
+    climate:
+      zone: tropical_upland
+      summer_severity: mild
+      winter_severity: mild
+      humidity: moderate
+      monsoon_intensity: heavy
+      monsoon_months: [6, 7, 8, 9, 10]
+    body_shape: rectangle
+    height_cm: 175
+    height_band: average
+    build: average
+    measurements: {waist_cm: 81}
+    skin_tone_monk: 6
+    color_analysis:
+      season: Autumn
+      season_sub: Soft Autumn
+      undertone: olive
+      depth: medium
+      temperature: warm
+      contrast: medium
+      palette: ["#8b5e3c", "#4f5d2f", "#a9601f", "#2e4034", "#d9c6a5", "#6e4b3a", "#b08a5e"]
+      summary: >-
+        A warm-toned medium-depth Autumn with olive-toned brown skin, dark brown eyes, and
+        near-black hair greying at the temples, best flattered by clay browns, moss greens, burnt
+        ochre and warm stone neutrals.
+    hair: {length: short, texture: wavy, colour: near_black_greying, facial_hair: stubble}
+    ethnic_wear:
+      share_of_wardrobe: 0.08
+      share_of_occasions: 0.06
+      drape_competence: none
+      garment_classes: [KURTA]
+    preferences:
+      occasion_mix: {casual: 0.35, smart_casual: 0.25, work: 0.20, activewear: 0.10, festive: 0.10}
+      fits_loved: [relaxed, straight]
+      aesthetic_leanings: [minimal, utilitarian]
+      colour_preferences: {love: [moss, clay, stone], avoid: [prints, neon]}
+      styling_context: {brandsLiked: [Uniqlo, Muji, Snitch], brandsAvoided: [printed party shirts, skinny fits]}
+      size_profile: {top_alpha: M, bottom_waist: [32], shoe_uk: 9}
+      style_signals: {boldness_preference: -0.2}
+      gender_presentation: masculine
+    budget_tier: mid
+    bio: >-
+      Has owned the same eight garments for four years and sees no problem with that. Work and
+      weekend dress identically.
+    rationale: >-
+      Can the engine add variety to a deliberately minimal wardrobe without pushing him somewhere
+      he would refuse to go? Also tests whether it notices that in a 15-to-30-degree city a light
+      jacket is a year-round item, not a winter one.
+    assigned_stylist: stylist2
+
+  - slug: meenakshi_subramaniam
+    name: Meenakshi Subramaniam
+    age: 52
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: Higher-secondary school principal
+    lifestyle: corporate
+    work_dress_code: formal
+    city: chennai
+    state_region: Tamil Nadu
+    ootd_location: Chennai, India
+    climate:
+      zone: hot_humid_south
+      summer_severity: extreme
+      winter_severity: none
+      humidity: very_humid
+      monsoon_intensity: heavy
+      monsoon_months: [10, 11, 12]
+    body_shape: oval
+    height_cm: 157
+    height_band: petite
+    build: plus
+    measurements: {waist_cm: 102}
+    skin_tone_monk: 8
+    color_analysis:
+      season: Autumn
+      season_sub: Deep Autumn
+      undertone: warm
+      depth: deep
+      temperature: warm
+      contrast: high
+      palette: ["#7b2d26", "#b9542f", "#c9a227", "#2f4f3a", "#5e3023", "#8b6914", "#e8d9b5"]
+      summary: >-
+        A warm-toned deep Autumn with rich deep-brown skin, near-black eyes, and heavily silvered
+        black hair who is best flattered by maroon, temple gold, deep bottle green, and
+        burnt-brick reds.
+    hair: {length: waist, texture: straight, colour: salt_pepper}
+    ethnic_wear:
+      share_of_wardrobe: 0.75
+      share_of_occasions: 0.70
+      daily_ethnic: true
+      drape_competence: expert
+      garment_classes: [SAREE, BLOUSE]
+      regional_garments: [kanjivaram_saree, cotton_saree]
+      festival_calendar: [pongal, navaratri, diwali]
+    preferences:
+      occasion_mix: {work: 0.45, festive: 0.25, casual: 0.20, smart_casual: 0.05, evening: 0.05}
+      aesthetic_leanings: [handloom_revival, classic]
+      colour_preferences: {love: [maroon, temple gold, bottle green], avoid: [pastels, neon]}
+      styling_context: {brandsLiked: [Nalli, Co-optex, Fabindia], brandsAvoided: [synthetic georgette]}
+      size_profile: {blouse: 42, shoe_eu: 39}
+      gender_presentation: feminine
+    hard_constraints: [no_sleeveless, covered_shoulders_temple, no_leather]
+    budget_tier: premium
+    bio: >-
+      Wears a saree every working day of the year and has done for thirty years — cotton for
+      school, silk for functions.
+    rationale: >-
+      Her entire wardrobe is ONE_PIECE plus blouses, so an engine that thinks in
+      top/bottom/footwear has almost nothing to say to her. Her silvering hair has also dropped
+      her contrast in the last five years and nobody has updated her palette for it.
+    assigned_stylist: stylist2
+
+  - slug: tanvi_sethi
+    name: Tanvi Sethi
+    age: 22
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: Final-year law student, part-time content creator
+    lifestyle: student
+    work_dress_code: formal
+    city: gurugram
+    state_region: Haryana
+    ootd_location: Gurugram, India
+    climate:
+      zone: composite_north
+      summer_severity: extreme
+      winter_severity: cold
+      humidity: dry
+      monsoon_intensity: moderate
+      monsoon_months: [7, 8, 9]
+    body_shape: hourglass
+    height_cm: 168
+    height_band: average
+    build: average
+    measurements: {waist_cm: 66}
+    skin_tone_monk: 4
+    color_analysis:
+      season: Winter
+      season_sub: Bright Winter
+      undertone: cool
+      depth: medium
+      temperature: cool
+      contrast: high
+      palette: ["#0f4c81", "#c2185b", "#1e7a6f", "#b00020", "#2b2b2b", "#7b1fa2", "#e8ecef"]
+      summary: >-
+        A cool-toned medium-depth Winter with fair wheatish skin, dark brown eyes, and
+        burgundy-dyed near-black hair who is best flattered by sapphire, true fuchsia, clear teal
+        and crisp optic white against charcoal.
+    hair: {length: shoulder, texture: straight, colour: dyed_burgundy}
+    ethnic_wear:
+      share_of_wardrobe: 0.20
+      share_of_occasions: 0.14
+      drape_competence: learning
+      garment_classes: [KURTA, LEHENGA]
+      festival_calendar: [diwali, holi, family_weddings]
+    preferences:
+      occasion_mix: {casual: 0.30, party: 0.25, smart_casual: 0.20, festive: 0.15, formal: 0.10}
+      aesthetic_leanings: [y2k, maximalist_festive]
+      colour_preferences: {love: [fuchsia, sapphire], avoid: [beige, olive]}
+      styling_context: {brandsLiked: [Urbanic, Newme, Zara], brandsAvoided: [beige minimalism]}
+      size_profile: {top_alpha: S, bottom_waist: [26], shoe_eu: 37}
+      style_signals: {boldness_preference: 0.7}
+      gender_presentation: feminine
+    budget_tier: value
+    bio: >-
+      Two lives — court formals for moot court and internships, and a going-out wardrobe built for
+      Instagram on a student budget. Will absolutely wear something impractical if it photographs
+      well.
+    rationale: >-
+      The only character with a real four-season year — 45 degrees in May, 4 degrees and fog in
+      January — so the only one for whom a genuine winter coat is correct. Also tests whether the
+      engine's weather-awareness can lose an argument gracefully.
+    assigned_stylist: stylist2
+
+  - slug: nikhil_chatterjee
+    name: Nikhil Chatterjee
+    age: 56
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Professor of economics
+    lifestyle: academic
+    work_dress_code: smart_casual
+    city: kolkata
+    state_region: West Bengal
+    ootd_location: Kolkata, India
+    climate:
+      zone: humid_subtropical_east
+      summer_severity: extreme
+      winter_severity: mild
+      humidity: very_humid
+      monsoon_intensity: heavy
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: oval
+    height_cm: 173
+    height_band: average
+    build: full
+    measurements: {waist_cm: 91}
+    skin_tone_monk: 6
+    color_analysis:
+      season: Autumn
+      season_sub: Soft Autumn
+      undertone: neutral
+      depth: medium
+      temperature: neutral
+      contrast: low
+      palette: ["#8b7355", "#6b6b3a", "#a0522d", "#37474f", "#d7ccc8", "#5d4037", "#b0a18b"]
+      summary: >-
+        A neutral-toned medium-depth Autumn with medium olive-brown skin, dark brown eyes, and
+        salt-and-pepper hair whose fallen contrast is best flattered by mushroom, faded indigo,
+        tobacco and soft slate.
+    hair: {length: short, texture: wavy, colour: salt_pepper, facial_hair: trimmed_beard}
+    ethnic_wear:
+      share_of_wardrobe: 0.45
+      share_of_occasions: 0.42
+      drape_competence: expert
+      garment_classes: [KURTA, DHOTI]
+      regional_garments: [panjabi, dhoti, handloom_kurta]
+      festival_calendar: [durga_puja, poila_boishakh]
+    preferences:
+      occasion_mix: {work: 0.40, casual: 0.25, festive: 0.20, smart_casual: 0.10, formal: 0.05}
+      aesthetic_leanings: [handloom_revival, vintage_thrift]
+      colour_preferences: {love: [mushroom, faded indigo, tobacco], avoid: [anything shiny]}
+      styling_context: {brandsLiked: [Khadi Gramodyog, Fabindia], brandsAvoided: [branded sportswear, sneakers]}
+      size_profile: {top_alpha: L, bottom_waist: [36], shoe_uk: 9}
+      style_signals: {boldness_preference: -0.4}
+      gender_presentation: masculine
+    budget_tier: mid
+    bio: >-
+      Khadi panjabi and cotton trousers nine months a year, dhoti for Puja, a shawl for the six
+      weeks Kolkata calls winter. Would find the phrase "statement piece" faintly embarrassing.
+    rationale: >-
+      His greying has flattened his contrast, so the high-contrast advice that suited him at 35
+      now washes him out. The clearest test of whether the engine reads contrast rather than just
+      undertone. Durga Puja also needs five looks in five days.
+    assigned_stylist: stylist2
+
+  - slug: vikram_rathore
+    name: Vikram Rathore
+    age: 48
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: General manager, heritage hotel
+    lifestyle: corporate
+    work_dress_code: formal
+    city: jodhpur
+    state_region: Rajasthan
+    ootd_location: Jodhpur, India
+    climate:
+      zone: hot_arid_northwest
+      summer_severity: extreme
+      winter_severity: moderate
+      humidity: dry
+      monsoon_intensity: low
+      monsoon_months: [7, 8]
+    body_shape: trapezoid
+    height_cm: 178
+    height_band: average
+    build: solid
+    measurements: {waist_cm: 86}
+    skin_tone_monk: 5
+    color_analysis:
+      season: Autumn
+      season_sub: Deep Autumn
+      undertone: olive
+      depth: deep
+      temperature: warm
+      contrast: high
+      palette: ["#4a2c2a", "#1f4037", "#b8860b", "#7b2d26", "#c19a6b", "#2c3e50", "#e8d9b5"]
+      summary: >-
+        A warm-toned deep Autumn with olive-toned wheatish skin, dark brown eyes, and black hair
+        greying at the temples who is best flattered by jewel-toned bottle green, oxblood, antique
+        gold and deep indigo.
+    hair: {length: short, texture: straight, colour: black_grey, facial_hair: moustache}
+    ethnic_wear:
+      share_of_wardrobe: 0.60
+      share_of_occasions: 0.58
+      daily_ethnic: true
+      drape_competence: expert
+      garment_classes: [SHERWANI, KURTA]
+      regional_garments: [bandhgala, angarkha]
+      festival_calendar: [teej, gangaur, wedding_season]
+    preferences:
+      occasion_mix: {work: 0.40, wedding: 0.25, smart_casual: 0.20, formal: 0.10, casual: 0.05}
+      aesthetic_leanings: [classic, maximalist_festive]
+      colour_preferences: {love: [bottle green, oxblood, indigo], avoid: [pastels]}
+      styling_context: {brandsLiked: [Raghavendra Rathore, Manyavar], brandsAvoided: [t-shirts at work]}
+      size_profile: {jacket: 42, bottom_waist: [34], shoe_uk: 9}
+      gender_presentation: masculine
+    budget_tier: premium
+    bio: >-
+      The bandhgala is literally his work uniform, so his everyday and ceremonial wardrobes are
+      the same garment at different levels of ornament.
+    rationale: >-
+      A formality gradient inside a single garment class, which Western taxonomies cannot
+      represent. Dry 45-degree heat where the correct answer is full coverage, not less fabric —
+      that should break any naive warmth-versus-temperature rule.
+    assigned_stylist: stylist2
+
+  - slug: neha_gupta
+    name: Neha Gupta
+    age: 28
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: Founder, jewellery e-commerce brand
+    lifestyle: entrepreneur
+    work_dress_code: smart_casual
+    city: jaipur
+    state_region: Rajasthan
+    ootd_location: Jaipur, India
+    climate:
+      zone: hot_arid_northwest
+      summer_severity: extreme
+      winter_severity: moderate
+      humidity: dry
+      monsoon_intensity: low
+      monsoon_months: [7, 8]
+    body_shape: inverted_triangle
+    height_cm: 152
+    height_band: petite
+    build: slight
+    measurements: {waist_cm: 66}
+    fit_pain_points:
+      - "broad shoulders, narrow hips — every kurta pulls at the shoulder and hangs at the hip"
+      - "all lengths need hemming"
+    skin_tone_monk: 4
+    color_analysis:
+      season: Spring
+      season_sub: Light Spring
+      undertone: warm
+      depth: light
+      temperature: warm
+      contrast: medium
+      palette: ["#f2749b", "#f2c14e", "#2eb8a8", "#ff9e7a", "#7cb342", "#fff4e0", "#c86b3c"]
+      summary: >-
+        A warm-toned light-depth Spring with fair golden skin, light warm-brown eyes, and
+        caramel-highlighted brown hair who is best flattered by rose pink, marigold, turquoise and
+        fresh coral.
+    hair: {length: shoulder, texture: wavy, colour: dyed_caramel}
+    ethnic_wear:
+      share_of_wardrobe: 0.40
+      share_of_occasions: 0.38
+      drape_competence: expert
+      garment_classes: [LEHENGA, KURTA, ANARKALI, DUPATTA]
+      regional_garments: [bandhani, leheriya, chaniya_choli]
+      festival_calendar: [teej, gangaur, diwali, wedding_season]
+    preferences:
+      occasion_mix: {work: 0.30, smart_casual: 0.25, wedding: 0.20, party: 0.15, casual: 0.10}
+      aesthetic_leanings: [maximalist_festive, contemporary_indian]
+      colour_preferences: {love: [rose pink, marigold, turquoise], avoid: [black, all-neutral palettes]}
+      styling_context: {brandsLiked: [Anokhi, Good Earth, Jaypore], brandsAvoided: [oversized silhouettes]}
+      size_profile: {top_alpha: XS, bottom_waist: [26], shoe_eu: 36}
+      style_signals: {boldness_preference: 0.6}
+      gender_presentation: feminine
+    budget_tier: premium
+    bio: >-
+      Jaipur runs on weddings and she is invited to most of them for business reasons, so
+      ceremonial dressing is a weekly occasion, not an annual one. Finds beige depressing.
+    rationale: >-
+      The only true Spring on the roster and the only character who actively refuses neutrals.
+      Petite inverted triangle is the rarest shape in the set and the worst served by Indian
+      ready-to-wear, which grades for the pear.
+    assigned_stylist: stylist2
+
+  - slug: joseph_fernandes
+    name: Joseph Fernandes
+    age: 44
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Restaurant owner, front of house
+    lifestyle: entrepreneur
+    work_dress_code: smart_casual
+    city: panaji
+    state_region: Goa
+    ootd_location: Panaji, India
+    climate:
+      zone: coastal_humid
+      summer_severity: hot
+      winter_severity: none
+      humidity: very_humid
+      monsoon_intensity: extreme
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: triangle
+    height_cm: 170
+    height_band: average
+    build: solid
+    measurements: {waist_cm: 91}
+    skin_tone_monk: 6
+    color_analysis:
+      season: Spring
+      season_sub: Warm Spring
+      undertone: warm
+      depth: medium
+      temperature: warm
+      contrast: medium
+      palette: ["#e07a5f", "#f2c14e", "#3d9e8e", "#ffd7a8", "#6b9e4f", "#fff8e7", "#b5651d"]
+      summary: >-
+        A warm-toned medium-depth Spring with warm golden-brown skin, warm brown eyes, and greying
+        black hair who is best flattered by terracotta coral, sun yellow, seafoam teal and warm
+        ivory.
+    hair: {length: cropped, texture: wavy, colour: black_grey}
+    ethnic_wear:
+      share_of_wardrobe: 0.05
+      share_of_occasions: 0.04
+      drape_competence: none
+      festival_calendar: [christmas, easter, carnival, feast_days]
+    preferences:
+      occasion_mix: {work: 0.35, casual: 0.30, party: 0.15, smart_casual: 0.15, festive: 0.05}
+      fits_loved: [relaxed]
+      aesthetic_leanings: [coastal_resort, classic]
+      colour_preferences: {love: [coral, seafoam, ivory], avoid: [black, charcoal]}
+      styling_context: {brandsLiked: [Linen Club, Andamen], brandsAvoided: [suits, wool, closed shoes]}
+      size_profile: {top_alpha: L, bottom_waist: [36], shoe_uk: 8}
+      gender_presentation: masculine
+    hard_constraints: [quick_dry_only, no_wool]
+    budget_tier: mid
+    bio: >-
+      Stands in a 34-degree dining room for ten hours, so linen and camp collars are the whole
+      answer. Goa's monsoon shuts his terrace for three months.
+    rationale: >-
+      The deliberate ethnic-wear outlier: an Indian character whose entire festive calendar is
+      Western. This is the case the engine will get wrong by assuming "Indian user, therefore
+      propose a kurta for Christmas".
+    assigned_stylist: stylist2
+
+  - slug: ira_sengupta
+    name: Ira Sengupta
+    age: 23
+    gender: unisex
+    gender_presentation: androgynous
+    pronouns: they/them
+    occupation: UX designer, fintech
+    lifestyle: creative
+    work_dress_code: casual
+    city: bengaluru
+    state_region: Karnataka
+    ootd_location: Bengaluru, India
+    climate:
+      zone: tropical_upland
+      summer_severity: mild
+      winter_severity: mild
+      humidity: moderate
+      monsoon_intensity: heavy
+      monsoon_months: [6, 7, 8, 9, 10]
+    body_shape: rectangle
+    height_cm: 165
+    height_band: average
+    build: lean
+    measurements: {waist_cm: 74}
+    skin_tone_monk: 4
+    color_analysis:
+      season: Winter
+      season_sub: Bright Winter
+      undertone: cool
+      depth: medium
+      temperature: cool
+      contrast: high
+      palette: ["#2b2b2b", "#0f4c81", "#f7f7f5", "#1e7a6f", "#7b1fa2", "#b00020", "#9aa5ad"]
+      summary: >-
+        A cool-toned medium-depth Winter with fair cool-neutral skin, dark brown eyes, and
+        near-black hair with a bleached front streak who is best flattered by true black,
+        sapphire, clear teal and optic white.
+    hair: {length: cropped, texture: wavy, colour: near_black_bleached_streak}
+    ethnic_wear:
+      share_of_wardrobe: 0.15
+      share_of_occasions: 0.10
+      drape_competence: none
+      garment_classes: [KURTA]
+      regional_garments: [nehru_jacket]
+    preferences:
+      occasion_mix: {casual: 0.40, smart_casual: 0.25, work: 0.20, party: 0.10, festive: 0.05}
+      fits_loved: [relaxed, straight]
+      aesthetic_leanings: [androgynous, streetwear, utilitarian]
+      colour_preferences: {love: [black, sapphire, teal], avoid: [pastels, florals]}
+      styling_context: {brandsLiked: [Bhaane, Huemn, Uniqlo U], brandsAvoided: ["anything merchandised as womenswear"]}
+      size_profile: {top_alpha: M, bottom_waist: [29], shoe_eu: 40}
+      gender_presentation: androgynous
+    hard_constraints: [no_gendered_ethnic]
+    budget_tier: mid
+    bio: >-
+      Wears genderless ethnic only — unisex kurtas, dhoti pants, Nehru jackets — and refuses saree
+      and sherwani alike.
+    rationale: >-
+      The only character exercising the unisex gender value end to end. Stage 1 cannot default
+      intent.gender from the account, Stage 4's wardrobe filter has to stop splitting on gender,
+      and every Indian ethnic garment in the taxonomy is gender-coded in a way they reject. Small
+      segment commercially, disproportionately large for finding where gender is hard-coded.
+    assigned_stylist: stylist2
+
+  # ---------------------------------------------------------------- stylist3 ---
+  - slug: ananya_baruah
+    name: Ananya Baruah
+    age: 29
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: NGO programme officer, rural field travel
+    lifestyle: corporate
+    work_dress_code: business_casual
+    city: guwahati
+    state_region: Assam
+    ootd_location: Guwahati, India
+    climate:
+      zone: northeast_monsoon
+      summer_severity: hot
+      winter_severity: mild
+      humidity: very_humid
+      monsoon_intensity: extreme
+      monsoon_months: [5, 6, 7, 8, 9]
+    body_shape: rectangle
+    height_cm: 150
+    height_band: petite
+    build: slight
+    measurements: {waist_cm: 64}
+    fit_pain_points: ["every kurta is four inches too long; nothing petite exists outside online"]
+    skin_tone_monk: 3
+    color_analysis:
+      season: Summer
+      season_sub: Light Summer
+      undertone: cool
+      depth: light
+      temperature: cool
+      contrast: low
+      palette: ["#9fb6cd", "#c08e96", "#3f5169", "#9b8aa6", "#a7b49e", "#d8d5ce", "#6e4a63"]
+      summary: >-
+        A cool-toned light-depth Summer with fair neutral-cool skin, dark brown eyes, and soft
+        dark-brown hair who is best flattered by powder blue, dusty rose, muted sage and soft
+        slate navy.
+    hair: {length: mid_back, texture: straight, colour: dark_brown}
+    ethnic_wear:
+      share_of_wardrobe: 0.35
+      share_of_occasions: 0.28
+      drape_competence: comfortable
+      regional_garments: [mekhela_chador]
+      festival_calendar: [bihu, durga_puja]
+    preferences:
+      occasion_mix: {work: 0.40, casual: 0.30, festive: 0.15, smart_casual: 0.10, activewear: 0.05}
+      aesthetic_leanings: [handloom_revival, utilitarian]
+      colour_preferences: {love: [powder blue, sage], avoid: [neon, black]}
+      styling_context: {brandsLiked: [Fabindia, Decathlon], brandsAvoided: [heels, dry-clean only]}
+      size_profile: {top_alpha: XS, bottom_waist: [25], shoe_eu: 36}
+      gender_presentation: feminine
+    hard_constraints: [quick_dry_only, no_heels]
+    budget_tier: value
+    bio: >-
+      Spends a third of the month in districts with unpaved approach roads during the heaviest
+      rainfall in the country, so everything she owns has to dry overnight and survive a bus.
+    rationale: >-
+      The only genuinely cool-toned, light-depth, petite character — the combination that Indian
+      ready-to-wear grading and warm-default colour advice both fail at the same time.
+    assigned_stylist: stylist3
+
+  - slug: kabir_malhotra
+    name: Kabir Malhotra
+    age: 38
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Investment banking VP
+    lifestyle: corporate
+    work_dress_code: formal
+    city: new delhi
+    state_region: Delhi
+    ootd_location: New Delhi, India
+    climate:
+      zone: composite_north
+      summer_severity: extreme
+      winter_severity: cold
+      humidity: dry
+      monsoon_intensity: moderate
+      monsoon_months: [7, 8, 9]
+    body_shape: inverted_triangle
+    height_cm: 180
+    height_band: tall
+    build: athletic
+    measurements: {waist_cm: 81}
+    fit_pain_points: ["off-the-peg jackets pull across the back and swim at the waist"]
+    skin_tone_monk: 4
+    color_analysis:
+      season: Winter
+      season_sub: Deep Winter
+      undertone: cool
+      depth: deep
+      temperature: cool
+      contrast: high
+      palette: ["#1b2a49", "#c8102e", "#00674f", "#2b2b2b", "#f7f7f5", "#4b2e83", "#6e7b8b"]
+      summary: >-
+        A cool-toned deep Winter with fair-to-wheatish cool skin, near-black eyes, and jet-black
+        hair who is best flattered by ink navy, true red, emerald and stark optic white.
+    hair: {length: cropped, texture: straight, colour: near_black, facial_hair: clean_shaven}
+    ethnic_wear:
+      share_of_wardrobe: 0.12
+      share_of_occasions: 0.10
+      drape_competence: learning
+      garment_classes: [SHERWANI]
+      regional_garments: [bandhgala]
+    preferences:
+      occasion_mix: {formal: 0.30, work: 0.25, smart_casual: 0.20, activewear: 0.15, evening: 0.10}
+      fits_loved: [tailored, slim]
+      aesthetic_leanings: [corporate_sharp, classic]
+      colour_preferences: {love: [navy, emerald, white], avoid: [pastels, logos]}
+      styling_context: {brandsLiked: [Zegna, Canali, SS Homme], brandsAvoided: [logo streetwear, sneakers with tailoring]}
+      size_profile: {jacket: 40, bottom_waist: [32], shoe_uk: 9}
+      gender_presentation: masculine
+    budget_tier: luxury
+    bio: >-
+      The one character where formal is the default rather than the exception, and the only one
+      whose winter justifies a real overcoat.
+    rationale: >-
+      The ceiling case. Gym-built inverted triangle, so nothing off the peg fits. If the engine
+      cannot dress him, it cannot serve the tier the business actually monetises.
+    assigned_stylist: stylist3
+
+  - slug: fatima_qureshi
+    name: Fatima Qureshi
+    age: 31
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: Pharmacovigilance associate
+    lifestyle: corporate
+    work_dress_code: business_casual
+    city: hyderabad
+    state_region: Telangana
+    ootd_location: Hyderabad, India
+    climate:
+      zone: hot_semi_arid_deccan
+      summer_severity: extreme
+      winter_severity: mild
+      humidity: moderate
+      monsoon_intensity: moderate
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: triangle
+    height_cm: 160
+    height_band: average
+    build: average
+    measurements: {waist_cm: 81}
+    fit_pain_points: ["everything ready-made fits the hip or the waist but never both"]
+    skin_tone_monk: 6
+    color_analysis:
+      season: Autumn
+      season_sub: Deep Autumn
+      undertone: olive
+      depth: deep
+      temperature: warm
+      contrast: medium
+      palette: ["#6b3a2e", "#9c6b3f", "#2f4f3a", "#a8763e", "#d9c3a0", "#5c4033", "#7a5c3e"]
+      summary: >-
+        A warm-toned deep Autumn with olive-brown skin, dark warm-brown eyes, and dark-brown curls
+        who is best flattered by cinnamon, deep olive, antique bronze and warm sand.
+    hair: {length: waist, texture: curly, colour: dark_brown, head_covering: hijab}
+    ethnic_wear:
+      share_of_wardrobe: 0.55
+      share_of_occasions: 0.50
+      drape_competence: expert
+      garment_classes: [KURTA, SALWAR, DUPATTA]
+      regional_garments: [khada_dupatta, abaya]
+      festival_calendar: [eid, ramadan, family_weddings]
+    preferences:
+      occasion_mix: {work: 0.35, casual: 0.25, festive: 0.20, smart_casual: 0.10, evening: 0.10}
+      aesthetic_leanings: [modest_modern, contemporary_indian]
+      colour_preferences: {love: [cinnamon, deep olive, bronze], avoid: [sheer, neon]}
+      styling_context: {brandsLiked: [Aurelia, W, Biba], brandsAvoided: [sleeveless, sheer]}
+      size_profile: {top_alpha: L, bottom_waist: [32], shoe_eu: 38}
+      gender_presentation: feminine
+    hard_constraints:
+      [modest_coverage_full_sleeve, high_neckline_only, no_above_knee, no_bare_midriff]
+    budget_tier: mid
+    bio: >-
+      Modest coverage is non-negotiable on every outfit, plus an abaya layer the moment she steps
+      outside.
+    rationale: >-
+      The hardest constraint set on the roster and the one most likely to be silently violated.
+      The engine also has to style two nested outfits, one of which is never seen in public.
+    assigned_stylist: stylist3
+
+  - slug: shalini_rao
+    name: Shalini Rao
+    age: 45
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: Principal, own architecture practice
+    lifestyle: entrepreneur
+    work_dress_code: smart_casual
+    city: mumbai
+    state_region: Maharashtra
+    ootd_location: Mumbai, India
+    climate:
+      zone: coastal_humid
+      summer_severity: hot
+      winter_severity: none
+      humidity: very_humid
+      monsoon_intensity: extreme
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: rectangle
+    height_cm: 170
+    height_band: tall
+    build: lean
+    measurements: {waist_cm: 76}
+    fit_pain_points: ["shoe EU40 — Indian womenswear retail stops at 39"]
+    skin_tone_monk: 5
+    color_analysis:
+      season: Winter
+      season_sub: Deep Winter
+      undertone: neutral
+      depth: deep
+      temperature: cool
+      contrast: high
+      palette: ["#2b2b2b", "#1b2a49", "#f7f7f5", "#7a0c2e", "#00674f", "#5a5f66", "#a61b6b"]
+      summary: >-
+        A cool-toned deep Winter with warm-neutral wheatish skin, near-black eyes, and jet-black
+        hair with a deliberate silver streak who is best flattered by charcoal, ink, stark white
+        and a single note of deep garnet.
+    hair: {length: chin, texture: straight, colour: near_black_silver_streak}
+    ethnic_wear:
+      share_of_wardrobe: 0.30
+      share_of_occasions: 0.22
+      drape_competence: expert
+      garment_classes: [SAREE, KURTA]
+      regional_garments: [handloom_kurta]
+      festival_calendar: [diwali, ganesh_chaturthi]
+    preferences:
+      occasion_mix: {work: 0.35, smart_casual: 0.25, festive: 0.15, casual: 0.15, evening: 0.10}
+      fits_loved: [straight, relaxed]
+      aesthetic_leanings: [minimal, handloom_revival]
+      colour_preferences: {love: [charcoal, ink, garnet], avoid: [florals, pastels, sequins]}
+      styling_context: {brandsLiked: [Raw Mango, Péro, Bodice, COS], brandsAvoided: [fast fashion]}
+      size_profile: {top_alpha: M, bottom_waist: [30], shoe_eu: 40}
+      style_signals: {boldness_preference: 0.4}
+      gender_presentation: feminine
+    budget_tier: premium
+    bio: >-
+      Wears ethnic as everyday professional clothing rather than occasion wear — a mul saree to a
+      site meeting is work, not ceremonial.
+    rationale: >-
+      The hardest character to please and the most valuable reviewer: strong articulate taste, and
+      she will reject a correct-but-boring recommendation. Most engines cannot model ethnic-as-
+      workwear. Tall with a size-40 foot, so almost nothing fits off the rack.
+    assigned_stylist: stylist3
+
+  - slug: priyanka_jadhav
+    name: Priyanka Jadhav
+    age: 36
+    gender: women
+    gender_presentation: feminine
+    pronouns: she/her
+    occupation: HR business partner, automotive plant
+    lifestyle: corporate
+    work_dress_code: business_casual
+    city: pune
+    state_region: Maharashtra
+    ootd_location: Pune, India
+    climate:
+      zone: transitional_deccan
+      summer_severity: hot
+      winter_severity: mild
+      humidity: moderate
+      monsoon_intensity: heavy
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: hourglass
+    height_cm: 165
+    height_band: average
+    build: plus
+    measurements: {waist_cm: 91}
+    fit_pain_points: ["post-pregnancy shape changed; nothing from 2021 fits"]
+    skin_tone_monk: 7
+    color_analysis:
+      season: Autumn
+      season_sub: Deep Autumn
+      undertone: warm
+      depth: deep
+      temperature: warm
+      contrast: medium
+      palette: ["#8b4a3b", "#c9a227", "#5b6b3a", "#a0522d", "#e0c9a6", "#4e342e", "#9c6b4a"]
+      summary: >-
+        A warm-toned deep Autumn with warm golden-brown skin, dark brown eyes, and dark-brown hair
+        who is best flattered by brick, haldi gold, deep moss and warm caramel.
+    hair: {length: shoulder, texture: wavy, colour: dark_brown}
+    ethnic_wear:
+      share_of_wardrobe: 0.30
+      share_of_occasions: 0.25
+      drape_competence: comfortable
+      garment_classes: [SAREE, KURTA]
+      regional_garments: [nauvari_saree]
+      festival_calendar: [ganesh_chaturthi, gudi_padwa, diwali]
+    preferences:
+      occasion_mix: {work: 0.40, casual: 0.25, festive: 0.15, smart_casual: 0.10, party: 0.10}
+      aesthetic_leanings: [corporate_sharp, classic]
+      colour_preferences: {love: [brick, haldi, moss], avoid: [sheer, bodycon]}
+      styling_context: {brandsLiked: [Westside, Biba], brandsAvoided: [crop tops, bodycon]}
+      size_profile: {top_alpha: XL, bottom_waist: [36], bra: 40D, shoe_eu: 39}
+      gender_presentation: feminine
+    budget_tier: mid
+    bio: >-
+      Needs to read as authoritative on a shop floor where she is routinely the only woman in the
+      room, and the wardrobe she owns was bought for a body she no longer has.
+    rationale: >-
+      Plus-size hourglass is the shape Indian retail grades worst — everything either tents or
+      strains. Tests whether the engine can do "commanding" without defaulting to "shapeless".
+    assigned_stylist: stylist3
+
+  - slug: arjun_nair
+    name: Arjun Nair
+    age: 30
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Assistant director, freelance filmmaker
+    lifestyle: creative
+    work_dress_code: casual
+    city: mumbai
+    state_region: Maharashtra
+    ootd_location: Mumbai, India
+    climate:
+      zone: coastal_humid
+      summer_severity: hot
+      winter_severity: none
+      humidity: very_humid
+      monsoon_intensity: extreme
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: rectangle
+    height_cm: 185
+    height_band: tall
+    build: slight
+    measurements: {waist_cm: 76, inseam_cm: 86}
+    fit_pain_points:
+      - "sleeves and inseams always short"
+      - "UK11 feet — Indian retail stops at 10"
+    skin_tone_monk: 7
+    color_analysis:
+      season: Winter
+      season_sub: Deep Winter
+      undertone: cool
+      depth: deep
+      temperature: cool
+      contrast: high
+      palette: ["#2b2b2b", "#1b2a49", "#f7f7f5", "#7a0c2e", "#37474f", "#00674f", "#8e8e8e"]
+      summary: >-
+        A cool-toned deep Winter with deep warm-brown skin, near-black eyes, and dense black curls
+        who is best flattered by true black, ink, optic white and a single deep-garnet accent.
+    hair: {length: shoulder, texture: curly, colour: near_black, facial_hair: full_beard}
+    ethnic_wear:
+      share_of_wardrobe: 0.10
+      share_of_occasions: 0.06
+      drape_competence: none
+      garment_classes: [KURTA]
+    preferences:
+      occasion_mix: {casual: 0.45, smart_casual: 0.20, party: 0.15, work: 0.10, festive: 0.10}
+      fits_loved: [relaxed, straight]
+      aesthetic_leanings: [vintage_thrift, androgynous]
+      colour_preferences: {love: [black, ink, garnet], avoid: [beige, logos]}
+      styling_context: {brandsLiked: [Bombay Shirt Company, Nicobar, Dr. Martens], brandsAvoided: [corporate formals, logos]}
+      size_profile: {top_alpha: M, bottom_waist: [30], shoe_uk: 11}
+      style_signals: {boldness_preference: 0.5}
+      gender_presentation: masculine
+    budget_tier: mid
+    bio: >-
+      Dresses almost entirely in black in a city where that is a genuinely bad idea for eight
+      months of the year. Shoots run fourteen hours.
+    rationale: >-
+      An interesting conflict for a weather-aware engine to negotiate rather than override. The
+      most style-literate man on the roster and the one most likely to say "technically right,
+      completely wrong". Limb proportions nothing Indian is cut for.
+    assigned_stylist: stylist3
+
+  - slug: harsh_vardhan_sinha
+    name: Harsh Vardhan Sinha
+    age: 51
+    gender: men
+    gender_presentation: masculine
+    pronouns: he/him
+    occupation: Executive engineer, state Public Works Department
+    lifestyle: corporate
+    work_dress_code: business_casual
+    city: patna
+    state_region: Bihar
+    ootd_location: Patna, India
+    climate:
+      zone: composite_east
+      summer_severity: extreme
+      winter_severity: moderate
+      humidity: humid
+      monsoon_intensity: heavy
+      monsoon_months: [6, 7, 8, 9]
+    body_shape: oval
+    height_cm: 170
+    height_band: average
+    build: full
+    measurements: {waist_cm: 91}
+    skin_tone_monk: 9
+    color_analysis:
+      season: Autumn
+      season_sub: Deep Autumn
+      undertone: warm
+      depth: deep
+      temperature: warm
+      contrast: high
+      palette: ["#8c4a2f", "#c9a227", "#2f4f3a", "#6b3226", "#d9c3a0", "#3e2723", "#a8763e"]
+      summary: >-
+        A warm-toned deep Autumn with deep brown skin, near-black eyes, and black hair who is best
+        flattered by rust, mustard gold, deep forest and warm cocoa — never the grey-navy palette
+        his office wardrobe defaults to.
+    hair: {length: short, texture: straight, colour: black_dyed, facial_hair: moustache}
+    ethnic_wear:
+      share_of_wardrobe: 0.30
+      share_of_occasions: 0.28
+      drape_competence: comfortable
+      garment_classes: [KURTA]
+      regional_garments: [kurta_pyjama, bush_shirt, safari_suit]
+      festival_calendar: [chhath_puja, holi, diwali]
+    preferences:
+      occasion_mix: {work: 0.50, festive: 0.20, casual: 0.20, smart_casual: 0.10}
+      aesthetic_leanings: [classic, utilitarian]
+      colour_preferences: {love: [rust, mustard, forest], avoid: [grey, navy]}
+      styling_context: {brandsLiked: ["his local tailor of 20 years", Peter England], brandsAvoided: [shorts, t-shirts outside the house]}
+      size_profile: {top_alpha: L, bottom_waist: [36], shoe_uk: 8}
+      gender_presentation: masculine
+    budget_tier: value
+    bio: >-
+      Nothing he owns has a brand label; it was all stitched to measure by the same tailor for
+      twenty years.
+    rationale: >-
+      The deepest skin tone on the panel, so the character whose colour advice is most likely to
+      degrade — the palette logic was almost certainly tuned on lighter skin. His dominant
+      garments, the bush shirt and safari suit, barely exist in any taxonomy. Brand-based
+      reasoning has zero purchase on him.
+    assigned_stylist: stylist3

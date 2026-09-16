@@ -20,6 +20,10 @@ dependencies = [
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.0",
     "python-multipart>=0.0.9",
+    # The evaluation-character roster is authored as YAML (app/personas/roster.yaml). It was
+    # already present transitively via uvicorn[standard]; declared here because app code now
+    # imports it directly.
+    "pyyaml>=6.0",
     "redis>=8.1.0",
     "sqlalchemy>=2.0.0",
     "uvicorn[standard]>=0.52.4",
