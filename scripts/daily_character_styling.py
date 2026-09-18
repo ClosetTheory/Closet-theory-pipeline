@@ -105,7 +105,8 @@ async def style_one(session, storage, persona: Persona, prompts: List[str]) -> D
             )
             for outfit in resp.outfits:
                 result["outfits"].append({
-                    "prompt": prompt, "garment_ids": outfit.garment_ids,
+                    "prompt": prompt,
+                    "garment_ids": [g.garment_id for g in outfit.garments],
                     "image": bool(outfit.generated_image_url),
                 })
             if not resp.outfits:
@@ -145,7 +146,7 @@ async def ootd_one(session, storage, persona: Persona) -> Dict[str, Any]:
         )
         await session.commit()
         return {"slug": persona.slug, "ok": True, "location": location,
-                "outfits": len(resp.outfits) if hasattr(resp, "outfits") else None}
+                "cached": resp.cached, "outfits": len(resp.styling.outfits)}
     except Exception as e:
         await session.rollback()
         return {"slug": persona.slug, "ok": False, "error": f"{type(e).__name__}: {e}"}
