@@ -1,0 +1,38 @@
+# Deletes every generated outfit and cached OOTD pick for the evaluation characters, so
+# scripts.daily_character_styling can regenerate them after a fix to how they're rendered
+# (e.g. the mannequin -> persona-likeness fix). See scripts/purge_character_outfits.py for why
+# OutfitOfTheDay, Outfit and the underlying generated images all have to go together.
+#
+# Manual trigger only, like every other write-side script in this repo: it deletes real rows and
+# nothing about that should happen as a side effect of a push.
+name: Purge character outfits
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report what would be deleted without deleting anything"
+        type: boolean
+        default: true
+      only:
+        description: "A persona slug, or a comma-separated list, or blank for all 22"
+        type: string
+        default: ""
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete outfits and OOTD picks
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: root
+          key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          command_timeout: 30m
+          script: |
+            set -e
+            cd /opt/closet-theory
+            ARGS="${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }}"
+            echo "args: $ARGS"
+            docker compose exec -T api python -m scripts.purge_character_outfits $ARGS
