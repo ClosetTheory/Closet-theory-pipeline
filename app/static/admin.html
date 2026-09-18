@@ -185,6 +185,26 @@
 
     // The admin view is always the stylist's own identity — never scoped to a character — so
     // this page deliberately does not send the acting-as header.
+    // <img> requests carry no Authorization header, and the portrait route requires one, so a
+    // bare src came back 401 and rendered as a broken image. api() parses JSON, so this does its
+    // own fetch and hands the element an object URL.
+    const _portraitCache = new Map();
+    async function loadAuthedImages(root) {
+      const token = localStorage.getItem("ct_auth_token");
+      for (const img of (root || document).querySelectorAll("img[data-authed-src]:not([data-authed-done])")) {
+        const url = img.getAttribute("data-authed-src");
+        img.setAttribute("data-authed-done", "1");
+        try {
+          if (!_portraitCache.has(url)) {
+            const res = await fetch(url, {headers: {Authorization: `Bearer ${token}`}});
+            if (!res.ok) { img.remove(); continue; }
+            _portraitCache.set(url, URL.createObjectURL(await res.blob()));
+          }
+          img.src = _portraitCache.get(url);
+        } catch (e) { img.remove(); }
+      }
+    }
+
     async function api(path, opts = {}) {
       const token = localStorage.getItem("ct_auth_token");
       const res = await fetch(API + path, Object.assign({}, opts, {
@@ -215,7 +235,7 @@
         <article class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden">
           <div class="flex gap-4 p-5">
             ${p.portrait_url
-              ? `<img src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}"
+              ? `<img data-authed-src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}"
                       class="w-20 h-28 object-cover rounded-xl bg-slate-800 flex-none" loading="lazy">`
               : `<div class="w-20 h-28 rounded-xl bg-slate-800 flex-none"></div>`}
             <div class="min-w-0">
@@ -358,6 +378,7 @@
 
       document.getElementById("assign-body").innerHTML = (matrix.personas || []).map(assignRow).join("");
       document.getElementById("roster").innerHTML = roster.map(rosterCard).join("");
+      loadAuthedImages(document.getElementById("roster"));
       document.getElementById("users-body").innerHTML = (users || []).map(userRow).join("");
     }
 

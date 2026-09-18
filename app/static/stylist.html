@@ -146,6 +146,26 @@
         else { localStorage.removeItem("ct_acting_persona"); localStorage.removeItem("ct_acting_persona_name"); }
       } catch (e) {}
     }
+
+    // <img> requests carry no Authorization header, and the portrait route requires one. Fetch
+    // the bytes with the token we already hold and hand the element an object URL instead.
+    const _portraitCache = new Map();
+    async function loadAuthedImages(root) {
+      const nodes = (root || document).querySelectorAll("img[data-authed-src]:not([data-authed-done])");
+      for (const img of nodes) {
+        const url = img.getAttribute("data-authed-src");
+        img.setAttribute("data-authed-done", "1");
+        try {
+          if (!_portraitCache.has(url)) {
+            const res = await ctFetch(url);
+            if (!res.ok) { img.remove(); continue; }
+            _portraitCache.set(url, URL.createObjectURL(await res.blob()));
+          }
+          img.src = _portraitCache.get(url);
+        } catch (e) { img.remove(); }
+      }
+    }
+
     async function ctFetch(url, opts = {}) {
       const token = localStorage.getItem("ct_auth_token");
       const acting = ctActingAs();
@@ -193,7 +213,7 @@
         <article class="bg-slate-900/70 border ${active ? 'border-ct-primary' : 'border-slate-800'} rounded-2xl overflow-hidden flex flex-col">
           <div class="flex gap-4 p-5">
             ${p.portrait_url
-              ? `<img src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}"
+              ? `<img data-authed-src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}"
                       class="w-24 h-32 object-cover rounded-xl bg-slate-800 flex-none" loading="lazy">`
               : `<div class="w-24 h-32 rounded-xl bg-slate-800 flex-none"></div>`}
             <div class="min-w-0">
@@ -269,12 +289,14 @@
             "class=\"underline underline-offset-2 ml-1\">Switch character</button>";
           el.className = "";
           el.innerHTML = characterDetail(p);
+          loadAuthedImages(el);
           openCharacter(p.persona_id);
           return;
         }
 
         el.className = "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5";
         el.innerHTML = roster.map(characterCard).join("");
+        loadAuthedImages(el);
       } catch (e) {
         el.innerHTML = `<p class="text-sm text-red-500">Could not load: ${esc(e.message)}</p>`;
       }
@@ -300,7 +322,7 @@
         <article class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 grid grid-cols-1 lg:grid-cols-[200px_minmax(0,1fr)] gap-6">
           <div>
             ${p.portrait_url
-              ? `<img src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}" class="w-full rounded-xl bg-slate-800">`
+              ? `<img data-authed-src="${esc(p.portrait_url)}" alt="Styling figure for ${esc(p.display_name)}" class="w-full rounded-xl bg-slate-800">`
               : `<div class="w-full aspect-[2/3] rounded-xl bg-slate-800"></div>`}
             <div class="flex flex-wrap items-center gap-1.5 mt-3">${paletteRow(ca.palette)}</div>
           </div>
