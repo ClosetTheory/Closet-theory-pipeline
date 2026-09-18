@@ -268,6 +268,21 @@ def _query_for(g: Dict) -> Optional[str]:
     return (lead + " " + sub.lower()).strip()
 
 
+class ScopeDenied(RuntimeError):
+    """The API key does not grant this capability, so nothing was measured."""
+
+
+def _check_scope(status: Any, body: Any) -> None:
+    """A 403 means we learned nothing about the model, and must never reach the metrics.
+
+    The first version of this script counted a scope denial as a query that returned no hit, and
+    duly reported 0% recall across 60 queries — a number that looks like a devastating result and
+    is in fact a statement about our API key. Refusing to score is the only honest response.
+    """
+    if status == 403 or (isinstance(body, dict) and body.get("code") == "scope_forbidden"):
+        raise ScopeDenied((body or {}).get("message") or "scope_forbidden")
+
+
 def stage_search() -> Dict[str, Any]:
     st = load_state()
     cands = st.get("indexed") or []
@@ -276,7 +291,9 @@ def stage_search() -> Dict[str, Any]:
         raise SystemExit("run `ingest` first")
     print(f"scoring {len(labelled)} generated queries against {len(cands)} candidates\n")
 
-    ranks: List[Optional[int]] = []
+    ranks: List[int] = []
+    misses = 0
+    errors: List[Dict] = []
     lat: List[float] = []
     rows = []
     for g in labelled:
@@ -285,33 +302,47 @@ def stage_search() -> Dict[str, Any]:
             continue
         s, d, t = call("POST", "/v1/search/text",
                        {"candidates": cands, "query": q, "limit": 10})
+        try:
+            _check_scope(s, d)
+        except ScopeDenied as e:
+            save_state({"search": {"measured": False, "blocked_by": str(e)}})
+            print(f"\n  NOT MEASURED — {e}")
+            print("  Nothing about retrieval quality can be concluded from this run.")
+            raise SystemExit(2)
         lat.append(t)
         if s != 200:
-            rows.append({"query": q, "target": g["garment_id"], "rank": None,
-                         "error": json.dumps(d)[:120]})
-            ranks.append(None)
+            errors.append({"query": q, "status": s, "body": json.dumps(d)[:160]})
+            rows.append({"query": q, "target": g["garment_id"], "error": json.dumps(d)[:160]})
+            print(f"  ERROR {s}  {q[:44]:44s} {json.dumps(d)[:70]}")
             continue
         hits = d.get("results") or []
         rank = next((h["rank"] for h in hits if h["garment_id"] == g["garment_id"]), None)
-        ranks.append(rank)
+        if rank:
+            ranks.append(rank)
+        else:
+            misses += 1
         rows.append({"query": q, "target": g["garment_id"], "rank": rank,
                      "top": hits[0]["garment_id"] if hits else None,
                      "top_sim": round(hits[0]["similarity"], 4) if hits else None})
         print(f"  rank {str(rank or '-'):>3}  {q[:46]:46s} ({t*1000:.0f}ms)")
 
-    found = [r for r in ranks if r]
-    n = len(ranks)
+    # Scored over queries that actually returned, with the error count reported alongside rather
+    # than folded in — a transport failure is not a retrieval miss.
+    n = len(ranks) + misses
     metrics = {
-        "queries": n,
-        "recall_at_1": sum(1 for r in found if r == 1) / n if n else 0,
-        "recall_at_5": sum(1 for r in found if r <= 5) / n if n else 0,
-        "recall_at_10": len(found) / n if n else 0,
-        "mrr": sum(1 / r for r in found) / n if n else 0,
+        "measured": True,
+        "queries_scored": n,
+        "queries_errored": len(errors),
+        "recall_at_1": sum(1 for r in ranks if r == 1) / n if n else 0,
+        "recall_at_5": sum(1 for r in ranks if r <= 5) / n if n else 0,
+        "recall_at_10": len(ranks) / n if n else 0,
+        "mrr": sum(1 / r for r in ranks) / n if n else 0,
         "latency_ms_p50": round(statistics.median(lat) * 1000, 1) if lat else None,
         "latency_ms_max": round(max(lat) * 1000, 1) if lat else None,
         "candidates": len(cands),
     }
-    print("\n  recall@1 : {recall_at_1:.1%}\n  recall@5 : {recall_at_5:.1%}"
+    print("\n  scored   : {queries_scored} ({queries_errored} errored)"
+          "\n  recall@1 : {recall_at_1:.1%}\n  recall@5 : {recall_at_5:.1%}"
           "\n  recall@10: {recall_at_10:.1%}\n  MRR      : {mrr:.3f}"
           "\n  latency  : p50 {latency_ms_p50}ms  max {latency_ms_max}ms".format(**metrics))
     save_state({"search": metrics, "search_rows": rows})
@@ -339,6 +370,12 @@ def stage_outfits() -> Dict[str, Any]:
         s, d, t = call("POST", "/v1/outfits:rank",
                        {"candidates": cands, "query": sc["query"], "context": sc["context"],
                         "outfit_count": 3})
+        try:
+            _check_scope(s, d)
+        except ScopeDenied as e:
+            save_state({"outfits": {"measured": False, "blocked_by": str(e)}})
+            print(f"\n  NOT MEASURED — {e}")
+            raise SystemExit(2)
         print(f"\n{sc['name']}  -> {s} in {t*1000:.0f}ms")
         if s != 200:
             print("  ", json.dumps(d)[:250])
@@ -422,19 +459,34 @@ def write_report() -> str:
         "",
         "## Text retrieval",
         "",
-        f"Queries are generated from our own labels (`\"<colour> <subcategory>\"`) and scored by "
-        f"where the garment they describe lands, over **{se.get('candidates')}** candidates.",
-        "",
-        "| metric | value |",
-        "|---|---|",
-        f"| queries | {se.get('queries')} |",
-        f"| recall@1 | {se.get('recall_at_1', 0):.1%} |",
-        f"| recall@5 | {se.get('recall_at_5', 0):.1%} |",
-        f"| recall@10 | {se.get('recall_at_10', 0):.1%} |",
-        f"| MRR | {se.get('mrr', 0):.3f} |",
-        f"| latency p50 | {se.get('latency_ms_p50')} ms |",
-        f"| latency max | {se.get('latency_ms_max')} ms |",
-        "",
+    ]
+    if not se.get("measured", False):
+        lines += [
+            f"**Not measured.** {se.get('blocked_by') or 'the search stage did not run'}.",
+            "",
+            "No conclusion about retrieval quality can be drawn from this run. A key granting the "
+            "`search`, `styling` and `embeddings` scopes is needed; this one grants `ingest` only.",
+            "",
+        ]
+    else:
+        lines += [
+            f"Queries are generated from our own labels (`\"<colour> <subcategory>\"`) and scored "
+            f"by where the garment they describe lands, over **{se.get('candidates')}** "
+            f"candidates.",
+            "",
+            "| metric | value |",
+            "|---|---|",
+            f"| queries scored | {se.get('queries_scored')} |",
+            f"| queries errored | {se.get('queries_errored')} |",
+            f"| recall@1 | {se.get('recall_at_1', 0):.1%} |",
+            f"| recall@5 | {se.get('recall_at_5', 0):.1%} |",
+            f"| recall@10 | {se.get('recall_at_10', 0):.1%} |",
+            f"| MRR | {se.get('mrr', 0):.3f} |",
+            f"| latency p50 | {se.get('latency_ms_p50')} ms |",
+            f"| latency max | {se.get('latency_ms_max')} ms |",
+            "",
+        ]
+    lines += [
         "## Conformance",
         "",
         "```json",
