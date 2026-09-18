@@ -493,6 +493,40 @@ def write_report() -> str:
         json.dumps(st.get("errors") or {}, indent=2)[:2500],
         "```",
         "",
+        "## What an ingest-scoped key can and cannot establish",
+        "",
+        "Observed with `ingest` alone:",
+        "",
+        "- **No attribute extraction.** A garment sent with an image and no `attributes` comes "
+        "back with `attributes: {}`. The field is pass-through storage; the same photo stored "
+        "under two ids carries whatever each record was sent and nothing more.",
+        "- **No deduplication.** The same image ingested twice produces the same `image_sha256` "
+        "and two separate records. Identical photos are stored, embedded and billed twice.",
+        "- **One vector per garment**, advertised as `pro-lite-768` / `moda-pro-lite@1`, but its "
+        "contents are unreadable without the `embeddings` scope.",
+        "",
+        "Which leaves the evaluation unable to reach a verdict on quality: everything MODA "
+        "derives from an image sits behind `search`, `styling` or `embeddings`. With `ingest` "
+        "alone the service is write-only from our side.",
+        "",
+        "## Speed against the same model, self-hosted",
+        "",
+        "Our Stage 5 already runs `HopitAI/moda-fashion-distilled` (768-d) on RunPod, so speed "
+        "*is* comparable even without the other scopes. Measured on the same photographs "
+        "(1.0–2.8 MB each, sent base64 from a laptop):",
+        "",
+        "| | MODA hosted | our RunPod endpoint |",
+        "|---|---|---|",
+        "| per garment, serial | ~1.36 s | 3.21 s (p50 3.23, min 2.44, max 3.87) |",
+        "| throughput, concurrent | **44/min** (200-record queue drain) | **54/min** (saturates "
+        "at concurrency 4) |",
+        "| cold start | not observable | 3.62 s, barely above warm |",
+        "",
+        "The serial figures are not the comparison that matters, because MODA's 1.36 s is itself "
+        "a queue-drain rate across a concurrent pool rather than a single-item latency. Compared "
+        "like with like on throughput, the endpoint we already run is **faster**, and that is "
+        "with the image uploaded over residential broadband rather than from the droplet.",
+        "",
     ]
     io.open(path, "w", encoding="utf-8").write("\n".join(lines))
     print(f"\nwrote {path}")
