@@ -15,6 +15,10 @@ on:
         description: "Also generate portraits for characters that have none (costs image calls)"
         type: boolean
         default: false
+      reseed_portraits:
+        description: "Regenerate every portrait, replacing existing ones (costs 22 image calls)"
+        type: boolean
+        default: false
       grant_admin:
         description: "Email of an existing account to grant the admin role"
         type: string
@@ -34,11 +38,12 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: root
           key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          command_timeout: 45m
           script: |
             set -e
             cd /opt/closet-theory
-            docker compose exec -T api python -m scripts.seed_personas \
-              --with-stylists \
-              ${{ inputs.reset_stylist_passwords && '--reset-stylist-passwords' || '' }} \
-              ${{ inputs.with_portraits && '--with-portraits' || '' }} \
-              ${{ inputs.grant_admin != '' && format('--grant-admin {0}', inputs.grant_admin) || '' }}
+            # One word list rather than backslash continuations: an input that expands to nothing
+            # leaves a dangling `\` and argparse rejects it as an unrecognised argument.
+            ARGS="--with-stylists ${{ inputs.reset_stylist_passwords && '--reset-stylist-passwords' || '' }} ${{ inputs.with_portraits && '--with-portraits' || '' }} ${{ inputs.reseed_portraits && '--reseed-portraits' || '' }} ${{ inputs.grant_admin != '' && format('--grant-admin {0}', inputs.grant_admin) || '' }}"
+            echo "args: $ARGS"
+            docker compose exec -T api python -m scripts.seed_personas $ARGS
