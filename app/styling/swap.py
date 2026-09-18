@@ -25,7 +25,7 @@ from app.observability import logger
 from app.schemas.styling import OutfitCandidate, OutfitResult, ScoreBreakdown, StylingContext
 from app.storage.base import StorageClient
 from app.styling.compatibility import evaluate_pair_compatibility
-from app.styling.imaging import generate_and_run_gates
+from app.styling.imaging import generate_and_run_gates, load_persona_portrait
 from app.styling.orchestrator import persist_generated_image
 from app.styling.replay import build_outfit_result
 
@@ -135,7 +135,12 @@ async def _apply_swap(
         compatibility_reason=outfit.compatibility_reason,
         scores=ScoreBreakdown.model_validate(scores),
     )
-    image_bytes, visual_gate, semantic_gate, _passed = await generate_and_run_gates(context, candidate, updated_garments, storage)
+    # Same likeness the outfit was originally generated with — otherwise a swap silently drops a
+    # character back to the anonymous mannequin the moment one garment changes.
+    persona_portrait_bytes = await load_persona_portrait(session, storage, tenant_id)
+    image_bytes, visual_gate, semantic_gate, _passed = await generate_and_run_gates(
+        context, candidate, updated_garments, storage, persona_portrait_bytes
+    )
     if image_bytes:
         outfit.generated_image_id = await persist_generated_image(session, storage, tenant_id, member_id, image_bytes)
     if visual_gate:

@@ -12,7 +12,15 @@ class MockOutfitImageProvider(BaseOutfitImageProvider):
         self.model_name = model_name
         self.model_version = model_version
 
-    async def generate(self, garments: List[GarmentSummary], canonical_images: List[bytes]) -> Optional[bytes]:
+    async def generate(
+        self,
+        garments: List[GarmentSummary],
+        canonical_images: List[bytes],
+        persona_reference: Optional[bytes] = None,
+    ) -> Optional[bytes]:
+        # This is a rough side-by-side tile for offline/CI use, not a real composite render, so
+        # there is no figure to put a persona's likeness on — the parameter exists only to
+        # satisfy the interface.
         if not canonical_images:
             return None
         try:

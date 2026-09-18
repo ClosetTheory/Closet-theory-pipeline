@@ -224,8 +224,17 @@ class BaseOutfitImageProvider(ABC):
         self,
         garments: List[GarmentSummary],
         canonical_images: List[bytes],
+        persona_reference: Optional[bytes] = None,
     ) -> Optional[bytes]:
-        """Generates a single presentation image for the outfit, or None on failure."""
+        """Generates a single presentation image for the outfit, or None on failure.
+
+        `persona_reference`: an evaluation character's own portrait photo, when this outfit
+        belongs to one (see StylingOrchestrator.run). When supplied, the outfit is rendered on
+        that specific person rather than the anonymous mannequin — a character's outfits should
+        consistently be their own likeness wearing the clothes, not a different faceless figure
+        every time. Left as None for ordinary members, who have no such reference and keep the
+        existing mannequin presentation exactly as before.
+        """
         pass
 
 

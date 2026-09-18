@@ -9,8 +9,12 @@ STYLING_IMAGE_MAX_RETRIES times before giving up on this outfit candidate.
 
 import asyncio
 from typing import Dict, List, Optional, Tuple
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.garment import Garment
+from app.models.image_asset import ImageAsset
+from app.models.persona import Persona
 from app.observability import logger
 from app.providers.outfit_imaging import get_outfit_image_provider
 from app.providers.semantic_validator import get_semantic_validator_provider
@@ -25,6 +29,34 @@ from app.schemas.styling import (
 from app.storage.base import StorageClient
 
 VISUAL_GATE_PASS_THRESHOLD = 6.0
+
+
+async def load_persona_portrait(
+    session: AsyncSession, storage: StorageClient, tenant_id: str
+) -> Optional[bytes]:
+    """The portrait to render this tenant's outfits on, or None for an ordinary member.
+
+    An evaluation character's tenant_id IS its backing account's user_id (see
+    app/api/dependencies.py's ActingScope and scripts/seed_personas.py), so this is a single
+    indexed no-op query for every member who isn't a character. Shared by
+    StylingOrchestrator.run and swap.py's _apply_swap so a character's outfits are consistently
+    themselves whether the outfit was just generated or a garment in it was swapped afterward —
+    duplicating this lookup risked exactly the kind of drift where one path got it and the other
+    quietly kept rendering the mannequin.
+    """
+    persona = (
+        await session.execute(select(Persona).where(Persona.user_id == tenant_id))
+    ).scalars().first()
+    if not persona or not persona.portrait_image_id:
+        return None
+    asset = await session.get(ImageAsset, persona.portrait_image_id)
+    if not asset:
+        return None
+    try:
+        return await storage.get_object(asset.object_uri)
+    except Exception as e:
+        logger.warning(f"Could not load persona portrait for {tenant_id}: {e}")
+        return None
 
 
 def _to_summary(garment: Garment, role: str) -> GarmentSummary:
@@ -51,11 +83,17 @@ async def generate_and_run_gates(
     outfit: OutfitCandidate,
     garments: List[Garment],
     storage: StorageClient,
+    persona_portrait_bytes: Optional[bytes] = None,
 ) -> Tuple[Optional[bytes], Optional[VisualGateResult], Optional[SemanticGateResult], bool]:
     """
     Generates a composite outfit image, then runs the Visual Gate and (generated-image-aware)
     Semantic Gate in parallel on the result. Retries generation on gate failure up to
     STYLING_IMAGE_MAX_RETRIES times. Returns (image_bytes, visual_gate, semantic_gate, passed).
+
+    `persona_portrait_bytes`: passed straight through to the image provider — see
+    BaseOutfitImageProvider.generate for what it does. None for every ordinary member; the
+    caller (StylingOrchestrator.run) only supplies it when tenant_id belongs to an evaluation
+    character with a generated portrait.
 
     image_bytes is returned even when passed=False (the last attempt's generated image) so
     the caller can persist and surface rejected candidates for inspection/debugging rather
@@ -87,7 +125,7 @@ async def generate_and_run_gates(
     last_semantic: Optional[SemanticGateResult] = None
 
     for _attempt in range(attempts):
-        generated = await image_provider.generate(summaries, canonical_images)
+        generated = await image_provider.generate(summaries, canonical_images, persona_portrait_bytes)
         if not generated:
             continue
 

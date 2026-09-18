@@ -41,7 +41,7 @@ from app.schemas.styling import (
 from app.storage.base import StorageClient
 from app.styling.combinator import build_outfit_combinations
 from app.styling.filtering import filter_candidates, get_anchor_garments
-from app.styling.imaging import generate_and_run_gates
+from app.styling.imaging import generate_and_run_gates, load_persona_portrait
 from app.styling.ranking import rank_combinations
 from app.styling.retrieval import resolve_role, retrieve_by_role
 from app.styling.semantic_validation import validate_outfits
@@ -167,6 +167,15 @@ class StylingOrchestrator:
     async def run(self, request: StylingRecommendationRequest, tenant_id: str, member_id: str) -> StylingRecommendationResponse:
         # tenant_id/member_id come from the authenticated caller (see app/api/v1/styling.py),
         # never from the request body — StylingRecommendationRequest no longer carries them.
+
+        # When tenant_id belongs to an evaluation character with a generated portrait, that
+        # portrait is threaded into every outfit generation below so the character consistently
+        # appears in their own likeness rather than the anonymous mannequin every other outfit
+        # uses — confirmed live: outfits were rendering characters on a faceless mannequin
+        # exactly like ordinary members, which is wrong specifically because these members have
+        # a real reference photo to render on. None for every ordinary member.
+        persona_portrait_bytes = await load_persona_portrait(self.session, self.storage, tenant_id)
+
         # Hard constraint checks first (code, not AI) — not its own numbered stage but must run before Stage 1
         t0 = time.perf_counter()
         anchors = await get_anchor_garments(
@@ -395,7 +404,11 @@ class StylingOrchestrator:
         # latency of a failed candidate's retries before even starting the next one.
         gate_results = await asyncio.gather(
             *(
-                generate_and_run_gates(context, outfit_candidate, [garments_by_id[gid] for gid in outfit_candidate.garment_ids], self.storage)
+                generate_and_run_gates(
+                    context, outfit_candidate,
+                    [garments_by_id[gid] for gid in outfit_candidate.garment_ids],
+                    self.storage, persona_portrait_bytes,
+                )
                 for outfit_candidate, _semantic_result in validated
             )
         )

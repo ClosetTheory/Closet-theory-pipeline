@@ -25,7 +25,7 @@ class GPTOutfitImageProvider(BaseOutfitImageProvider):
         self.model_name = model_name
         self.model_version = "v1"
 
-    def _build_prompt(self, garments: List[GarmentSummary]) -> str:
+    def _build_prompt(self, garments: List[GarmentSummary], has_persona: bool) -> str:
         pieces = []
         for g in garments:
             attrs = g.attributes or {}
@@ -34,6 +34,23 @@ class GPTOutfitImageProvider(BaseOutfitImageProvider):
             pieces.append(f"{colors} {subcat}".strip())
 
         items_desc = "; ".join(pieces)
+
+        if has_persona:
+            # Kept deliberately close to the mannequin prompt's structure (same garment-fidelity
+            # rules, same studio spec) so the only real change is who's wearing the clothes —
+            # a character's outfit shots should read as the same photo series, not a different
+            # style of image because one path takes a persona reference and the other doesn't.
+            return f"""Commercial e-commerce outfit photograph of the exact same person shown in the first reference \
+image — same face, same body shape, same skin tone, same hair — now wearing this exact outfit, standing in a \
+neutral, straight-on front-facing posture, on a solid dark charcoal studio backdrop: {items_desc}.
+
+Requirements:
+- The person's identity must be preserved exactly from the reference photo: same face, same proportions, same skin \
+tone, same hairstyle. Do not generate a different person, a generic model, or alter their likeness.
+- Use each garment reference image's exact garment (color, pattern, silhouette) unchanged — do not substitute or invent a different garment.
+- Display the full outfit layered correctly (top-to-bottom outfit order) on that person, in a neutral standing posture — not a flat-lay, not a mannequin.
+- Same studio lighting, same neutral standing pose, same camera framing as the reference photo. No text overlays, no watermark, 8k sharp photography quality."""
+
         return f"""Commercial e-commerce outfit photograph combining these exact garments, displayed together as a \
 single coordinated outfit on a full matte black mannequin (including a complete, featureless head), standing in a \
 neutral, straight-on front-facing posture, on a solid dark charcoal studio backdrop: {items_desc}.
@@ -43,7 +60,12 @@ Requirements:
 - Display the full outfit layered correctly (top-to-bottom outfit order) on a single solid matte black mannequin with a full head and body (smooth, blank, featureless head — no facial features — but NOT headless) in a neutral standing posture — not a flat-lay, not a ghost/invisible mannequin, not a real person.
 - Studio lighting with subtle rim light outlining the mannequin's head, body, and garments, no people, no real faces, no text overlays, no watermark, 8k sharp product photography quality."""
 
-    async def generate(self, garments: List[GarmentSummary], canonical_images: List[bytes]) -> Optional[bytes]:
+    async def generate(
+        self,
+        garments: List[GarmentSummary],
+        canonical_images: List[bytes],
+        persona_reference: Optional[bytes] = None,
+    ) -> Optional[bytes]:
         if not self.api_key or not canonical_images:
             return None
 
@@ -54,10 +76,13 @@ Requirements:
             "X-Title": "Wardrobe Styling Pipeline",
             "Content-Type": "application/json",
         }
-        prompt = self._build_prompt(garments)
+        prompt = self._build_prompt(garments, has_persona=bool(persona_reference))
+        # The persona portrait goes first — the prompt calls it "the first reference image" —
+        # so the model has an unambiguous subject before the garment references that follow.
+        reference_bytes = ([persona_reference] if persona_reference else []) + canonical_images
         input_references = [
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64.b64encode(b).decode('utf-8')}"}}
-            for b in canonical_images
+            for b in reference_bytes
         ]
 
         try:
