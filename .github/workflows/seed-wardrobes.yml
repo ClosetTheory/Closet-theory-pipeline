@@ -1,0 +1,44 @@
+# Fills the evaluation characters' wardrobes by cloning garments that are already ingested.
+#
+# Manual trigger only, like the roster seeder: it writes thousands of rows to the deployed
+# database and nothing about that should happen as a side effect of a push.
+#
+# No model calls and no object writes — a clone reuses the original's stored image and vector, so
+# this costs nothing beyond database rows. Re-running tops each wardrobe up to its target instead
+# of duplicating, and `purge` removes only the rows this script created.
+name: Seed character wardrobes
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report the pool and the plan without writing"
+        type: boolean
+        default: true
+      only:
+        description: "A single persona slug, or blank for all 22"
+        type: string
+        default: ""
+      purge:
+        description: "Delete previously cloned garments and stop"
+        type: boolean
+        default: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone garments into character wardrobes
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: root
+          key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          command_timeout: 60m
+          script: |
+            set -e
+            cd /opt/closet-theory
+            docker compose exec -T api python -m scripts.seed_persona_wardrobes \
+              ${{ inputs.dry_run && '--dry-run' || '' }} \
+              ${{ inputs.purge && '--purge' || '' }} \
+              ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }}
