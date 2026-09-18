@@ -77,8 +77,13 @@ MODA_KEY = ENV.get("MODA_KEY", "")
 def _request(url: str, method: str = "GET", body: Any = None,
              headers: Optional[Dict[str, str]] = None, timeout: int = 300):
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method,
-                                 headers={"content-type": "application/json", **(headers or {})})
+    req = urllib.request.Request(url, data=data, method=method, headers={
+        "content-type": "application/json",
+        # Cloudflare fronts the app domain and answers urllib's default User-Agent with
+        # "error code: 1010" — a 403 with no JSON body, which reads as a failed login rather
+        # than a blocked client. Any ordinary UA gets through.
+        "user-agent": "closet-theory-scripts/1.0",
+        **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             raw = r.read()
