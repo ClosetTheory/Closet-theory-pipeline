@@ -161,7 +161,16 @@ def _to_read(persona: Persona, counts: Dict[str, Any], stylists: List[str]) -> P
         bio=persona.bio,
         styling_notes=persona.styling_notes,
         rationale=persona.rationale,
-        portrait_url=f"/api/v1/personas/{persona.id}/portrait" if persona.portrait_image_id else None,
+        # ?v=<portrait_image_id> makes a regeneration a genuinely different URL. Without it, a
+        # browser that had already loaded a character's portrait once keeps serving that exact
+        # response from cache for up to 24h after a reseed replaced it server-side — confirmed
+        # live: several characters' portraits were correctly photorealistic in every direct
+        # fetch, but still showed the old stylised image in a browser that had cached the old
+        # URL before the reseed ran.
+        portrait_url=(
+            f"/api/v1/personas/{persona.id}/portrait?v={persona.portrait_image_id}"
+            if persona.portrait_image_id else None
+        ),
         status=persona.status,
         assigned_stylists=stylists,
         **counts,
@@ -235,8 +244,17 @@ async def get_persona_portrait(
     if not asset:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portrait asset missing")
     data = await storage.get_object(asset.object_uri)
-    # Portraits are immutable once generated, so they cache hard.
-    return Response(content=data, media_type=asset.mime_type, headers={"Cache-Control": "public, max-age=86400"})
+    # A given portrait_image_id is genuinely immutable — a regeneration creates a new id and a
+    # new asset rather than overwriting this one (see app/personas/portraits.py) — and the
+    # caller always reaches this route through PersonaRead.portrait_url, which now carries
+    # ?v=<portrait_image_id> precisely so that a regeneration is a different URL. A year-long
+    # immutable cache is therefore safe: the only way this exact URL's content ever changes is
+    # if a caller hand-constructs it without the query string, which nothing in this codebase
+    # does (grep the frontend and this file both).
+    return Response(
+        content=data, media_type=asset.mime_type,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 # --- reviewing the outfits generated for a character -------------------------------------------
