@@ -38,7 +38,8 @@ jobs:
           script: |
             set -e
             cd /opt/closet-theory
-            docker compose exec -T api python -m scripts.seed_persona_wardrobes \
-              ${{ inputs.dry_run && '--dry-run' || '' }} \
-              ${{ inputs.purge && '--purge' || '' }} \
-              ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }}
+            # Built as one shell word list rather than backslash continuations: an input that
+            # expands to nothing leaves a dangling `\` and argparse sees it as an argument.
+            ARGS="${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.purge && '--purge' || '' }} ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }}"
+            echo "args: $ARGS"
+            docker compose exec -T api python -m scripts.seed_persona_wardrobes $ARGS
