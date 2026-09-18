@@ -8,6 +8,14 @@
 #
 # No model calls happen from GitHub's runner — it only opens an SSH session and asks the already
 # running api container to do the work, the same shape as seed-wardrobes.yml.
+#
+# The very first full run measured ~13 minutes per character run sequentially (3 styling calls +
+# 1 OOTD, each a full pipeline: normalisation, retrieval, compatibility, image generation, visual
+# gates with retries) — 22 characters serially is close to 5 hours, and that run was killed by an
+# earlier, too-conservative command_timeout after only 7 characters. The script now runs
+# characters concurrently (default 6 at once, see scripts/daily_character_styling.py), which
+# should bring a full run to roughly an hour; command_timeout below still carries real margin on
+# top of that rather than being sized to the optimistic case.
 name: Daily character styling
 
 on:
@@ -35,10 +43,15 @@ on:
         description: "Skip the 3 prompted outfits, only generate outfit-of-the-day"
         type: boolean
         default: false
+      concurrency:
+        description: "Characters processed at once (default 6 — raise cautiously, providers can rate-limit)"
+        type: string
+        default: ""
 
 jobs:
   style:
     runs-on: ubuntu-latest
+    timeout-minutes: 210
     steps:
       - name: Generate today's outfits and OOTD for every character
         uses: appleboy/ssh-action@v1.2.0
@@ -46,13 +59,13 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: root
           key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
-          command_timeout: 90m
+          command_timeout: 180m
           script: |
             set -e
             cd /opt/closet-theory
             # One word list rather than backslash continuations: an input that expands to
             # nothing leaves a dangling `\` and argparse rejects it as an unrecognised argument
             # (bit us on seed-wardrobes.yml and seed-personas.yml already).
-            ARGS="${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.styling_only && '--styling-only' || '' }} ${{ inputs.ootd_only && '--ootd-only' || '' }} ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.limit != '' && format('--limit {0}', inputs.limit) || '' }}"
+            ARGS="${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.styling_only && '--styling-only' || '' }} ${{ inputs.ootd_only && '--ootd-only' || '' }} ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.limit != '' && format('--limit {0}', inputs.limit) || '' }} ${{ inputs.concurrency != '' && format('--concurrency {0}', inputs.concurrency) || '' }}"
             echo "args: $ARGS"
             docker compose exec -T api python -m scripts.daily_character_styling $ARGS

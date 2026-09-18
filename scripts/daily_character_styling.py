@@ -26,15 +26,27 @@ exists immediately rather than waiting for the next scheduled run.
 
     python -m scripts.daily_character_styling --dry-run
     python -m scripts.daily_character_styling --only shalini_rao
+    python -m scripts.daily_character_styling --only harsh_vardhan_sinha,ira_sengupta   # a list
     python -m scripts.daily_character_styling --limit 3         # smoke test: first 3 characters
     python -m scripts.daily_character_styling                   # all 22, styling + OOTD
     python -m scripts.daily_character_styling --styling-only
     python -m scripts.daily_character_styling --ootd-only
+    python -m scripts.daily_character_styling --concurrency 6   # default; see note below
 
 Designed to run daily via the daily-character-styling GitHub Actions workflow (SSH + docker
 compose exec, same shape as seed-wardrobes.yml). A failure on one character's one outfit does not
 abort the run — see the per-call try/except below — because a bad wardrobe state or a transient
 provider error on character #14 should not cost characters #15-22 their day's picks.
+
+**Characters run concurrently, bounded by --concurrency.** The first version of this script ran
+one character after another, and the very first full run measured ~13 minutes per character for
+3 styling calls + 1 OOTD (each a full pipeline: request normalisation, retrieval, compatibility
+scoring, image generation, visual gates with retries) — 22 characters serially is close to 5
+hours, and the run was killed by the CI step's own timeout after only 7. Each character already
+gets its own AsyncSessionLocal, so nothing about correctness changes by running several at once;
+what changes is that a ~5-hour job becomes roughly (5 hours / concurrency). The cap exists because
+unbounded concurrency would fire dozens of simultaneous OpenRouter/RunPod calls at once and risk
+provider rate limits rather than actually finishing faster past a point.
 """
 
 import argparse
@@ -152,23 +164,60 @@ async def ootd_one(session, storage, persona: Persona) -> Dict[str, Any]:
         return {"slug": persona.slug, "ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
-async def run(only: Optional[str], limit: Optional[int], dry_run: bool,
-              do_styling: bool, do_ootd: bool, prompts_per_char: int) -> None:
+async def process_one(p: Persona, storage, today: str, do_styling: bool, do_ootd: bool,
+                      prompts_per_char: int) -> Dict[str, Any]:
+    """One character's full day's work, in its own session. Called concurrently — see `run()` —
+    so nothing here may share a session or transaction with another character."""
+    out = {"slug": p.slug, "styling_ok": 0, "styling_fail": 0, "ootd_ok": False, "ootd_err": None}
+    async with AsyncSessionLocal() as session:
+        if do_ootd:
+            await ensure_ootd_subscription(session, p)
+
+        if do_styling:
+            prompts = build_prompts(p, prompts_per_char, today)
+            r = await style_one(session, storage, p, prompts)
+            out["styling_ok"] = len(r["outfits"])
+            out["styling_fail"] = len(r["errors"])
+            out["styling_errors"] = r["errors"]
+            out["prompts_n"] = len(prompts)
+            print(f"  {p.slug:26s} styling: {out['styling_ok']}/{len(prompts)} outfits"
+                  + (f"  [{'; '.join(r['errors'])[:140]}]" if r["errors"] else ""))
+            sys.stdout.flush()
+
+        if do_ootd:
+            r = await ootd_one(session, storage, p)
+            out["ootd_ok"] = r["ok"]
+            if r["ok"]:
+                out["ootd_location"] = r["location"]
+                print(f"  {p.slug:26s} ootd: ok ({r['location']})")
+            else:
+                out["ootd_err"] = r["error"]
+                print(f"  {p.slug:26s} ootd: FAILED — {r['error'][:140]}")
+            sys.stdout.flush()
+    return out
+
+
+async def run(only: Optional[List[str]], limit: Optional[int], dry_run: bool,
+              do_styling: bool, do_ootd: bool, prompts_per_char: int, concurrency: int) -> None:
     today = datetime.now(timezone.utc).date().isoformat()
     storage = get_storage_client()
 
     async with AsyncSessionLocal() as session:
         personas = (await session.execute(select(Persona).order_by(Persona.slug))).scalars().all()
     if only:
-        personas = [p for p in personas if p.slug == only]
+        wanted = set(only)
+        personas = [p for p in personas if p.slug in wanted]
+        missing = wanted - {p.slug for p in personas}
+        if missing:
+            print(f"! unknown slug(s), skipped: {', '.join(sorted(missing))}")
     if limit:
         personas = personas[:limit]
     if not personas:
-        raise SystemExit("no characters found — run scripts.seed_personas first")
+        raise SystemExit("no characters found — run scripts.seed_personas first, or check --only")
 
     print(f"date (UTC): {today}")
     print(f"characters: {len(personas)}  styling={do_styling} ({prompts_per_char} prompts each)"
-          f"  ootd={do_ootd}\n")
+          f"  ootd={do_ootd}  concurrency={concurrency}\n")
 
     if dry_run:
         for p in personas:
@@ -177,30 +226,24 @@ async def run(only: Optional[str], limit: Optional[int], dry_run: bool,
         print("\ndry run — nothing generated")
         return
 
-    styling_ok = styling_fail = ootd_ok = ootd_fail = 0
-    for p in personas:
-        async with AsyncSessionLocal() as session:
-            if do_ootd:
-                await ensure_ootd_subscription(session, p)
+    sem = asyncio.Semaphore(concurrency)
 
-            if do_styling:
-                prompts = build_prompts(p, prompts_per_char, today)
-                r = await style_one(session, storage, p, prompts)
-                n_ok = len(r["outfits"])
-                styling_ok += n_ok
-                styling_fail += len(r["errors"])
-                print(f"  {p.slug:26s} styling: {n_ok}/{len(prompts)} outfits"
-                      + (f"  [{'; '.join(r['errors'])[:140]}]" if r["errors"] else ""))
+    async def bounded(p: Persona) -> Dict[str, Any]:
+        async with sem:
+            try:
+                return await process_one(p, storage, today, do_styling, do_ootd, prompts_per_char)
+            except Exception as e:
+                print(f"  {p.slug:26s} FAILED ENTIRELY — {type(e).__name__}: {e}")
+                sys.stdout.flush()
+                return {"slug": p.slug, "styling_ok": 0, "styling_fail": prompts_per_char,
+                        "ootd_ok": False, "ootd_err": str(e)}
 
-            if do_ootd:
-                r = await ootd_one(session, storage, p)
-                if r["ok"]:
-                    ootd_ok += 1
-                    print(f"  {p.slug:26s} ootd: ok ({r['location']})")
-                else:
-                    ootd_fail += 1
-                    print(f"  {p.slug:26s} ootd: FAILED — {r['error'][:140]}")
-        sys.stdout.flush()
+    results = await asyncio.gather(*(bounded(p) for p in personas))
+
+    styling_ok = sum(r["styling_ok"] for r in results)
+    styling_fail = sum(r["styling_fail"] for r in results)
+    ootd_ok = sum(1 for r in results if r["ootd_ok"])
+    ootd_fail = sum(1 for r in results if do_ootd and not r["ootd_ok"])
 
     print(f"\nstyling: {styling_ok} outfit(s) generated, {styling_fail} failure(s)")
     print(f"ootd:    {ootd_ok} succeeded, {ootd_fail} failed")
@@ -208,16 +251,20 @@ async def run(only: Optional[str], limit: Optional[int], dry_run: bool,
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--only", help="a single persona slug")
+    ap.add_argument("--only", help="a persona slug, or a comma-separated list of slugs")
     ap.add_argument("--limit", type=int, help="only the first N characters (alphabetical)")
     ap.add_argument("--dry-run", action="store_true", help="print the chosen prompts, generate nothing")
     ap.add_argument("--styling-only", action="store_true")
     ap.add_argument("--ootd-only", action="store_true")
     ap.add_argument("--prompts-per-char", type=int, default=3)
+    ap.add_argument("--concurrency", type=int, default=6,
+                    help="characters processed at once (default 6 — see module docstring)")
     args = ap.parse_args()
     do_styling = not args.ootd_only
     do_ootd = not args.styling_only
-    asyncio.run(run(args.only, args.limit, args.dry_run, do_styling, do_ootd, args.prompts_per_char))
+    only = [s.strip() for s in args.only.split(",") if s.strip()] if args.only else None
+    asyncio.run(run(only, args.limit, args.dry_run, do_styling, do_ootd,
+                    args.prompts_per_char, args.concurrency))
 
 
 if __name__ == "__main__":
