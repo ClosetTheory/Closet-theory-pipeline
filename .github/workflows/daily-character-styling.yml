@@ -13,9 +13,10 @@
 # 1 OOTD, each a full pipeline: normalisation, retrieval, compatibility, image generation, visual
 # gates with retries) — 22 characters serially is close to 5 hours, and that run was killed by an
 # earlier, too-conservative command_timeout after only 7 characters. The script now runs
-# characters concurrently (default 6 at once, see scripts/daily_character_styling.py), which
-# should bring a full run to roughly an hour; command_timeout below still carries real margin on
-# top of that rather than being sized to the optimistic case.
+# characters concurrently (default 4 at once — tuned empirically after concurrency 6 got the
+# container OOM-killed nine minutes into a full run; see scripts/daily_character_styling.py for
+# the measurement), which should bring a full run to roughly 90 minutes; command_timeout below
+# still carries real margin on top of that rather than being sized to the optimistic case.
 name: Daily character styling
 
 on:
@@ -44,7 +45,7 @@ on:
         type: boolean
         default: false
       concurrency:
-        description: "Characters processed at once (default 6 — raise cautiously, providers can rate-limit)"
+        description: "Characters processed at once (default 4 — raising this risks an OOM kill, not just rate limits; see script docstring)"
         type: string
         default: ""
 

@@ -31,7 +31,7 @@ exists immediately rather than waiting for the next scheduled run.
     python -m scripts.daily_character_styling                   # all 22, styling + OOTD
     python -m scripts.daily_character_styling --styling-only
     python -m scripts.daily_character_styling --ootd-only
-    python -m scripts.daily_character_styling --concurrency 6   # default; see note below
+    python -m scripts.daily_character_styling --concurrency 4   # default; see note below
 
 Designed to run daily via the daily-character-styling GitHub Actions workflow (SSH + docker
 compose exec, same shape as seed-wardrobes.yml). A failure on one character's one outfit does not
@@ -44,9 +44,17 @@ one character after another, and the very first full run measured ~13 minutes pe
 scoring, image generation, visual gates with retries) — 22 characters serially is close to 5
 hours, and the run was killed by the CI step's own timeout after only 7. Each character already
 gets its own AsyncSessionLocal, so nothing about correctness changes by running several at once;
-what changes is that a ~5-hour job becomes roughly (5 hours / concurrency). The cap exists because
-unbounded concurrency would fire dozens of simultaneous OpenRouter/RunPod calls at once and risk
-provider rate limits rather than actually finishing faster past a point.
+what changes is that a ~5-hour job becomes roughly (5 hours / concurrency).
+
+**The default is 4, not higher — this was tuned empirically, not guessed.** Concurrency 6 across
+all 22 characters (several of which carry very large wardrobes: Shalini 2,500 garments, three
+others 900) was killed by the Linux OOM killer nine minutes in (`exit status 137`, nothing logged
+past the startup line) — that many concurrent retrieval/compositing/base64-encoding passes over
+large wardrobes exhausted the droplet's memory before a single character finished. Concurrency 4
+had already processed that exact hardest subset (Shalini plus the three 900s, among 14
+characters) successfully in an earlier run, so it is the proven-safe ceiling, not an optimistic
+guess. Raise it only after checking the droplet actually has memory to spare — a rate-limit
+concern was the original reason for a cap at all, but memory turned out to be the tighter one.
 """
 
 import argparse
@@ -257,7 +265,7 @@ def main() -> None:
     ap.add_argument("--styling-only", action="store_true")
     ap.add_argument("--ootd-only", action="store_true")
     ap.add_argument("--prompts-per-char", type=int, default=3)
-    ap.add_argument("--concurrency", type=int, default=6,
+    ap.add_argument("--concurrency", type=int, default=4,
                     help="characters processed at once (default 6 — see module docstring)")
     args = ap.parse_args()
     do_styling = not args.ootd_only
