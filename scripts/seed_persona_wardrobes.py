@@ -163,8 +163,10 @@ async def clone_garment(session, src: Garment, persona: Persona, cache: Dict[str
         select(GarmentEmbedding).where(GarmentEmbedding.garment_id == src.id)
     )).scalars().first()
     if emb:
+        # No tenant_id/member_id here: the embedding is scoped through its garment, which is
+        # already the clone's.
         session.add(GarmentEmbedding(
-            id=generate_uuid("emb"), garment_id=gid, tenant_id=tenant, member_id=member,
+            id=generate_uuid("emb"), garment_id=gid,
             embedding=list(emb.embedding), model=emb.model, model_version=emb.model_version,
             dimension=emb.dimension, source_image_version=emb.source_image_version,
         ))
