@@ -1,0 +1,58 @@
+# Generates each evaluation character's day: 3 outfit picks from different prompts, plus their
+# weather-aware outfit-of-the-day, so stylists always have fresh material to review.
+#
+# Runs on a daily schedule and can also be triggered manually (e.g. for the first run, or a
+# smoke test on one character before trusting the full 22). Scheduled an hour after OOTD's own
+# daily generation hour (01:00 UTC, see OOTD_DAILY_GENERATION_HOUR_UTC in app/config.py) so the
+# two don't contend for the same worker at the same minute.
+#
+# No model calls happen from GitHub's runner — it only opens an SSH session and asks the already
+# running api container to do the work, the same shape as seed-wardrobes.yml.
+name: Daily character styling
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print the chosen prompts without generating anything"
+        type: boolean
+        default: false
+      only:
+        description: "A single persona slug, or blank for all 22"
+        type: string
+        default: ""
+      limit:
+        description: "Only the first N characters (alphabetical) — for a smoke test"
+        type: string
+        default: ""
+      styling_only:
+        description: "Skip outfit-of-the-day, only generate the 3 prompted outfits"
+        type: boolean
+        default: false
+      ootd_only:
+        description: "Skip the 3 prompted outfits, only generate outfit-of-the-day"
+        type: boolean
+        default: false
+
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate today's outfits and OOTD for every character
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: root
+          key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          command_timeout: 90m
+          script: |
+            set -e
+            cd /opt/closet-theory
+            # One word list rather than backslash continuations: an input that expands to
+            # nothing leaves a dangling `\` and argparse rejects it as an unrecognised argument
+            # (bit us on seed-wardrobes.yml and seed-personas.yml already).
+            ARGS="${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.styling_only && '--styling-only' || '' }} ${{ inputs.ootd_only && '--ootd-only' || '' }} ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.limit != '' && format('--limit {0}', inputs.limit) || '' }}"
+            echo "args: $ARGS"
+            docker compose exec -T api python -m scripts.daily_character_styling $ARGS
