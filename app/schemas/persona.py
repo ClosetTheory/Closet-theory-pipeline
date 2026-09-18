@@ -190,6 +190,10 @@ class PersonaRead(BaseModel):
     """What the admin and stylist panels render."""
 
     persona_id: str
+    # The backing account's id, which is also this character's tenant_id and member_id. Exposed
+    # because it is the stable per-owner key external services are keyed on (MODA's `owner_ref`,
+    # for one), and anyone who can read this row already has full access to the character.
+    user_id: str
     slug: str
     display_name: str
     age: Optional[int] = None

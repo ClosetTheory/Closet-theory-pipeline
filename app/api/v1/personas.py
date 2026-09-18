@@ -137,6 +137,7 @@ async def _assigned_names(session: AsyncSession, persona_ids: List[str]) -> Dict
 def _to_read(persona: Persona, counts: Dict[str, Any], stylists: List[str]) -> PersonaRead:
     return PersonaRead(
         persona_id=persona.id,
+        user_id=persona.user_id,
         slug=persona.slug,
         display_name=persona.display_name,
         age=persona.age,
