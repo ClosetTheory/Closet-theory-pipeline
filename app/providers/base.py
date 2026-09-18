@@ -232,7 +232,7 @@ class BaseOutfitImageProvider(ABC):
 class BasePortraitProvider(ABC):
     """Renders an evaluation character as a styling figure.
 
-    Deliberately faceless, following the same rule BaseOutfitImageProvider's implementation
+    Photorealistic and full-body, unlike BaseOutfitImageProvider's faceless outfit figures
     already applies to mannequins. Three reasons, in order of weight: image models systematically
     lighten South Asian skin, which would bake into the panel the exact bias it exists to detect;
     these characters carry realistic Indian names, so a photorealistic face risks resembling a

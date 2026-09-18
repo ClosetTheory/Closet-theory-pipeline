@@ -52,20 +52,42 @@ from app.pipeline.state_machine import GarmentState
 # touching anything a stylist or the pipeline created.
 CLONE_MARKER = "seeded_wardrobe_clone"
 
-# Two very large wardrobes, five mid, fifteen small. The 600s go to the two characters where a
-# large wardrobe is actually plausible -- a 45-year-old Mumbai professional who wears ethnic as
-# workwear, and a Delhi luxury-tier formal dresser -- so the size is part of the character rather
-# than an arbitrary stress number.
+# Sizes span 150 to 2,500, averaging ~560. Each is chosen to fit the character rather than being
+# an arbitrary stress number: Rohan's roster note is a deliberately minimal wardrobe, so he sits
+# at the floor, while Shalini wears ethnic as workwear and so plausibly owns the most.
+#
+# The 2,500 goes to a woman on purpose. The clone pool has 1,055 distinct garments available to a
+# women's wardrobe against 413 for a men's, so the same target on a man would repeat every garment
+# six times over instead of roughly twice.
 TARGETS: Dict[str, int] = {
-    "shalini_rao": 600,
-    "kabir_malhotra": 600,
-    "meenakshi_subramaniam": 250,
-    "priyanka_jadhav": 250,
-    "gurpreet_singh_bhullar": 250,
-    "neha_gupta": 250,
-    "vikram_rathore": 250,
+    "shalini_rao": 2500,
+
+    "kabir_malhotra": 900,
+    "meenakshi_subramaniam": 900,
+    "priyanka_jadhav": 900,
+
+    "aarushi_deshpande": 600,
+    "fatima_qureshi": 600,
+    "gurpreet_singh_bhullar": 600,
+    "neha_gupta": 600,
+    "nikhil_chatterjee": 600,
+    "vikram_rathore": 600,
+
+    "arjun_nair": 400,
+    "devansh_patel": 400,
+    "harsh_vardhan_sinha": 400,
+    "ira_sengupta": 400,
+    "joseph_fernandes": 400,
+    "riya_menon": 400,
+    "tanvi_sethi": 400,
+
+    "ananya_baruah": 150,
+    "bhavna_chauhan": 150,
+    "lhamu_bhutia": 150,
+    "rohan_iyer": 150,
+    "samar_ali_khan": 150,
 }
-DEFAULT_TARGET = 50
+DEFAULT_TARGET = 400
 
 # Fraction of each wardrobe drawn from the opposite gender. Chosen to cover both directions and
 # both wardrobe sizes, so the failure (if there is one) cannot be blamed on scale alone.

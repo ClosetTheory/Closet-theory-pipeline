@@ -158,7 +158,7 @@ class Settings(BaseSettings):
     ADMIN_EMAILS: str = ""
 
     # --- Evaluation characters ("personas") — synthetic members used to measure styling quality
-    # (see app/models/persona.py). Portraits are faceless full-body styling figures, following
+    # (see app/models/persona.py). Portraits are photorealistic full-body figures, following
     # the same rule the outfit image provider already uses: an image model's idea of a face adds
     # nothing a stylist needs and reliably lightens South Asian skin, which is the exact bias the
     # panel exists to detect. ---
