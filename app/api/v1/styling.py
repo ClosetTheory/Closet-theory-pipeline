@@ -101,7 +101,14 @@ async def stream_outfit_recommendations(
         task = asyncio.create_task(runner())
         try:
             while True:
-                kind, payload = await queue.get()
+                try:
+                    kind, payload = await asyncio.wait_for(queue.get(), timeout=15.0)
+                except asyncio.TimeoutError:
+                    # Keep reverse proxies and browsers from treating a long image-generation
+                    # stage as an idle/dead HTTP response. SSE comments are ignored by the UI
+                    # but still flush bytes over the connection.
+                    yield ": heartbeat\n\n"
+                    continue
                 if kind == "stage":
                     yield f"data: {json.dumps({'type': 'stage', 'stage': payload.model_dump(mode='json')})}\n\n"
                 elif kind == "done":
