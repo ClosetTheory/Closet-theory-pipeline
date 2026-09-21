@@ -1,0 +1,1861 @@
+[
+ {
+  "key": "ethnic_01__saree.jpg",
+  "group": "ethnic",
+  "file": "ethnic_01__saree.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "silhouette": "straight"
+   },
+   "latency_s": 28.94
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "chiffon",
+    "pattern": "graphic",
+    "sleeve_length": "long"
+   },
+   "latency_s": 7.79
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "saree",
+    "subcategory": "saree",
+    "garment_class": "SAREE",
+    "colour": [
+     "black"
+    ],
+    "pattern": "solid",
+    "material": "silk",
+    "fit": "not_applicable",
+    "silhouette": "draped",
+    "sleeve_length": "short",
+    "occasion": [
+     "evening",
+     "party"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.4,
+    "versatility": 0.6,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "red",
+    "colour_temperature": "neutral",
+    "colour_saturation": "vivid",
+    "pattern_motif": "none",
+    "pattern_density": "none",
+    "embellishment": "sequin",
+    "embellishment_density": "heavy",
+    "embellishment_placement": "allover",
+    "fabric_class": "woven",
+    "weave_type": "chiffon",
+    "transparency": "opaque",
+    "sheen": "satin",
+    "drape": "fluid",
+    "stretch_grade": "slight",
+    "neckline": "crew",
+    "collar_type": "no_collar",
+    "sleeve_type": "set_in",
+    "closure_type": "none",
+    "hem_style": "clean",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "formal",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "elegant",
+     "glamorous",
+     "sophisticated",
+     "festive"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.76
+  }
+ },
+ {
+  "key": "ethnic_02__lehenga.jpg",
+  "group": "ethnic",
+  "file": "ethnic_02__lehenga.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "gown",
+    "silhouette": "straight"
+   },
+   "latency_s": 1.68
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "graphic",
+    "sleeve_length": "long"
+   },
+   "latency_s": 1.94
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "lehenga",
+    "subcategory": "lehenga",
+    "garment_class": "LEHENGA",
+    "colour": [
+     "silver",
+     "pink"
+    ],
+    "pattern": "geometric",
+    "material": "silk",
+    "fit": "tailored",
+    "silhouette": "a_line",
+    "sleeve_length": "extra_long",
+    "occasion": [
+     "evening",
+     "party",
+     "formal"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.4,
+    "versatility": 0.3,
+    "confidence": 0.9,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "pink",
+    "colour_temperature": "cool",
+    "colour_saturation": "mid",
+    "pattern_motif": "geometric",
+    "pattern_density": "all_over",
+    "embellishment": "sequin",
+    "embellishment_density": "heavy",
+    "embellishment_placement": "allover",
+    "fabric_class": "woven",
+    "weave_type": "none",
+    "transparency": "opaque",
+    "sheen": "shiny",
+    "drape": "fluid",
+    "stretch_grade": "rigid",
+    "neckline": "v",
+    "collar_type": null,
+    "sleeve_type": "kimono",
+    "closure_type": "zip",
+    "hem_style": "clean",
+    "rise": "high",
+    "leg_shape": null,
+    "waistband_style": "fitted",
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "ceremonial",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "glamorous",
+     "festive",
+     "elegant",
+     "sparkling"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.44
+  }
+ },
+ {
+  "key": "ethnic_03__kurta.jpg",
+  "group": "ethnic",
+  "file": "ethnic_03__kurta.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "bag_wallet"
+   },
+   "latency_s": 1.74
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "denim",
+    "pattern": "graphic",
+    "sleeve_length": "long"
+   },
+   "latency_s": 1.7
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "kurta",
+    "subcategory": "kurta",
+    "garment_class": "KURTA",
+    "colour": [
+     "off-white",
+     "blue",
+     "yellow"
+    ],
+    "pattern": "geometric",
+    "material": "cotton",
+    "fit": "regular",
+    "silhouette": "straight",
+    "sleeve_length": "three_quarter",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.6,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "blue",
+    "colour_temperature": "cool",
+    "colour_saturation": "mid",
+    "pattern_motif": "geometric",
+    "pattern_density": "all_over",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "softly_falling",
+    "stretch_grade": "slight",
+    "neckline": "collared",
+    "collar_type": "band",
+    "sleeve_type": "set_in",
+    "closure_type": "pullover",
+    "hem_style": null,
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "ethnic",
+     "comfortable",
+     "vibrant",
+     "everyday"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.85
+  }
+ },
+ {
+  "key": "ethnic_04__kurta.jpg",
+  "group": "ethnic",
+  "file": "ethnic_04__kurta.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "sheath"
+   },
+   "latency_s": 1.7
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "denim",
+    "pattern": "solid",
+    "sleeve_length": "long"
+   },
+   "latency_s": 1.7
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "kurta",
+    "subcategory": "kurta",
+    "garment_class": "KURTA",
+    "colour": [
+     "white",
+     "pink",
+     "purple",
+     "orange"
+    ],
+    "pattern": "floral",
+    "material": "cotton",
+    "fit": "regular",
+    "silhouette": "straight",
+    "sleeve_length": "long",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.7,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "purple",
+    "colour_temperature": "neutral",
+    "colour_saturation": "mid",
+    "pattern_motif": "floral",
+    "pattern_density": "sparse",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "softly_falling",
+    "stretch_grade": "slight",
+    "neckline": "v",
+    "collar_type": "no_collar",
+    "sleeve_type": "set_in",
+    "closure_type": "pullover",
+    "hem_style": null,
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "ethnic",
+     "comfortable",
+     "feminine",
+     "traditional"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.96
+  }
+ },
+ {
+  "key": "ethnic_05__dupatta.jpg",
+  "group": "ethnic",
+  "file": "ethnic_05__dupatta.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress"
+   },
+   "latency_s": 1.83
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "graphic",
+    "sleeve_length": "long"
+   },
+   "latency_s": 1.74
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "kurta",
+    "subcategory": "kurta",
+    "garment_class": "KURTA",
+    "colour": [
+     "yellow"
+    ],
+    "pattern": "floral",
+    "material": "silk",
+    "fit": "regular",
+    "silhouette": "straight",
+    "sleeve_length": "long",
+    "occasion": [
+     "party",
+     "evening"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.4,
+    "versatility": 0.6,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": null,
+    "colour_temperature": "warm",
+    "colour_saturation": "vivid",
+    "pattern_motif": "floral",
+    "pattern_density": "all_over",
+    "embellishment": "sequin",
+    "embellishment_density": "light",
+    "embellishment_placement": "allover",
+    "fabric_class": "woven",
+    "weave_type": "none",
+    "transparency": "opaque",
+    "sheen": "satin",
+    "drape": "softly_falling",
+    "stretch_grade": "slight",
+    "neckline": "collared",
+    "collar_type": "band",
+    "sleeve_type": "set_in",
+    "closure_type": "button",
+    "hem_style": null,
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": "dupatta",
+    "formality": "formal",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "elegant",
+     "festive",
+     "traditional",
+     "graceful"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.09
+  }
+ },
+ {
+  "key": "ethnic_06__salwar.jpg",
+  "group": "ethnic",
+  "file": "ethnic_06__salwar.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "pants"
+   },
+   "latency_s": 1.23
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "denim",
+    "sleeve_length": "long"
+   },
+   "latency_s": 1.24
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "bottoms",
+    "subcategory": "leggings",
+    "garment_class": "LEGGINGS",
+    "colour": [
+     "teal"
+    ],
+    "pattern": "solid",
+    "material": "cotton",
+    "fit": "tight",
+    "silhouette": "tapered",
+    "sleeve_length": "not_applicable",
+    "occasion": [
+     "casual",
+     "lounge"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "base",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.6,
+    "confidence": 0.9,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": null,
+    "colour_temperature": "cool",
+    "colour_saturation": "vivid",
+    "pattern_motif": "none",
+    "pattern_density": "none",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "knit",
+    "weave_type": "none",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "fluid",
+    "stretch_grade": "high",
+    "neckline": null,
+    "collar_type": null,
+    "sleeve_type": null,
+    "closure_type": "elastic",
+    "hem_style": "clean",
+    "rise": "mid",
+    "leg_shape": "skinny",
+    "waistband_style": "elastic",
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "low_key",
+    "vibe_words": [
+     "comfortable",
+     "casual",
+     "stretchy",
+     "everyday"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 3.74
+  }
+ },
+ {
+  "key": "ethnic_07__dupatta.jpg",
+  "group": "ethnic",
+  "file": "ethnic_07__dupatta.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "gown",
+    "sleeve_length": "long",
+    "silhouette": "straight"
+   },
+   "latency_s": 1.65
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "denim",
+    "pattern": "graphic",
+    "sleeve_length": "long"
+   },
+   "latency_s": 1.57
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "anarkali",
+    "garment_class": "ANARKALI",
+    "colour": [
+     "teal",
+     "gold"
+    ],
+    "pattern": "floral",
+    "material": "silk",
+    "fit": "tailored",
+    "silhouette": "a_line",
+    "sleeve_length": "long",
+    "occasion": [
+     "evening",
+     "party",
+     "formal"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.6,
+    "versatility": 0.4,
+    "confidence": 0.9,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "gold",
+    "colour_temperature": "cool",
+    "colour_saturation": "vivid",
+    "pattern_motif": "floral",
+    "pattern_density": "dense",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "none",
+    "transparency": "opaque",
+    "sheen": "satin",
+    "drape": "fluid",
+    "stretch_grade": "rigid",
+    "neckline": "v",
+    "collar_type": null,
+    "sleeve_type": "set_in",
+    "closure_type": "none",
+    "hem_style": "curved",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "formal",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "elegant",
+     "traditional",
+     "luxurious",
+     "festive"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.22
+  }
+ },
+ {
+  "key": "ethnic_08__dupatta.jpg",
+  "group": "ethnic",
+  "file": "ethnic_08__dupatta.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress"
+   },
+   "latency_s": 2.62
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "graphic",
+    "sleeve_length": "sleeveless"
+   },
+   "latency_s": 2.68
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "lehenga",
+    "subcategory": "lehenga",
+    "garment_class": "LEHENGA",
+    "colour": [
+     "pink",
+     "gold",
+     "maroon"
+    ],
+    "pattern": "floral",
+    "material": "silk",
+    "fit": "tailored",
+    "silhouette": "a_line",
+    "sleeve_length": "short",
+    "occasion": [
+     "evening",
+     "party",
+     "formal"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.6,
+    "versatility": 0.2,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "gold",
+    "colour_temperature": "warm",
+    "colour_saturation": "vivid",
+    "pattern_motif": "floral",
+    "pattern_density": "dense",
+    "embellishment": "zardozi",
+    "embellishment_density": "heavy",
+    "embellishment_placement": "allover",
+    "fabric_class": "woven",
+    "weave_type": "none",
+    "transparency": "opaque",
+    "sheen": "satin",
+    "drape": "structured",
+    "stretch_grade": "rigid",
+    "neckline": "scoop",
+    "collar_type": null,
+    "sleeve_type": "set_in",
+    "closure_type": "none",
+    "hem_style": "clean",
+    "rise": "high",
+    "leg_shape": null,
+    "waistband_style": "fitted",
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "ceremonial",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "luxurious",
+     "traditional",
+     "ornate",
+     "regal"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 6.13
+  }
+ },
+ {
+  "key": "ethnic_09__dupatta.jpg",
+  "group": "ethnic",
+  "file": "ethnic_09__dupatta.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress"
+   },
+   "latency_s": 1.69
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "chiffon",
+    "pattern": "graphic",
+    "sleeve_length": "three_quarter"
+   },
+   "latency_s": 2.04
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "lehenga",
+    "subcategory": "lehenga",
+    "garment_class": "LEHENGA",
+    "colour": [
+     "red",
+     "gold"
+    ],
+    "pattern": "floral",
+    "material": "silk",
+    "fit": "tailored",
+    "silhouette": "a_line",
+    "sleeve_length": "short",
+    "occasion": [
+     "evening",
+     "party",
+     "formal"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.6,
+    "versatility": 0.3,
+    "confidence": 0.9,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "gold",
+    "colour_temperature": "warm",
+    "colour_saturation": "vivid",
+    "pattern_motif": "floral",
+    "pattern_density": "dense",
+    "embellishment": "mirror",
+    "embellishment_density": "heavy",
+    "embellishment_placement": "allover",
+    "fabric_class": "woven",
+    "weave_type": "none",
+    "transparency": "opaque",
+    "sheen": "satin",
+    "drape": "structured",
+    "stretch_grade": "rigid",
+    "neckline": "boat",
+    "collar_type": "no_collar",
+    "sleeve_type": "set_in",
+    "closure_type": "none",
+    "hem_style": "clean",
+    "rise": "high",
+    "leg_shape": null,
+    "waistband_style": "fitted",
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "ceremonial",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "regal",
+     "traditional",
+     "luxurious",
+     "festive"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 5.98
+  }
+ },
+ {
+  "key": "ethnic_10__dhoti.jpg",
+  "group": "ethnic",
+  "file": "ethnic_10__dhoti.jpg",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "pants",
+    "pattern": "solid",
+    "silhouette": "straight"
+   },
+   "latency_s": 1.33
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "solid",
+    "sleeve_length": "long"
+   },
+   "latency_s": 1.35
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "dress",
+    "garment_class": "DRESS",
+    "colour": [
+     "brown",
+     "grey"
+    ],
+    "pattern": "checkered",
+    "material": "cotton",
+    "fit": "loose",
+    "silhouette": "draped",
+    "sleeve_length": "sleeveless",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.4,
+    "versatility": 0.6,
+    "confidence": 0.9,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "grey",
+    "colour_temperature": "neutral",
+    "colour_saturation": "muted",
+    "pattern_motif": "geometric",
+    "pattern_density": "sparse",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "softly_falling",
+    "stretch_grade": "slight",
+    "neckline": null,
+    "collar_type": null,
+    "sleeve_type": null,
+    "closure_type": "wrap",
+    "hem_style": "asymmetric",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "earthy",
+     "relaxed",
+     "bohemian",
+     "artistic"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.28
+  }
+ },
+ {
+  "key": "eb3324cb-50d5-4621-8a49-5c0890580fcb",
+  "group": "western",
+  "file": "eb3324cb-50d5-4621-8a49-5c0890580fcb__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "top_t-shirt_sweatshirt"
+   },
+   "latency_s": 2.65
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "graphic",
+    "sleeve_length": "long"
+   },
+   "latency_s": 3.06
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "blazer",
+    "subcategory": "blazer",
+    "garment_class": "BLAZER",
+    "colour": [
+     "black"
+    ],
+    "pattern": "graphic",
+    "material": "polyester",
+    "fit": "tailored",
+    "silhouette": "straight",
+    "sleeve_length": "long",
+    "occasion": [
+     "party",
+     "evening"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "outer",
+    "gender": "women",
+    "warmth": 0.4,
+    "versatility": 0.5,
+    "confidence": 0.9,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "white",
+    "colour_temperature": "neutral",
+    "colour_saturation": "vivid",
+    "pattern_motif": "typographic",
+    "pattern_density": "dense",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "structured",
+    "stretch_grade": "slight",
+    "neckline": "collared",
+    "collar_type": "notch",
+    "sleeve_type": "set_in",
+    "closure_type": "button",
+    "hem_style": "curved",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "smart_casual",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "edgy",
+     "artistic",
+     "bold",
+     "statement"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 5.12
+  }
+ },
+ {
+  "key": "7e088fa0-2546-41cc-bc69-df529c7f2372",
+  "group": "western",
+  "file": "7e088fa0-2546-41cc-bc69-df529c7f2372__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "skirt",
+    "pattern": "solid",
+    "silhouette": "flared"
+   },
+   "latency_s": 2.64
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "solid",
+    "sleeve_length": "long"
+   },
+   "latency_s": 2.15
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "trousers",
+    "subcategory": "palazzo_pants",
+    "garment_class": "TROUSERS",
+    "colour": [
+     "purple"
+    ],
+    "pattern": "solid",
+    "material": "cotton",
+    "fit": "loose",
+    "silhouette": "flared",
+    "sleeve_length": "not_applicable",
+    "occasion": [
+     "casual",
+     "lounge"
+    ],
+    "season": [
+     "spring",
+     "summer",
+     "fall",
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.6,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": null,
+    "colour_temperature": "cool",
+    "colour_saturation": "vivid",
+    "pattern_motif": "none",
+    "pattern_density": "none",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "softly_falling",
+    "stretch_grade": "slight",
+    "neckline": null,
+    "collar_type": null,
+    "sleeve_type": null,
+    "closure_type": "drawstring",
+    "hem_style": "clean",
+    "rise": "high",
+    "leg_shape": "palazzo",
+    "waistband_style": "elastic",
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "comfortable",
+     "relaxed",
+     "flowy",
+     "casual"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 5.63
+  }
+ },
+ {
+  "key": "225cb7d6-d10d-4015-ace4-f72b3502eff7",
+  "group": "western",
+  "file": "225cb7d6-d10d-4015-ace4-f72b3502eff7__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress"
+   },
+   "latency_s": 2.44
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "chiffon",
+    "pattern": "graphic",
+    "sleeve_length": "sleeveless"
+   },
+   "latency_s": 2.56
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "maxi_dress",
+    "garment_class": "DRESS",
+    "colour": [
+     "black",
+     "blue",
+     "green",
+     "pink"
+    ],
+    "pattern": "floral",
+    "material": "silk",
+    "fit": "tailored",
+    "silhouette": "a_line",
+    "sleeve_length": "sleeveless",
+    "occasion": [
+     "evening",
+     "party",
+     "formal"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.4,
+    "confidence": 0.95,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "multi-color",
+    "colour_temperature": "cool",
+    "colour_saturation": "muted",
+    "pattern_motif": "floral",
+    "pattern_density": "balanced",
+    "embellishment": "sequin",
+    "embellishment_density": "medium",
+    "embellishment_placement": "allover",
+    "fabric_class": "woven",
+    "weave_type": "crepe",
+    "transparency": "opaque",
+    "sheen": "satin",
+    "drape": "fluid",
+    "stretch_grade": "slight",
+    "neckline": "v",
+    "collar_type": null,
+    "sleeve_type": "set_in",
+    "closure_type": "zip",
+    "hem_style": "clean",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "formal",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "elegant",
+     "glamorous",
+     "sophisticated",
+     "luxurious"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.75
+  }
+ },
+ {
+  "key": "2fbaafbb-e9d2-43e1-afe7-d7c37547a016",
+  "group": "western",
+  "file": "2fbaafbb-e9d2-43e1-afe7-d7c37547a016__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "top_t-shirt_sweatshirt",
+    "subcategory": "classic",
+    "pattern": "solid",
+    "silhouette": "straight"
+   },
+   "latency_s": 2.63
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "solid",
+    "sleeve_length": "long"
+   },
+   "latency_s": 2.64
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "top",
+    "subcategory": "sweater",
+    "garment_class": "SWEATER",
+    "colour": [
+     "black"
+    ],
+    "pattern": "striped",
+    "material": "wool",
+    "fit": "regular",
+    "silhouette": "straight",
+    "sleeve_length": "long",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "season": [
+     "fall",
+     "winter",
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "men",
+    "warmth": 0.7,
+    "versatility": 0.6,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "brown",
+    "colour_temperature": "neutral",
+    "colour_saturation": "muted",
+    "pattern_motif": "none",
+    "pattern_density": "sparse",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "knit",
+    "weave_type": "none",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "softly_falling",
+    "stretch_grade": "moderate",
+    "neckline": "crew",
+    "collar_type": "no_collar",
+    "sleeve_type": "set_in",
+    "closure_type": "pullover",
+    "hem_style": "clean",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "sporty",
+     "classic",
+     "comfortable",
+     "versatile"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.92
+  }
+ },
+ {
+  "key": "e28cde22-5347-4852-9f12-bab734fbc4b3",
+  "group": "western",
+  "file": "e28cde22-5347-4852-9f12-bab734fbc4b3__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "shirt_blouse",
+    "pattern": "solid",
+    "silhouette": "straight"
+   },
+   "latency_s": 2.75
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "solid",
+    "sleeve_length": "long"
+   },
+   "latency_s": 2.47
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "button_down_shirt",
+    "subcategory": "button_down_shirt",
+    "garment_class": "SHIRT",
+    "colour": [
+     "black"
+    ],
+    "pattern": "solid",
+    "material": "cotton",
+    "fit": "regular",
+    "silhouette": "straight",
+    "sleeve_length": "long",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "men",
+    "warmth": 0.4,
+    "versatility": 0.7,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": null,
+    "colour_temperature": "neutral",
+    "colour_saturation": "muted",
+    "pattern_motif": "none",
+    "pattern_density": "none",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "softly_falling",
+    "stretch_grade": "slight",
+    "neckline": "collared",
+    "collar_type": "spread",
+    "sleeve_type": "set_in",
+    "closure_type": "button",
+    "hem_style": "curved",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "low_key",
+    "vibe_words": [
+     "relaxed",
+     "understated",
+     "versatile",
+     "casual"
+    ],
+    "wash_state_visible": "faded"
+   },
+   "latency_s": 5.1
+  }
+ },
+ {
+  "key": "812a6592-9400-4e60-86ba-284447fed334",
+  "group": "western",
+  "file": "812a6592-9400-4e60-86ba-284447fed334__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "pants",
+    "pattern": "solid",
+    "silhouette": "straight"
+   },
+   "latency_s": 2.75
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "solid",
+    "sleeve_length": "sleeveless"
+   },
+   "latency_s": 2.67
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "trousers",
+    "subcategory": "palazzo_pants",
+    "garment_class": "TROUSERS",
+    "colour": [
+     "white",
+     "blue"
+    ],
+    "pattern": "floral",
+    "material": "null",
+    "fit": "relaxed",
+    "silhouette": "flared",
+    "sleeve_length": "not_applicable",
+    "occasion": [
+     "casual",
+     "smart_casual",
+     "party"
+    ],
+    "season": [
+     "spring",
+     "summer"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.6,
+    "confidence": 0.9,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "blue",
+    "colour_temperature": "cool",
+    "colour_saturation": "vivid",
+    "pattern_motif": "botanical",
+    "pattern_density": "all_over",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": null,
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "fluid",
+    "stretch_grade": "slight",
+    "neckline": null,
+    "collar_type": null,
+    "sleeve_type": null,
+    "closure_type": "zip",
+    "hem_style": "clean",
+    "rise": "high",
+    "leg_shape": "palazzo",
+    "waistband_style": "fitted",
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "bohemian",
+     "chic",
+     "vibrant",
+     "resort"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.62
+  }
+ },
+ {
+  "key": "382c210d-6f40-4b59-b0fa-63525d720b5a",
+  "group": "western",
+  "file": "382c210d-6f40-4b59-b0fa-63525d720b5a__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "shift",
+    "pattern": "striped",
+    "sleeve_length": "short",
+    "silhouette": "a_line"
+   },
+   "latency_s": 2.92
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "graphic",
+    "sleeve_length": "short"
+   },
+   "latency_s": 2.77
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "dress",
+    "garment_class": "DRESS",
+    "colour": [
+     "black",
+     "white"
+    ],
+    "pattern": "striped",
+    "material": "null",
+    "fit": "relaxed",
+    "silhouette": "straight",
+    "sleeve_length": "short",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "season": [
+     "spring",
+     "summer",
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.6,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": null,
+    "colour_temperature": "neutral",
+    "colour_saturation": "mid",
+    "pattern_motif": "geometric",
+    "pattern_density": "all_over",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "semi_sheer",
+    "sheen": "matte",
+    "drape": "softly_falling",
+    "stretch_grade": "slight",
+    "neckline": "crew",
+    "collar_type": "no_collar",
+    "sleeve_type": "set_in",
+    "closure_type": "pullover",
+    "hem_style": "clean",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "modern",
+     "graphic",
+     "comfortable",
+     "artsy"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 5.11
+  }
+ },
+ {
+  "key": "dcb9c6e9-e9fc-4812-a0b8-3e1d2118f81b",
+  "group": "western",
+  "file": "dcb9c6e9-e9fc-4812-a0b8-3e1d2118f81b__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "dress"
+   },
+   "latency_s": 2.74
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "graphic",
+    "sleeve_length": "sleeveless"
+   },
+   "latency_s": 2.77
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "dress",
+    "subcategory": "maxi_dress",
+    "garment_class": "DRESS",
+    "colour": [
+     "blue",
+     "green",
+     "black"
+    ],
+    "pattern": "floral",
+    "material": "viscose",
+    "fit": "tailored",
+    "silhouette": "draped",
+    "sleeve_length": "short",
+    "occasion": [
+     "evening",
+     "party"
+    ],
+    "season": [
+     "spring",
+     "summer"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.6,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": "green",
+    "colour_temperature": "cool",
+    "colour_saturation": "vivid",
+    "pattern_motif": "floral",
+    "pattern_density": "all_over",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "knit",
+    "weave_type": "none",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "fluid",
+    "stretch_grade": "moderate",
+    "neckline": "boat",
+    "collar_type": "no_collar",
+    "sleeve_type": "set_in",
+    "closure_type": "pullover",
+    "hem_style": "clean",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "smart_casual",
+    "mood_intensity": "statement",
+    "vibe_words": [
+     "vibrant",
+     "elegant",
+     "tropical",
+     "feminine"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.82
+  }
+ },
+ {
+  "key": "6096f91f-0835-4f82-8a7e-c60bfe825942",
+  "group": "western",
+  "file": "6096f91f-0835-4f82-8a7e-c60bfe825942__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "pants",
+    "pattern": "solid",
+    "silhouette": "straight"
+   },
+   "latency_s": 2.43
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "cotton",
+    "pattern": "solid",
+    "sleeve_length": "long"
+   },
+   "latency_s": 2.58
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "trousers",
+    "subcategory": "cargo_pants",
+    "garment_class": "TROUSERS",
+    "colour": [
+     "black"
+    ],
+    "pattern": "solid",
+    "material": "polyester",
+    "fit": "regular",
+    "silhouette": "straight",
+    "sleeve_length": "not_applicable",
+    "occasion": [
+     "activewear",
+     "casual"
+    ],
+    "season": [
+     "all_season"
+    ],
+    "layering_role": "standalone",
+    "gender": "unisex",
+    "warmth": 0.6,
+    "versatility": 0.5,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": null,
+    "colour_temperature": "neutral",
+    "colour_saturation": "muted",
+    "pattern_motif": "none",
+    "pattern_density": "none",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "structured",
+    "stretch_grade": "slight",
+    "neckline": null,
+    "collar_type": null,
+    "sleeve_type": null,
+    "closure_type": "button",
+    "hem_style": "clean",
+    "rise": "mid",
+    "leg_shape": "straight",
+    "waistband_style": "elastic",
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "functional",
+     "durable",
+     "outdoorsy",
+     "practical"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.08
+  }
+ },
+ {
+  "key": "8c8cc402-f717-42b4-b402-2792c977d905",
+  "group": "western",
+  "file": "8c8cc402-f717-42b4-b402-2792c977d905__canonical.png",
+  "moda_crop": {
+   "ok": true,
+   "attrs": {
+    "category": "top_t-shirt_sweatshirt",
+    "pattern": "solid",
+    "silhouette": "fitted"
+   },
+   "latency_s": 2.4
+  },
+  "moda_fullbody": {
+   "ok": true,
+   "attrs": {
+    "material": "denim",
+    "pattern": "solid",
+    "sleeve_length": "sleeveless"
+   },
+   "latency_s": 2.27
+  },
+  "gemini": {
+   "ok": true,
+   "attrs": {
+    "category": "top",
+    "subcategory": "crop_top",
+    "garment_class": "CROP_TOP",
+    "colour": [
+     "light blue"
+    ],
+    "pattern": "solid",
+    "material": "cotton",
+    "fit": "tailored",
+    "silhouette": "fitted",
+    "sleeve_length": "sleeveless",
+    "occasion": [
+     "casual",
+     "party"
+    ],
+    "season": [
+     "spring",
+     "summer"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.2,
+    "versatility": 0.6,
+    "confidence": 0.95,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null,
+    "casual_name": null,
+    "colour_secondary_name": null,
+    "colour_temperature": "cool",
+    "colour_saturation": "mid",
+    "pattern_motif": "none",
+    "pattern_density": "none",
+    "embellishment": "none",
+    "embellishment_density": "none",
+    "embellishment_placement": "none",
+    "fabric_class": "woven",
+    "weave_type": "plain",
+    "transparency": "opaque",
+    "sheen": "matte",
+    "drape": "structured",
+    "stretch_grade": "slight",
+    "neckline": "v",
+    "collar_type": "no_collar",
+    "sleeve_type": "set_in",
+    "closure_type": "zip",
+    "hem_style": "clean",
+    "rise": null,
+    "leg_shape": null,
+    "waistband_style": null,
+    "shoe_silhouette": null,
+    "accessory_kind": null,
+    "formality": "casual",
+    "mood_intensity": "balanced",
+    "vibe_words": [
+     "chic",
+     "playful",
+     "trendy",
+     "summery"
+    ],
+    "wash_state_visible": "none"
+   },
+   "latency_s": 4.57
+  }
+ }
+]

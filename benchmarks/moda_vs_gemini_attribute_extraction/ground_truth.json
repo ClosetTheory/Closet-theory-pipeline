@@ -1,0 +1,117 @@
+{
+  "ethnic_01__saree.jpg": {
+    "category": "dress_ethnic", "subcategory": "saree", "colour": "black", "pattern": "solid",
+    "material": "silk", "fit": "draped",
+    "notes": "catalog/editorial studio photography, not an informal member photo"
+  },
+  "ethnic_02__lehenga.jpg": {
+    "category": "dress_ethnic", "subcategory": "lehenga", "colour": "silver/light pink",
+    "pattern": "geometric/embellished", "material": "silk with sheen", "fit": "fitted bodice, a-line skirt",
+    "notes": "candid/influencer-style photo of an apparent public figure; catalog/promotional in style, not an informal member photo"
+  },
+  "ethnic_03__kurta.jpg": {
+    "category": "dress_ethnic", "subcategory": "kurta", "colour": "cream/blue",
+    "pattern": "geometric motifs on cream ground", "material": "cotton", "fit": "regular, straight silhouette",
+    "sleeve_length": "three_quarter",
+    "notes": "correctly tagged by original pipeline; catalog photography"
+  },
+  "ethnic_04__kurta.jpg": {
+    "category": "dress_ethnic", "subcategory": "kurta_set", "colour": "white/ivory with pink/gold floral",
+    "pattern": "floral (block-print style motifs)", "material": "cotton/rayon", "fit": "straight kurta + matching palazzo pants",
+    "sleeve_length": "long",
+    "notes": "posed full-length model catalog shot (garden setting); correctly tagged kurta by pipeline but pipeline missed the coordinated pants (2-piece set)"
+  },
+  "ethnic_05__dupatta.jpg": {
+    "category": "dress_ethnic", "subcategory": "kurta_set", "colour": "mustard yellow",
+    "pattern": "floral (tonal embroidered/printed florals)", "material": "silk/georgette", "fit": "straight kurta + palazzo pants + dupatta (3-piece suit)",
+    "sleeve_length": "long",
+    "notes": "ORIGINAL PIPELINE MIS-TAG: full 3-piece kurta-palazzo-dupatta suit tagged merely subcategory=dupatta, missing the primary garment (kurta+pants) entirely. E-commerce catalog image with visible product-listing branding ('MY-03')."
+  },
+  "ethnic_06__salwar.jpg": {
+    "category": "bottom_ethnic", "subcategory": "salwar", "colour": "teal",
+    "pattern": "solid", "material": "unclear (low resolution)", "fit": "loose, gathered ankle",
+    "notes": "severely degraded/low-resolution crop showing only lower legs; a genuine hard case independent of ethnicwear-specific issues -- almost no usable visual signal for either model"
+  },
+  "ethnic_07__dupatta.jpg": {
+    "category": "dress_ethnic", "subcategory": "anarkali_gown", "colour": "teal/blue with gold embroidery",
+    "pattern": "embroidered/embellished (paisley + floral motifs)", "material": "silk with heavy zari/thread embroidery",
+    "fit": "fitted embroidered bodice, floor-length flared skirt", "sleeve_length": "long",
+    "notes": "ORIGINAL PIPELINE MIS-TAG: full embroidered Anarkali gown tagged merely subcategory=dupatta, missing the primary garment. Professional studio catalog photography."
+  },
+  "ethnic_08__dupatta.jpg": {
+    "category": "dress_ethnic", "subcategory": "lehenga", "colour": "magenta/maroon with gold",
+    "pattern": "embellished/embroidered (bridal, dense zari and stonework)", "material": "silk/velvet with heavy embroidery",
+    "fit": "voluminous bridal lehenga skirt + fitted choli + dupatta veil",
+    "notes": "ORIGINAL PIPELINE MIS-TAG: full bridal lehenga ensemble tagged merely subcategory=dupatta, missing the primary garment. Professional bridal-wear catalog photography."
+  },
+  "ethnic_09__dupatta.jpg": {
+    "category": "dress_ethnic", "subcategory": "lehenga", "colour": "red with gold embroidery",
+    "pattern": "embellished/embroidered", "material": "silk/net with gold zari work",
+    "fit": "fitted embroidered blouse + full embroidered skirt + dupatta",
+    "notes": "ORIGINAL PIPELINE MIS-TAG: full lehenga ensemble tagged merely subcategory=dupatta. This is unambiguously a fashion-show runway photograph (model on a lit stage, other models and audience visible blurred in the background), not any kind of member photo."
+  },
+  "ethnic_10__dhoti.jpg": {
+    "category": "bottom_ethnic", "subcategory": "dhoti_pants", "colour": "dark brown/charcoal",
+    "pattern": "solid with quilted texture", "material": "cotton", "fit": "draped/harem, loose",
+    "notes": "catalog photography"
+  },
+
+  "eb3324cb-50d5-4621-8a49-5c0890580fcb": {
+    "category": "top", "subcategory": "jacket", "colour": "black with white/multicolor text print",
+    "pattern": "text/graphic print ('Charlie Parker Re-Boppers' / 'Koko' lettering)", "material": "woven, likely cotton twill or nylon",
+    "fit": "regular", "sleeve_length": "long",
+    "notes": "EXIF-rotated 90 degrees; heavy handwritten-style text graphic print, hard case for pattern classification"
+  },
+  "7e088fa0-2546-41cc-bc69-df529c7f2372": {
+    "category": "bottom", "subcategory": "palazzo_pants", "colour": "purple/eggplant/plum",
+    "pattern": "solid", "material": "satin/silky fabric with visible sheen", "fit": "wide-leg, elastic drawstring waist",
+    "notes": "home DIY backdrop (bedsheet, measuring tape, hanger clips); person's hand/arm in frame"
+  },
+  "225cb7d6-d10d-4015-ace4-f72b3502eff7": {
+    "category": "dress", "subcategory": "evening_dress", "colour": "black base with multicolor (blue/teal/white/rust) floral",
+    "pattern": "floral print + beaded/embroidered bodice", "material": "pleated chiffon/georgette skirt, embellished bodice",
+    "fit": "fitted bodice, full pleated skirt, one-shoulder/cape collar drape", "sleeve_length": "sleeveless/one-shoulder cape",
+    "notes": "rotated image; pleats create complex texture that obscures the floral print in places; person's hand/arm in frame"
+  },
+  "2fbaafbb-e9d2-43e1-afe7-d7c37547a016": {
+    "category": "top", "subcategory": "sweater", "colour": "navy",
+    "pattern": "solid with contrast (rust/orange) stripe accent on one sleeve", "material": "fine-gauge wool knit (Zegna)",
+    "fit": "regular", "sleeve_length": "long", "neckline": "crew",
+    "notes": "navy could be misread as black; single-sleeve stripe accent could be misread as an allover striped pattern"
+  },
+  "e28cde22-5347-4852-9f12-bab734fbc4b3": {
+    "category": "top", "subcategory": "shirt_button_up", "colour": "black",
+    "pattern": "solid", "material": "linen or linen-blend (visible wrinkling and slight sheen)",
+    "fit": "regular", "sleeve_length": "long", "neckline": "spread collar",
+    "notes": "very low contrast on black fabric obscures button/seam detail; person's arm partially occludes"
+  },
+  "812a6592-9400-4e60-86ba-284447fed334": {
+    "category": "bottom", "subcategory": "wide_leg_trousers", "colour": "blue and white",
+    "pattern": "floral/damask (chinoiserie 'blue porcelain' print)", "material": "satin or silky woven fabric",
+    "fit": "wide-leg/palazzo", "notes": "image rotated 90 degrees; allover ornate print risks misclassification as paisley or geometric-border; no waistband visible"
+  },
+  "382c210d-6f40-4b59-b0fa-63525d720b5a": {
+    "category": "top", "subcategory": "tank_top", "colour": "black/white/grey (monochrome multicolor)",
+    "pattern": "abstract geometric/striped ('static'-like pixel-stripe print)", "material": "lightweight woven (chiffon-like drape)",
+    "fit": "relaxed", "sleeve_length": "sleeveless",
+    "notes": "image rotated 90 degrees; heavy occlusion by two arms/hands; cluttered messy background (cables, bags) unlike the plain-backdrop norm; complex abstract pattern is a genuine hard case"
+  },
+  "dcb9c6e9-e9fc-4812-a0b8-3e1d2118f81b": {
+    "category": "dress", "subcategory": "maxi_dress", "colour": "multicolor (green/teal + blue + olive)",
+    "pattern": "floral (two distinct color-blocked floral prints joined in one garment)", "material": "lightweight jersey/viscose",
+    "fit": "relaxed/flowy",
+    "notes": "image rotated 90 degrees; two competing floral prints in a single garment, a real hard case for single-pattern classifiers"
+  },
+  "6096f91f-0835-4f82-8a7e-c60bfe825942": {
+    "category": "bottom", "subcategory": "cargo_pants", "colour": "black",
+    "pattern": "solid", "material": "technical nylon/ripstop (Quechua outdoor brand)",
+    "fit": "relaxed, elastic drawstring waist, zip-off convertible legs",
+    "notes": "image rotated 90 degrees; all-black low contrast obscures seams/pockets/zip-off line; cluttered background"
+  },
+  "8c8cc402-f717-42b4-b402-2792c977d905": {
+    "category": "top", "subcategory": "crop_top", "colour": "light blue/periwinkle",
+    "pattern": "solid", "material": "satin", "fit": "fitted/cropped", "sleeve_length": "sleeveless",
+    "neckline": "V-neck with twist-front detail", "closure": "front zip",
+    "notes": "garment occupies a small fraction of the frame against a large plain backdrop; pale colour risks washing out under bright light"
+  }
+}
