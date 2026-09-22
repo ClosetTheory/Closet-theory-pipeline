@@ -105,7 +105,13 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const data = await res.json();
+        // Read as text first and parse defensively -- a 500/502/504 from the server or a proxy
+        // in front of it returns a plain-text or HTML body, not JSON, and calling res.json()
+        // directly on that throws an opaque "JSON.parse: unexpected character" that hides
+        // what actually went wrong (and looks identical no matter the real cause).
+        const rawBody = await res.text();
+        let data = null;
+        try { data = rawBody ? JSON.parse(rawBody) : null; } catch (e) { /* not JSON -- handled below */ }
         if (!res.ok) {
           // The email is trimmed above but the password deliberately is not — a password may
           // legitimately contain spaces. That makes a stray leading or trailing space from a
@@ -113,7 +119,7 @@
           if (res.status === 401 && password !== password.trim()) {
             throw new Error("Your password starts or ends with a space — remove it and try again.");
           }
-          throw new Error(data.detail || "Something went wrong");
+          throw new Error((data && data.detail) || rawBody || `Server error (HTTP ${res.status})`);
         }
         localStorage.setItem("ct_auth_token", data.token);
         // A stylist has no wardrobe of their own — every wardrobe page refuses until they pick
