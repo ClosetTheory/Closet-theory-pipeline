@@ -65,7 +65,6 @@ STATIC_REVIEW = STATIC_DIR / "review.html"
 STATIC_PIPELINES = STATIC_DIR / "pipelines.html"
 STATIC_ADMIN = STATIC_DIR / "admin.html"
 STATIC_STYLIST = STATIC_DIR / "stylist.html"
-STATIC_HOPIT = STATIC_DIR / "hopit.html"
 # The engineering reference is authored as markdown and rendered client-side, so the
 # page and docs/PIPELINES.md can never drift apart.
 PIPELINES_DOC = Path(__file__).parent.parent / "docs" / "PIPELINES.md"
@@ -119,13 +118,6 @@ async def get_review_page():
     outfits. Not part of the user-facing app — for company stylists reviewing dressing sense
     and overall aesthetics."""
     return _serve_static(STATIC_REVIEW, "Stylist review queue")
-
-
-@app.get("/hopit", response_class=HTMLResponse, tags=["Styling"])
-async def get_hopit_page():
-    """Side-by-side pipeline comparison: our attribute extraction vs. MODA_NER, and our
-    styling orchestrator vs. Hopit's hosted /v1/outfits:rank, run live on the same input."""
-    return _serve_static(STATIC_HOPIT, "Hopit pipeline comparison")
 
 
 @app.get("/pipeline-info", response_class=HTMLResponse, tags=["Visualizer"])
