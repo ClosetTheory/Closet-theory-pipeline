@@ -47,6 +47,11 @@ class StylingContext(BaseModel):
     environment: Dict[str, Any] = Field(default_factory=dict)
     allowed_categories: List[str] = Field(default_factory=list)
     hard_constraints: List[str] = Field(default_factory=list)
+    # Persisted here (inside StylingRequest.context, an existing JSON column) rather than as a
+    # new column on StylingRequest -- this project has no migrations, and this is the cheapest
+    # way for the Review tab to know which pipeline produced a given outfit without altering an
+    # existing table. See StylingOrchestrator.run().
+    used_hopit: bool = False
 
 
 class GarmentSummary(BaseModel):
@@ -312,6 +317,13 @@ class OutfitOfTheDayRequest(BaseModel):
     force_regenerate: bool = Field(
         default=False,
         description="Re-run generation even if today's pick for this member/location already exists.",
+    )
+    use_hopit: bool = Field(
+        default=False,
+        description="Same meaning as StylingRecommendationRequest.use_hopit — Stage 5/6 routed "
+        "through Hopit. A Hopit pick is never cached in outfits_of_the_day (that table has no "
+        "column to distinguish which pipeline produced a day's pick, and this project has no "
+        "migrations to add one), so it's regenerated live on every call.",
     )
 
 

@@ -309,13 +309,19 @@ async def list_persona_outfits(
     # attached to.
     request_ids = list({o.request_id for o in outfits if o.request_id})
     request_text_by_id: Dict[str, Optional[str]] = {}
+    used_hopit_by_id: Dict[str, bool] = {}
     if request_ids:
         request_rows = (
             await session.execute(
-                select(StylingRequest.id, StylingRequest.raw_text).where(StylingRequest.id.in_(request_ids))
+                select(StylingRequest.id, StylingRequest.raw_text, StylingRequest.context)
+                .where(StylingRequest.id.in_(request_ids))
             )
         ).all()
-        request_text_by_id = {rid: text for rid, text in request_rows}
+        for rid, text, context in request_rows:
+            request_text_by_id[rid] = text
+            # used_hopit lives inside this existing JSON column rather than as its own column —
+            # see StylingContext.used_hopit's docstring for why.
+            used_hopit_by_id[rid] = bool((context or {}).get("used_hopit"))
 
     review_rows = (
         await session.execute(
@@ -338,6 +344,7 @@ async def list_persona_outfits(
             "generated_at": outfit.created_at.isoformat(),
             "request_id": outfit.request_id,
             "request_text": request_text_by_id.get(outfit.request_id),
+            "used_hopit": used_hopit_by_id.get(outfit.request_id, False),
             "my_review": next(
                 (r.model_dump(mode="json") for r in reviews if r.reviewer_user_id == current_user.id),
                 None,

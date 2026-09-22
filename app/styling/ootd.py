@@ -50,14 +50,40 @@ async def get_or_generate_ootd(
     extra_hint: Optional[str] = None,
     force: bool = False,
     generation_source: str = "on_demand",
+    use_hopit: bool = False,
 ) -> OutfitOfTheDayResponse:
     """
     `extra_hint`: optional free-text the caller can add on top of the auto-derived context
     (e.g. "there's a client meeting today") — not a fixed set of choices, since a member's
     real context can't be reduced to picking one of a handful of labels. Leave it out entirely
     and this still works, fully automatically, from whatever real data exists for the member.
+
+    `use_hopit`: routes Stage 5/6 through Hopit, same as StylingRecommendationRequest.use_hopit.
+    Never read from or written to the `outfits_of_the_day` cache — that table's uniqueness is
+    (tenant, member, date, location) with no column for which pipeline produced the pick, and
+    this project has no migrations to add one. A Hopit-routed OOTD is always generated live,
+    which is fine here: this path only exists for an admin's side-by-side comparison, not the
+    real member-facing daily pick (which never sets this flag).
     """
     today = datetime.now(timezone.utc).date()
+
+    if use_hopit:
+        weather_provider = get_weather_provider()
+        weather = await weather_provider.get_weather(location)
+        member_context = await derive_member_context(session, tenant_id, member_id)
+        request_text = _build_request_text(weather, member_context, extra_hint)
+        orchestrator = StylingOrchestrator(session, storage)
+        rec_request = StylingRecommendationRequest(request_text=request_text, top_k=3, use_hopit=True)
+        styling_result = await orchestrator.run(rec_request, tenant_id, member_id)
+        return OutfitOfTheDayResponse(
+            date=today.isoformat(),
+            location=location,
+            context_used=member_context + (f" [extra: {extra_hint}]" if extra_hint else ""),
+            weather=weather,
+            styling=styling_result,
+            cached=False,
+            generation_source=generation_source,
+        )
 
     if not force:
         existing_stmt = select(OutfitOfTheDay).where(

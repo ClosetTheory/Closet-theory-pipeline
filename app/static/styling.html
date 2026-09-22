@@ -36,6 +36,19 @@
     code, pre { font-family: 'JetBrains Mono', monospace; }
     .glow-active { box-shadow: 0 0 0 3px rgba(230, 0, 35, 0.18); }
     pre.trace-json { white-space: pre-wrap; word-break: break-word; }
+    /* Admin split view: two independently-scrolling columns, each its own viewport-height pane. */
+    .split-columns { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 0; }
+    .split-pane { max-height: calc(100vh - 160px); overflow-y: auto; padding: 0 1rem; }
+    .split-pane:first-child { padding-left: 0; }
+    .split-pane:last-child { padding-right: 0; }
+    .split-divider { display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: 0 1rem; align-self: stretch; }
+    .split-divider .line { flex: 1; width: 1px; background: linear-gradient(to bottom, transparent, #3f3f3a, transparent); }
+    @media (max-width: 1024px) {
+      .split-columns { grid-template-columns: 1fr; }
+      .split-divider { flex-direction: row; padding: 1rem 0; }
+      .split-divider .line { height: 1px; width: auto; }
+      .split-pane { max-height: none; overflow-y: visible; padding: 0; }
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
@@ -119,85 +132,10 @@
 
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-
-    <!-- Request Card -->
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
-        <div class="lg:col-span-7 space-y-2">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Styling Request</span>
-          <input id="request-text" type="text" placeholder="e.g. smart casual dinner tonight, dark colors"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
-          <span class="text-[10px] text-slate-500 block">Optional — leave blank to style purely from anchor garments below.</span>
-        </div>
-        <div class="lg:col-span-3 space-y-2">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Anchor Garment IDs</span>
-          <input id="anchor-ids" type="text" placeholder="garm_abc, garm_def"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
-          <span class="text-[10px] text-slate-500 block">Comma-separated, optional preselected garments.</span>
-        </div>
-        <div class="lg:col-span-2">
-          <button id="run-btn" onclick="runPipeline()" class="w-full py-3 px-4 bg-ct-primary hover:bg-ct-primary-pressed disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2">
-            <span>✨</span> Run Styling Pipeline
-          </button>
-        </div>
-      </div>
-      <label class="flex items-center gap-2 text-xs text-slate-400 mt-4">
-        <input type="checkbox" id="use-hopit" class="rounded">
-        Match via Hopit — routes Stage 5 (retrieval) and Stage 6 (compatibility) through Hopit's hosted <code class="text-[10px]">/v1/outfits:rank</code> instead of our own; every other stage runs unchanged.
-      </label>
-    </div>
-
-    <!-- Outfit of the Day -->
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
-        <div class="lg:col-span-8 space-y-2">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">☀️ Outfit of the Day — Location</span>
-          <input id="ootd-location" type="text" placeholder="e.g. Mumbai, New York, London… (can be anywhere)"
-                 class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
-          <span class="text-[10px] text-slate-500 block">Styling context (occasion, formality, wardrobe style, learned preferences) is derived automatically from this member's real history — no persona to pick.</span>
-        </div>
-        <div class="lg:col-span-2">
-          <button id="ootd-btn" onclick="loadOOTD(false)" class="w-full py-3 px-4 bg-ct-primary hover:bg-ct-primary-pressed disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-2xl transition">
-            Get Today's Pick
-          </button>
-        </div>
-        <div class="lg:col-span-2">
-          <button onclick="loadOOTD(true)" class="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-2xl transition">
-            🔄 Regenerate
-          </button>
-        </div>
-      </div>
-      <div id="ootd-weather" class="mt-3 text-xs text-slate-400"></div>
-      <div id="ootd-grid" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4"></div>
-    </div>
-
-    <!-- Progress bar -->
-    <div id="progress-bar" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div id="live-spinner" class="w-4 h-4 border-2 border-ct-primary border-t-transparent rounded-full animate-spin"></div>
-        <div>
-          <div class="text-xs text-slate-400 uppercase font-mono">Current Stage</div>
-          <div id="live-stage-title" class="text-sm font-bold text-ct-ink">Initializing…</div>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 font-mono text-xs">
-        <span class="text-slate-400">Request ID:</span>
-        <span id="live-request-id" class="text-ct-ink font-bold bg-slate-950 px-2.5 py-1 rounded border border-slate-800">-</span>
-      </div>
-    </div>
-
-    <!-- 10-stage grid -->
-    <div id="stage-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-
-    <!-- Final shortlist -->
-    <section id="shortlist-section" class="hidden pt-4 border-t border-slate-800">
-      <h2 class="text-2xl font-bold text-ct-ink tracking-tight mb-6">Final Outfit Shortlist</h2>
-      <div id="shortlist-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5"></div>
-    </section>
-
+    <div id="panes-root"></div>
   </main>
 
-  <!-- Stage detail modal -->
+  <!-- Stage detail modal (shared — only one is ever open at a time, whichever pane triggered it) -->
   <div id="stage-modal" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeStageModal()">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl">
       <div class="flex items-center justify-between p-5 border-b border-slate-800">
@@ -270,113 +208,186 @@
       if (id && ctActingAs() !== id) ctSetActingAs(id, null);
     })();
 
-    (function prefillFromQuery() {
+    async function ctIsAdmin() {
+      try {
+        const token = localStorage.getItem("ct_auth_token");
+        const res = await fetch("/api/v1/auth/me", { headers: { Authorization: "Bearer " + token } });
+        if (!res.ok) return false;
+        const roles = (await res.json()).roles || [];
+        return roles.indexOf("admin") !== -1;
+      } catch (e) { return false; }
+    }
+
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+      {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+    // ================================================================================
+    // Pane: one full styling-request + OOTD + stage-grid + shortlist unit. A plain
+    // stylist gets exactly one pane (suffix "", useHopit false) rendered full-width —
+    // pixel-identical to the single-pipeline page this always was. An admin gets two,
+    // side by side, each independently scrollable: "Our Pipeline" (useHopit false) and
+    // "Altered Moda Pipeline" (useHopit true). Stylists never see the split or the
+    // choice of pipeline at all — showing it would tell them which outfit came from
+    // which pipeline and bias their review.
+    // ================================================================================
+
+    function paneMarkup(suffix, heading) {
+      const s = suffix;
+      return `
+        <div class="space-y-8">
+          ${heading ? `<h2 class="text-sm font-bold uppercase tracking-wider text-ct-ink-soft">${esc(heading)}</h2>` : ""}
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <div class="grid grid-cols-1 ${heading ? "" : "lg:grid-cols-12"} gap-6 items-end">
+              <div class="${heading ? "" : "lg:col-span-7"} space-y-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Styling Request</span>
+                <input id="request-text-${s}" type="text" placeholder="e.g. smart casual dinner tonight, dark colors"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
+                <span class="text-[10px] text-slate-500 block">Optional — leave blank to style purely from anchor garments below.</span>
+              </div>
+              <div class="${heading ? "" : "lg:col-span-3"} space-y-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Anchor Garment IDs</span>
+                <input id="anchor-ids-${s}" type="text" placeholder="garm_abc, garm_def"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
+                <span class="text-[10px] text-slate-500 block">Comma-separated, optional preselected garments.</span>
+              </div>
+              <div class="${heading ? "" : "lg:col-span-2"}">
+                <button id="run-btn-${s}" onclick="runPipeline('${s}')" class="w-full py-3 px-4 bg-ct-primary hover:bg-ct-primary-pressed disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2">
+                  <span>✨</span> Run Styling Pipeline
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <div class="grid grid-cols-1 ${heading ? "" : "lg:grid-cols-12"} gap-6 items-end">
+              <div class="${heading ? "" : "lg:col-span-8"} space-y-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">☀️ Outfit of the Day — Location</span>
+                <input id="ootd-location-${s}" type="text" placeholder="e.g. Mumbai, New York, London… (can be anywhere)"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
+                <span class="text-[10px] text-slate-500 block">Styling context is derived automatically from this member's real history — no persona to pick.</span>
+              </div>
+              <div class="${heading ? "" : "lg:col-span-2"}">
+                <button id="ootd-btn-${s}" onclick="loadOOTD('${s}', false)" class="w-full py-3 px-4 bg-ct-primary hover:bg-ct-primary-pressed disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-2xl transition">
+                  Get Today's Pick
+                </button>
+              </div>
+              <div class="${heading ? "" : "lg:col-span-2"}">
+                <button onclick="loadOOTD('${s}', true)" class="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-2xl transition">
+                  🔄 Regenerate
+                </button>
+              </div>
+            </div>
+            <div id="ootd-weather-${s}" class="mt-3 text-xs text-slate-400"></div>
+            <div id="ootd-grid-${s}" class="mt-4 grid grid-cols-1 ${heading ? "" : "md:grid-cols-3"} gap-4"></div>
+          </div>
+
+          <div id="progress-bar-${s}" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div id="live-spinner-${s}" class="w-4 h-4 border-2 border-ct-primary border-t-transparent rounded-full animate-spin"></div>
+              <div>
+                <div class="text-xs text-slate-400 uppercase font-mono">Current Stage</div>
+                <div id="live-stage-title-${s}" class="text-sm font-bold text-ct-ink">Initializing…</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 font-mono text-xs">
+              <span class="text-slate-400">Request ID:</span>
+              <span id="live-request-id-${s}" class="text-ct-ink font-bold bg-slate-950 px-2.5 py-1 rounded border border-slate-800">-</span>
+            </div>
+          </div>
+
+          <div id="stage-grid-${s}" class="hidden grid grid-cols-1 ${heading ? "" : "md:grid-cols-2 lg:grid-cols-3"} gap-6"></div>
+
+          <section id="shortlist-section-${s}" class="hidden pt-4 border-t border-slate-800">
+            <h2 class="text-2xl font-bold text-ct-ink tracking-tight mb-6">Final Outfit Shortlist</h2>
+            <div id="shortlist-grid-${s}" class="grid grid-cols-1 ${heading ? "" : "md:grid-cols-3"} gap-5"></div>
+          </section>
+        </div>`;
+    }
+
+    let PANE_SUFFIXES = [""];
+    const PANE_USE_HOPIT = { "": false, "a": false, "b": true };
+    let parallelMode = true;
+
+    function renderPanes(isAdmin) {
+      const root = document.getElementById("panes-root");
+      if (!isAdmin) {
+        PANE_SUFFIXES = [""];
+        root.innerHTML = paneMarkup("", null);
+        return;
+      }
+      PANE_SUFFIXES = ["a", "b"];
+      root.innerHTML = `
+        <div class="flex items-center justify-center gap-3 mb-2">
+          <label class="flex items-center gap-2 text-xs font-bold text-slate-300 bg-slate-900 border border-slate-800 rounded-full px-4 py-2 cursor-pointer">
+            <input type="checkbox" id="parallel-toggle" checked class="rounded" onchange="parallelMode = this.checked">
+            Parallel — same input runs both pipelines at once
+          </label>
+        </div>
+        <div class="split-columns">
+          <div class="split-pane">${paneMarkup("a", "Our Pipeline")}</div>
+          <div class="split-divider"><div class="line"></div></div>
+          <div class="split-pane">${paneMarkup("b", "Altered Moda Pipeline")}</div>
+        </div>`;
+    }
+
+    (async function initStylingPage() {
+      const isAdmin = await ctIsAdmin();
+      renderPanes(isAdmin);
+      bootstrapAfterRender();
+    })();
+
+    function bootstrapAfterRender() {
       const params = new URLSearchParams(window.location.search);
       const anchor = params.get("anchor");
       const requestId = params.get("request_id");
-      if (anchor) document.addEventListener("DOMContentLoaded", () => {
-        document.getElementById("anchor-ids").value = anchor;
-      });
+      if (anchor) PANE_SUFFIXES.forEach(s => { document.getElementById("anchor-ids-" + s).value = anchor; });
       if (requestId) {
-        document.addEventListener("DOMContentLoaded", () => loadReplay(requestId));
+        // Which pane a replayed request belongs to is only known once its trace is fetched
+        // (STAGE_05's summary says whether Hopit produced it) — default to the first pane and
+        // loadReplay() re-targets itself once it knows.
+        loadReplay(requestId, PANE_SUFFIXES[0]);
       } else {
-        // No explicit request_id in the URL -- check whether this scope has a run already
-        // in flight (or just finished and not yet picked up) before assuming a blank page,
-        // so a tab switch away from a live run and back doesn't lose it.
-        document.addEventListener("DOMContentLoaded", resumeActiveRunIfAny);
-      }
-    })();
-
-    let _pollTimer = null;
-
-    async function resumeActiveRunIfAny() {
-      try {
-        const res = await ctFetch(`${API_BASE}/styling/runs/active`);
-        if (!res.ok) return;
-        const run = await res.json();
-        if (!run) return;
-        renderRunSnapshot(run);
-        if (run.status === "RUNNING") {
-          pollRun(run.id);
-        } else if (run.status === "SUCCEEDED" && run.styling_request_id) {
-          loadReplay(run.styling_request_id);
-        }
-      } catch (e) { /* resume is best-effort; a blank form is a safe fallback */ }
-    }
-
-    function renderRunSnapshot(run) {
-      document.getElementById("run-btn").disabled = true;
-      document.getElementById("run-btn").textContent = "Resuming…";
-      document.getElementById("progress-bar").classList.remove("hidden");
-      document.getElementById("live-spinner").classList.remove("hidden");
-      renderStageGrid();
-      document.getElementById("stage-grid").classList.remove("hidden");
-      if (run.request_payload && run.request_payload.request_text) {
-        document.getElementById("request-text").value = run.request_payload.request_text;
-      }
-      applyTraceSnapshot(run.trace || [], run.current_stage);
-    }
-
-    function applyTraceSnapshot(trace, currentStage) {
-      for (const def of STAGE_DEFS) {
-        const entry = trace.find(t => t.stage === def.key);
-        if (entry) {
-          markCard(def.key, "done", entry);
-        } else if (def.key === currentStage) {
-          markCard(def.key, "active");
-        }
-      }
-      const activeDef = STAGE_DEFS.find(d => d.key === currentStage);
-      document.getElementById("live-stage-title").textContent = activeDef ? activeDef.title : "Resuming…";
-    }
-
-    async function pollRun(runId) {
-      if (_pollTimer) clearTimeout(_pollTimer);
-      try {
-        const res = await ctFetch(`${API_BASE}/styling/runs/${encodeURIComponent(runId)}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const run = await res.json();
-        applyTraceSnapshot(run.trace || [], run.current_stage);
-
-        if (run.status === "RUNNING") {
-          _pollTimer = setTimeout(() => pollRun(runId), 2000);
-          return;
-        }
-        document.getElementById("run-btn").disabled = false;
-        document.getElementById("run-btn").textContent = "✨ Run Styling Pipeline";
-        document.getElementById("live-spinner").classList.add("hidden");
-        if (run.status === "SUCCEEDED" && run.styling_request_id) {
-          loadReplay(run.styling_request_id);
-        } else {
-          document.getElementById("live-stage-title").textContent =
-            run.status === "FAILED" ? `Failed: ${run.error_message || "unknown error"}` : "This run was interrupted";
-        }
-      } catch (e) {
-        _pollTimer = setTimeout(() => pollRun(runId), 4000); // transient network hiccup — keep trying
+        PANE_SUFFIXES.forEach(resumeActiveRunIfAny);
       }
     }
 
-    async function loadReplay(requestId) {
-      document.getElementById("progress-bar").classList.remove("hidden");
-      document.getElementById("live-spinner").classList.add("hidden");
-      document.getElementById("live-request-id").textContent = requestId;
-      document.getElementById("live-stage-title").textContent = "Replaying past request…";
-      renderStageGrid();
-      document.getElementById("stage-grid").classList.remove("hidden");
+    async function loadReplay(requestId, suffix) {
+      document.getElementById("progress-bar-" + suffix).classList.remove("hidden");
+      document.getElementById("live-spinner-" + suffix).classList.add("hidden");
+      document.getElementById("live-request-id-" + suffix).textContent = requestId;
+      document.getElementById("live-stage-title-" + suffix).textContent = "Replaying past request…";
+      renderStageGrid(suffix);
+      document.getElementById("stage-grid-" + suffix).classList.remove("hidden");
       try {
         const res = await ctFetch(`${API_BASE}/styling/requests/${encodeURIComponent(requestId)}`);
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
+
+        // Re-target to the correct pane if this request came from the other pipeline than
+        // where it was first rendered (only relevant in admin split view).
+        const usedHopit = (data.trace.find(t => t.stage === "STAGE_05_RETRIEVAL") || {}).summary?.provider === "hopit";
+        const correctSuffix = PANE_SUFFIXES.length > 1 ? (usedHopit ? "b" : "a") : suffix;
+        if (correctSuffix !== suffix) {
+          document.getElementById("progress-bar-" + suffix).classList.add("hidden");
+          document.getElementById("stage-grid-" + suffix).classList.add("hidden");
+          suffix = correctSuffix;
+          document.getElementById("progress-bar-" + suffix).classList.remove("hidden");
+          document.getElementById("live-request-id-" + suffix).textContent = requestId;
+          renderStageGrid(suffix);
+          document.getElementById("stage-grid-" + suffix).classList.remove("hidden");
+        }
+
         for (const def of STAGE_DEFS) {
           const entry = data.trace.find(t => t.stage === def.key);
-          markCard(def.key, "done", entry || { status: "SKIPPED", duration_ms: 0, summary: {} });
+          markCard(suffix, def.key, "done", entry || { status: "SKIPPED", duration_ms: 0, summary: {} });
         }
-        document.getElementById("live-stage-title").textContent = "Replayed from history";
-        const grid = document.getElementById("shortlist-grid");
+        document.getElementById("live-stage-title-" + suffix).textContent = "Replayed from history";
+        const grid = document.getElementById("shortlist-grid-" + suffix);
         grid.innerHTML = data.outfits.length ? data.outfits.map(outfitCard).join("") : `<p class="text-sm text-amber-400 col-span-full">${data.no_outfit_reason || "No outfits recorded for this request."}</p>`;
-        document.getElementById("shortlist-section").classList.remove("hidden");
+        document.getElementById("shortlist-section-" + suffix).classList.remove("hidden");
       } catch (e) {
-        document.getElementById("live-stage-title").textContent = "Failed to replay";
+        document.getElementById("live-stage-title-" + suffix).textContent = "Failed to replay";
       }
     }
 
@@ -407,33 +418,34 @@
     // inspecting in a modal (thumbnails, pass/fail, and — for the gate stage — the
     // actual generated image even for candidates that were rejected).
     const MODAL_STAGES = new Set(["STAGE_05_RETRIEVAL", "STAGE_07_RANKING", "STAGE_08_SEMANTIC_VALIDATION", "STAGE_10_GATES"]);
-    const stageEntries = {}; // stageKey -> last trace entry, populated as results arrive
+    const stageEntriesBySuffix = {}; // suffix -> stageKey -> last trace entry
 
-    function stageCard(def) {
+    function stageCard(suffix, def) {
       const clickable = MODAL_STAGES.has(def.key);
       return `
-        <div id="card-${def.key}" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-40 transition${clickable ? " cursor-pointer hover:border-ct-primary/40" : ""}"
-             ${clickable ? `onclick="openStageModal('${def.key}')"` : ""}>
+        <div id="card-${suffix}-${def.key}" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 opacity-40 transition${clickable ? " cursor-pointer hover:border-ct-primary/40" : ""}"
+             ${clickable ? `onclick="openStageModal('${suffix}', '${def.key}')"` : ""}>
           <div class="flex items-center justify-between pb-2 border-b border-slate-800">
             <div>
               <span class="text-xs font-bold text-ct-ink">${def.title}</span>
               <div class="text-[10px] text-slate-500 font-mono">${def.tech}</div>
             </div>
-            <span id="badge-${def.key}" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
+            <span id="badge-${suffix}-${def.key}" class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-400">PENDING</span>
           </div>
           <div class="text-[11px] text-slate-400 leading-snug">${def.blurb}</div>
-          <div id="body-${def.key}" class="text-[11px] font-mono text-slate-300 space-y-1.5 max-h-72 overflow-y-auto border-t border-slate-800/60 pt-2">
+          <div id="body-${suffix}-${def.key}" class="text-[11px] font-mono text-slate-300 space-y-1.5 max-h-72 overflow-y-auto border-t border-slate-800/60 pt-2">
             Waiting to run…
           </div>
           <div class="flex items-center justify-between pt-1 border-t border-slate-800/60">
-            <div id="duration-${def.key}" class="text-[10px] text-slate-600 font-mono"></div>
+            <div id="duration-${suffix}-${def.key}" class="text-[10px] text-slate-600 font-mono"></div>
             ${clickable ? `<span class="text-[10px] text-ct-ink-soft">View items →</span>` : ""}
           </div>
         </div>`;
     }
 
-    function renderStageGrid() {
-      document.getElementById("stage-grid").innerHTML = STAGE_DEFS.map(stageCard).join("");
+    function renderStageGrid(suffix) {
+      document.getElementById("stage-grid-" + suffix).innerHTML = STAGE_DEFS.map(d => stageCard(suffix, d)).join("");
+      stageEntriesBySuffix[suffix] = {};
     }
 
     function fmtPct(v) { return `${Math.round((v || 0) * 100)}%`; }
@@ -466,6 +478,13 @@
             + row("Filters applied", (summary.filters_applied || []).join(", "))
             + note("Only fully-processed, approved garments make it past this cheap database check.");
         case "STAGE_05_RETRIEVAL": {
+          if (summary.provider === "hopit") {
+            return row("Provider", "Hopit /v1/outfits:rank", "text-slate-200 font-bold")
+              + row("Model version", summary.model_version || "?")
+              + row("Compatibility source", summary.compatibility_source || "?")
+              + row("Candidates submitted", summary.candidates_submitted)
+              + note("Retrieval routed through Hopit's hosted ranking instead of our own embedding similarity.");
+          }
           const roles = Object.entries(summary.candidates_per_role || {});
           const roleRows = roles.length
             ? roles.map(([r, n]) => row(r, `${n} candidate${n === 1 ? "" : "s"}`)).join("")
@@ -474,6 +493,13 @@
             + note(`Ranking method: ${summary.method}`);
         }
         case "STAGE_06_COMPATIBILITY":
+          if (summary.provider === "hopit") {
+            return row("Provider", "Hopit /v1/outfits:rank", "text-slate-200 font-bold")
+              + row("Combinations evaluated", summary.combinations_evaluated)
+              + row("Surviving combinations", summary.surviving_combinations, "text-emerald-400 font-bold")
+              + ((summary.hopit_warnings || []).length ? note((summary.hopit_warnings || []).join("; ")) : "")
+              + note(summary.method);
+          }
           return row("Outfit combinations assembled", summary.combinations_built)
             + row("Combinations checked", summary.combinations_evaluated)
             + row("Rejected — hard conflict", summary.rejected_incompatible, "text-red-400")
@@ -529,11 +555,11 @@
       }
     }
 
-    function markCard(stageKey, state, entry) {
-      const card = document.getElementById(`card-${stageKey}`);
-      const badge = document.getElementById(`badge-${stageKey}`);
-      const body = document.getElementById(`body-${stageKey}`);
-      const duration = document.getElementById(`duration-${stageKey}`);
+    function markCard(suffix, stageKey, state, entry) {
+      const card = document.getElementById(`card-${suffix}-${stageKey}`);
+      const badge = document.getElementById(`badge-${suffix}-${stageKey}`);
+      const body = document.getElementById(`body-${suffix}-${stageKey}`);
+      const duration = document.getElementById(`duration-${suffix}-${stageKey}`);
       if (!card) return;
 
       if (state === "active") {
@@ -547,7 +573,7 @@
         badge.className = "text-[10px] font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-400 border border-emerald-500/30";
         body.innerHTML = summaryToHtml(stageKey, entry.summary || {});
         duration.textContent = `${entry.duration_ms} ms`;
-        stageEntries[stageKey] = entry;
+        (stageEntriesBySuffix[suffix] || (stageEntriesBySuffix[suffix] = {}))[stageKey] = entry;
       }
     }
 
@@ -598,8 +624,8 @@
       return `<div class="text-sm text-slate-500">Loading garment details…</div>`;
     }
 
-    async function openStageModal(stageKey) {
-      const entry = stageEntries[stageKey];
+    async function openStageModal(suffix, stageKey) {
+      const entry = (stageEntriesBySuffix[suffix] || {})[stageKey];
       if (!entry) return;
       const def = STAGE_DEFS.find(d => d.key === stageKey);
       openModal(def.title, modalLoading());
@@ -611,6 +637,10 @@
     }
 
     async function renderRetrievalModal(summary) {
+      if (summary.provider === "hopit") {
+        openModal("Candidate Retrieval — Hopit", `<p class="text-sm text-slate-500">Retrieval ran on Hopit's hosted ranking; per-role candidate detail isn't returned by that endpoint, only the final ranked outfits (see Stage 7).</p>`);
+        return;
+      }
       const detail = summary.candidates_per_role_detail || {};
       const roles = Object.keys(detail);
       if (!roles.length) {
@@ -758,16 +788,29 @@
         </div>`;
     }
 
-    async function loadOOTD(forceRegenerate) {
-      const btn = document.getElementById("ootd-btn");
-      const weatherEl = document.getElementById("ootd-weather");
-      const grid = document.getElementById("ootd-grid");
-      const location = document.getElementById("ootd-location").value.trim();
+    async function loadOOTD(suffix, forceRegenerate) {
+      const btn = document.getElementById("ootd-btn-" + suffix);
+      const weatherEl = document.getElementById("ootd-weather-" + suffix);
+      const grid = document.getElementById("ootd-grid-" + suffix);
+      const location = document.getElementById("ootd-location-" + suffix).value.trim();
       if (!location) {
         weatherEl.innerHTML = '<span class="text-amber-400">Enter a location first — it can be anywhere.</span>';
         return;
       }
 
+      // Parallel mode: one location, both pipelines' OOTD generated together for direct
+      // comparison. Off: only the pane whose button was actually clicked runs.
+      const targets = (parallelMode && PANE_SUFFIXES.length > 1) ? PANE_SUFFIXES : [suffix];
+      if (targets.length > 1) {
+        targets.forEach(s => { if (s !== suffix) document.getElementById("ootd-location-" + s).value = location; });
+      }
+      await Promise.all(targets.map(s => _loadOOTDForPane(s, location, forceRegenerate)));
+    }
+
+    async function _loadOOTDForPane(suffix, location, forceRegenerate) {
+      const btn = document.getElementById("ootd-btn-" + suffix);
+      const weatherEl = document.getElementById("ootd-weather-" + suffix);
+      const grid = document.getElementById("ootd-grid-" + suffix);
       btn.disabled = true;
       weatherEl.textContent = forceRegenerate ? "Regenerating today's pick (real weather + full styling pipeline)…" : "Fetching today's pick…";
       grid.innerHTML = "";
@@ -776,7 +819,7 @@
         const res = await ctFetch(`${API_BASE}/styling/outfit-of-the-day`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ location, force_regenerate: forceRegenerate }),
+          body: JSON.stringify({ location, force_regenerate: forceRegenerate, use_hopit: PANE_USE_HOPIT[suffix] || false }),
         });
         if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
         const data = await res.json();
@@ -954,42 +997,119 @@
       }
     }
 
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    // --- run / resume / poll ---------------------------------------------------------
 
-    async function playTrace(trace) {
+    const _pollTimerBySuffix = {};
+
+    async function resumeActiveRunIfAny(suffix) {
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/runs/active`);
+        if (!res.ok) return;
+        const run = await res.json();
+        if (!run) return;
+        renderRunSnapshot(suffix, run);
+        if (run.status === "RUNNING") {
+          pollRun(suffix, run.id);
+        } else if (run.status === "SUCCEEDED" && run.styling_request_id) {
+          loadReplay(run.styling_request_id, suffix);
+        }
+      } catch (e) { /* resume is best-effort; a blank form is a safe fallback */ }
+    }
+
+    function renderRunSnapshot(suffix, run) {
+      document.getElementById("run-btn-" + suffix).disabled = true;
+      document.getElementById("run-btn-" + suffix).textContent = "Resuming…";
+      document.getElementById("progress-bar-" + suffix).classList.remove("hidden");
+      document.getElementById("live-spinner-" + suffix).classList.remove("hidden");
+      renderStageGrid(suffix);
+      document.getElementById("stage-grid-" + suffix).classList.remove("hidden");
+      if (run.request_payload && run.request_payload.request_text) {
+        document.getElementById("request-text-" + suffix).value = run.request_payload.request_text;
+      }
+      applyTraceSnapshot(suffix, run.trace || [], run.current_stage);
+    }
+
+    function applyTraceSnapshot(suffix, trace, currentStage) {
       for (const def of STAGE_DEFS) {
         const entry = trace.find(t => t.stage === def.key);
-        document.getElementById("live-stage-title").textContent = def.title;
-        markCard(def.key, "active");
-        await sleep(280); // brief reveal pause per stage for a legible walkthrough
-        markCard(def.key, "done", entry || { status: "SKIPPED", duration_ms: 0, summary: {} });
+        if (entry) {
+          markCard(suffix, def.key, "done", entry);
+        } else if (def.key === currentStage) {
+          markCard(suffix, def.key, "active");
+        }
+      }
+      const activeDef = STAGE_DEFS.find(d => d.key === currentStage);
+      document.getElementById("live-stage-title-" + suffix).textContent = activeDef ? activeDef.title : "Resuming…";
+    }
+
+    async function pollRun(suffix, runId) {
+      if (_pollTimerBySuffix[suffix]) clearTimeout(_pollTimerBySuffix[suffix]);
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/runs/${encodeURIComponent(runId)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const run = await res.json();
+        applyTraceSnapshot(suffix, run.trace || [], run.current_stage);
+
+        if (run.status === "RUNNING") {
+          _pollTimerBySuffix[suffix] = setTimeout(() => pollRun(suffix, runId), 2000);
+          return;
+        }
+        document.getElementById("run-btn-" + suffix).disabled = false;
+        document.getElementById("run-btn-" + suffix).textContent = "✨ Run Styling Pipeline";
+        document.getElementById("live-spinner-" + suffix).classList.add("hidden");
+        if (run.status === "SUCCEEDED" && run.styling_request_id) {
+          loadReplay(run.styling_request_id, suffix);
+        } else {
+          document.getElementById("live-stage-title-" + suffix).textContent =
+            run.status === "FAILED" ? `Failed: ${run.error_message || "unknown error"}` : "This run was interrupted";
+        }
+      } catch (e) {
+        _pollTimerBySuffix[suffix] = setTimeout(() => pollRun(suffix, runId), 4000); // transient network hiccup — keep trying
       }
     }
 
-    async function runPipeline() {
-      if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
-      const btn = document.getElementById("run-btn");
-      const requestText = document.getElementById("request-text").value.trim();
-      const anchorIds = document.getElementById("anchor-ids").value.trim();
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // Triggered by one pane's Run button. In parallel mode (admin split view only) this
+    // pane's own request-text/anchor values are used to fire BOTH pipelines at once; with
+    // parallel off, or on the stylist's single pane, only the clicked pane runs.
+    async function runPipeline(clickedSuffix) {
+      const requestText = document.getElementById("request-text-" + clickedSuffix).value.trim();
+      const anchorIds = document.getElementById("anchor-ids-" + clickedSuffix).value.trim();
       const anchors = anchorIds ? anchorIds.split(",").map(s => s.trim()).filter(Boolean) : null;
-      const useHopit = document.getElementById("use-hopit").checked;
 
       if (!requestText && !anchors) {
         alert("Provide a styling request and/or at least one anchor garment ID.");
         return;
       }
 
+      const targets = (parallelMode && PANE_SUFFIXES.length > 1) ? PANE_SUFFIXES : [clickedSuffix];
+      if (targets.length > 1) {
+        targets.forEach(s => {
+          if (s === clickedSuffix) return;
+          document.getElementById("request-text-" + s).value = requestText;
+          document.getElementById("anchor-ids-" + s).value = anchorIds;
+        });
+      }
+      await Promise.all(targets.map(s => runPipelineForPane(s, requestText, anchors)));
+    }
+
+    async function runPipelineForPane(suffix, requestText, anchors) {
+      if (_pollTimerBySuffix[suffix]) { clearTimeout(_pollTimerBySuffix[suffix]); _pollTimerBySuffix[suffix] = null; }
+      const btn = document.getElementById("run-btn-" + suffix);
+      const useHopit = PANE_USE_HOPIT[suffix] || false;
+
       btn.disabled = true;
       btn.textContent = "Running…";
-      document.getElementById("progress-bar").classList.remove("hidden");
-      document.getElementById("live-spinner").classList.remove("hidden");
-      document.getElementById("shortlist-section").classList.add("hidden");
-      renderStageGrid();
-      document.getElementById("stage-grid").classList.remove("hidden");
+      document.getElementById("progress-bar-" + suffix).classList.remove("hidden");
+      document.getElementById("live-spinner-" + suffix).classList.remove("hidden");
+      document.getElementById("shortlist-section-" + suffix).classList.add("hidden");
+      renderStageGrid(suffix);
+      document.getElementById("stage-grid-" + suffix).classList.remove("hidden");
 
       // Mark the first stage active immediately — the request just started for real.
-      markCard(STAGE_DEFS[0].key, "active");
-      document.getElementById("live-stage-title").textContent = STAGE_DEFS[0].title;
+      markCard(suffix, STAGE_DEFS[0].key, "active");
+      document.getElementById("live-stage-title-" + suffix).textContent = STAGE_DEFS[0].title;
 
       try {
         const res = await ctFetch(`${API_BASE}/styling/recommendations/stream`, {
@@ -1018,16 +1138,16 @@
             const evt = JSON.parse(line.slice(6));
 
             if (evt.type === "run_started") {
-              document.getElementById("live-request-id").textContent = evt.run_id;
+              document.getElementById("live-request-id-" + suffix).textContent = evt.run_id;
             } else if (evt.type === "stage") {
               const stage = evt.stage;
-              markCard(stage.stage, "done", stage);
-              document.getElementById("live-stage-title").textContent = stage.title;
+              markCard(suffix, stage.stage, "done", stage);
+              document.getElementById("live-stage-title-" + suffix).textContent = stage.title;
               // Light up the next stage as active so the UI keeps showing forward motion
               // (real progress, not a guess — the previous stage just genuinely finished).
               const idx = STAGE_DEFS.findIndex(d => d.key === stage.stage);
               if (idx >= 0 && idx + 1 < STAGE_DEFS.length) {
-                markCard(STAGE_DEFS[idx + 1].key, "active");
+                markCard(suffix, STAGE_DEFS[idx + 1].key, "active");
               }
             } else if (evt.type === "done") {
               finalResult = evt.result;
@@ -1039,19 +1159,19 @@
 
         if (!finalResult) throw new Error("Stream ended without a result");
 
-        document.getElementById("live-request-id").textContent = finalResult.request_id;
-        document.getElementById("live-stage-title").textContent = "Pipeline complete";
-        document.getElementById("live-spinner").classList.add("hidden");
+        document.getElementById("live-request-id-" + suffix).textContent = finalResult.request_id;
+        document.getElementById("live-stage-title-" + suffix).textContent = "Pipeline complete";
+        document.getElementById("live-spinner-" + suffix).classList.add("hidden");
 
-        const shortlistSection = document.getElementById("shortlist-section");
-        const grid = document.getElementById("shortlist-grid");
+        const shortlistSection = document.getElementById("shortlist-section-" + suffix);
+        const grid = document.getElementById("shortlist-grid-" + suffix);
         grid.innerHTML = finalResult.outfits.length
           ? finalResult.outfits.map(outfitCard).join("")
           : `<p class="text-sm text-amber-400 col-span-full">${finalResult.no_outfit_reason || "No compatible outfits found — ingest more garments across tops/bottoms/shoes."}</p>`;
         shortlistSection.classList.remove("hidden");
       } catch (e) {
-        document.getElementById("live-stage-title").textContent = "Failed";
-        alert(`Styling pipeline failed: ${e}`);
+        document.getElementById("live-stage-title-" + suffix).textContent = "Failed";
+        alert(`Styling pipeline (${suffix || "default"}) failed: ${e}`);
       } finally {
         btn.disabled = false;
         btn.textContent = "✨ Run Styling Pipeline";

@@ -34,6 +34,17 @@
     .star { cursor: pointer; font-size: 22px; line-height: 1; color: #c7c7be; transition: color .1s; }
     .star.on { color: #e60023; }
     .star:hover { color: #e60023; }
+    /* Admin split view: two independently-scrolling columns, same pattern as /styling. */
+    .split-columns { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; }
+    .split-pane { max-height: calc(100vh - 220px); overflow-y: auto; padding: 0 1rem; }
+    .split-pane:first-child { padding-left: 0; }
+    .split-pane:last-child { padding-right: 0; }
+    .split-divider { background: linear-gradient(to bottom, transparent, #3f3f3a, transparent); }
+    @media (max-width: 1024px) {
+      .split-columns { grid-template-columns: 1fr; }
+      .split-divider { display: none; }
+      .split-pane { max-height: none; overflow-y: visible; padding: 0; }
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
@@ -118,16 +129,12 @@
       <div class="flex items-center justify-between gap-4">
         <div>
           <h1 id="page-title" class="text-xl font-bold text-white">Review</h1>
-          <p class="text-sm text-slate-500 max-w-2xl mt-1">Every outfit generated for this character, most recent first. Score dressing sense across all five dimensions — this is what feeds their learned profile and what the team judges against.</p>
+          <p id="page-subtitle" class="text-sm text-slate-500 max-w-2xl mt-1">Every outfit generated for this character, most recent first. Score dressing sense across all five dimensions — this is what feeds their learned profile and what the team judges against.</p>
         </div>
         <span id="review-count" class="text-xs font-medium text-slate-500 whitespace-nowrap"></span>
       </div>
 
-      <div id="outfit-grid" class="space-y-5"></div>
-
-      <div id="empty-state" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
-        No outfits generated yet — run <a href="#" id="styling-link" class="text-ct-ink-soft hover:underline">Styling</a> for this character first.
-      </div>
+      <div id="review-body"></div>
     </div>
 
   </main>
@@ -159,6 +166,16 @@
       return res;
     }
     function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
+    async function ctIsAdmin() {
+      try {
+        const token = localStorage.getItem("ct_auth_token");
+        const res = await fetch("/api/v1/auth/me", { headers: { Authorization: "Bearer " + token } });
+        if (!res.ok) return false;
+        const roles = (await res.json()).roles || [];
+        return roles.indexOf("admin") !== -1;
+      } catch (e) { return false; }
+    }
 
     function renderActingBanner() {
       const id = ctActingAs();
@@ -300,6 +317,12 @@
         `${totalCount} outfit${totalCount === 1 ? "" : "s"} — ${reviewedCount} reviewed`;
     }
 
+    function emptyStateHtml(personaId) {
+      return `<div class="text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
+        No outfits generated yet — run <a href="/styling?persona=${encodeURIComponent(personaId)}" class="text-ct-ink-soft hover:underline">Styling</a> for this character first.
+      </div>`;
+    }
+
     async function loadReview() {
       const personaId = ctActingAs();
       if (!personaId) {
@@ -307,14 +330,13 @@
         return;
       }
       document.getElementById("page-body").classList.remove("hidden");
-      document.getElementById("styling-link").href = "/styling?persona=" + encodeURIComponent(personaId);
 
-      const grid = document.getElementById("outfit-grid");
-      const empty = document.getElementById("empty-state");
+      const body = document.getElementById("review-body");
       try {
-        const [personaRes, outfitsRes] = await Promise.all([
+        const [personaRes, outfitsRes, isAdmin] = await Promise.all([
           ctFetch(`${API}/personas/${personaId}`),
           ctFetch(`${API}/personas/${personaId}/outfits`),
+          ctIsAdmin(),
         ]);
         if (!personaRes.ok) throw new Error(`HTTP ${personaRes.status}`);
         if (!outfitsRes.ok) throw new Error(`HTTP ${outfitsRes.status}`);
@@ -330,15 +352,34 @@
         reviewedCount = outfits.reduce((n, it) => n + (it.reviews || []).length, 0);
         renderCount();
 
-        if (!outfits.length) {
-          grid.innerHTML = "";
-          empty.classList.remove("hidden");
+        if (!isAdmin) {
+          // Stylists review blind: one list, no indication of which pipeline produced an
+          // outfit, so seeing "Altered Moda" vs "Our Pipeline" never biases their score.
+          document.getElementById("page-subtitle").textContent =
+            "Every outfit generated for this character, most recent first. Score dressing sense across all five dimensions — this is what feeds their learned profile and what the team judges against.";
+          body.innerHTML = outfits.length
+            ? `<div class="space-y-5">${outfits.map(item => outfitCard(item, personaId)).join("")}</div>`
+            : emptyStateHtml(personaId);
           return;
         }
-        empty.classList.add("hidden");
-        grid.innerHTML = outfits.map(item => outfitCard(item, personaId)).join("");
+
+        // Admin: side by side by pipeline, for direct comparison.
+        document.getElementById("page-subtitle").textContent =
+          "Admin view — split by which pipeline generated the outfit, so you can compare quality directly. Stylists never see this split.";
+        const ours = outfits.filter(it => !it.used_hopit);
+        const altered = outfits.filter(it => it.used_hopit);
+        const paneHtml = (label, items) => `
+          <h2 class="text-sm font-bold uppercase tracking-wider text-ct-ink-soft mb-4">${esc(label)} <span class="text-slate-600 font-normal normal-case">(${items.length})</span></h2>
+          ${items.length ? `<div class="space-y-5">${items.map(item => outfitCard(item, personaId)).join("")}</div>` : `<p class="text-sm text-slate-500">No outfits from this pipeline yet.</p>`}`;
+        body.innerHTML = outfits.length
+          ? `<div class="split-columns">
+               <div class="split-pane">${paneHtml("Our Pipeline", ours)}</div>
+               <div class="split-divider"></div>
+               <div class="split-pane">${paneHtml("Altered Moda Pipeline", altered)}</div>
+             </div>`
+          : emptyStateHtml(personaId);
       } catch (e) {
-        grid.innerHTML = `<p class="text-sm text-red-400">Failed to load: ${esc(e.message)}</p>`;
+        body.innerHTML = `<p class="text-sm text-red-400">Failed to load: ${esc(e.message)}</p>`;
       }
     }
 

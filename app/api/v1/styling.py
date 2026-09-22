@@ -463,7 +463,7 @@ async def generate_outfit_of_the_day(
     return await get_or_generate_ootd(
         session, storage, scope.tenant_id, scope.member_id,
         location=request.location, extra_hint=request.extra_hint, force=request.force_regenerate,
-        generation_source="on_demand",
+        generation_source="on_demand", use_hopit=request.use_hopit,
     )
 
 

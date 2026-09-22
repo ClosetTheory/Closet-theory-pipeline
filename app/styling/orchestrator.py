@@ -242,7 +242,10 @@ class StylingOrchestrator:
         member_context_summary = await derive_member_context(self.session, tenant_id, member_id)
         behavioral_signals: Dict[str, Any] = {"member_context_summary": member_context_summary}
 
-        context = StylingContext(intent=intent, user_preferences=user_preferences, behavioral_signals=behavioral_signals)
+        context = StylingContext(
+            intent=intent, user_preferences=user_preferences, behavioral_signals=behavioral_signals,
+            used_hopit=request.use_hopit,
+        )
         has_real_signal = bool(style_profile) or "No styling history yet" not in member_context_summary
         await self._record(
             "STAGE_02_CONTEXT",
