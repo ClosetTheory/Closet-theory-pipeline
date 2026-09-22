@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hopit Pipeline Comparison</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: {
+            slate: {
+              50: '#ffffff', 100: '#18181b', 200: '#2b2b27', 300: '#3f3f3a',
+              400: '#63635b', 500: '#84847a', 600: '#a3a39a', 700: '#c7c7be',
+              800: '#e5e5e0', 900: '#f6f6f3', 950: '#fbfbf9',
+            },
+            ct: {
+              primary: '#e60023',
+              'primary-pressed': '#cc001f',
+              ink: '#000000',
+              'ink-soft': '#211922',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --ct-hairline: #dadad3; }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+    .split { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; }
+    .split > .divider { background: linear-gradient(to bottom, transparent, #3f3f3a, transparent); }
+    @media (max-width: 768px) { .split { grid-template-columns: 1fr; } .split > .divider { display: none; height: 1px; } }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-6">
+      <a href="/" class="flex items-center space-x-3 shrink-0">
+        <div class="w-9 h-9 rounded-xl bg-ct-primary flex items-center justify-center font-bold text-base text-white">CT</div>
+        <div class="hidden sm:block">
+          <h1 class="text-sm font-bold text-ct-ink tracking-tight leading-tight">ClosetTheory Wardrobe</h1>
+          <p class="text-[11px] text-slate-400 leading-tight">Catalogue &amp; AI Styling</p>
+        </div>
+      </a>
+      <nav class="ct-navbar flex items-center gap-1 text-xs font-medium overflow-x-auto">
+        <a href="/" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Catalogue</a>
+        <a href="/visualizer" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Ingestion</a>
+        <a href="/styling" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Styling</a>
+        <a href="/hopit" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Hopit</a>
+        <a href="/pipeline-info" class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Pipeline Info</a>
+        <a href="/stylist" data-role-link="stylist" data-nav-characters hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">My Characters</a>
+        <a href="/admin" data-role-link="admin" hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Admin</a>
+        <a href="/review" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Review</a>
+        <a href="/profile" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Profile</a>
+        <a href="/docs" target="_blank" class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap font-semibold">API Docs ↗</a>
+        <button onclick="ctLogout()" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition whitespace-nowrap">Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <style>
+    .ct-navbar { scrollbar-width: none; -ms-overflow-style: none; }
+    .ct-navbar::-webkit-scrollbar { display: none; }
+  </style>
+
+  <script>
+    (function ctMarkActiveNav() {
+      var here = window.location.pathname.replace(/\/$/, "") || "/";
+      document.querySelectorAll("a.ct-nav").forEach(function (el) {
+        var href = el.getAttribute("href");
+        if (href === "/docs" || el.target === "_blank") { el.className += " text-ct-ink-soft hover:bg-black/5"; return; }
+        var path = href.replace(/\/$/, "") || "/";
+        var active = path === here || (path === "/" && here === "/garment");
+        el.className += active ? " bg-ct-primary text-white" : " text-slate-400 hover:text-slate-200";
+        if (active) el.setAttribute("aria-current", "page");
+      });
+    })();
+
+    (async function ctGateNav() {
+      try {
+        var token = localStorage.getItem("ct_auth_token");
+        if (!token) return;
+        var res = await fetch("/api/v1/auth/me", {headers: {Authorization: "Bearer " + token}});
+        if (!res.ok) return;
+        var roles = (await res.json()).roles || [];
+        var isAdmin = roles.indexOf("admin") !== -1;
+        var isStylistOnly = roles.indexOf("stylist") !== -1 && !isAdmin;
+
+        document.querySelectorAll("[data-role-link]").forEach(function (el) {
+          var needed = el.getAttribute("data-role-link");
+          if (roles.indexOf(needed) !== -1 || (needed === "stylist" && isAdmin)) el.hidden = false;
+        });
+
+        var characters = document.querySelector("[data-nav-characters]");
+        if (characters && isAdmin) characters.textContent = "All Characters";
+
+        var acting = "";
+        try { acting = localStorage.getItem("ct_acting_persona") || ""; } catch (e) {}
+        if (isStylistOnly && !acting) {
+          document.querySelectorAll("[data-needs-wardrobe]").forEach(function (el) { el.hidden = true; });
+        }
+      } catch (e) { /* nav state is cosmetic; never break the page over it */ }
+    })();
+  </script>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
+
+    <div>
+      <h1 class="text-xl font-bold text-white">Hopit pipeline comparison</h1>
+      <p class="text-sm text-slate-500 max-w-2xl mt-1">
+        Runs the same input through our own pipeline and Hopit's on demand — nothing here is stored beyond the normal
+        catalogue write you trigger explicitly. Left is always ours, right is always Hopit's.
+      </p>
+    </div>
+
+    <!-- ============ Garment attribute extraction ============ -->
+    <section class="space-y-4">
+      <div>
+        <h2 class="text-base font-bold text-white">Garment attributes</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Our configured extractor vs. MODA_NER's structural extraction (crop track), on the same photo.</p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="attr-file" type="file" accept="image/*" class="text-xs text-slate-300 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-800 file:text-slate-200 file:text-xs hover:file:bg-slate-700">
+          <button onclick="compareAttributes()" class="text-xs font-bold px-4 py-2 rounded-xl bg-ct-ink text-white hover:opacity-90 transition">Compare attributes</button>
+          <button onclick="saveToCatalogue()" id="save-btn" disabled class="text-xs font-bold px-4 py-2 rounded-xl bg-slate-800 text-slate-500 transition">Save to catalogue (our pipeline)</button>
+          <span id="attr-status" class="text-[11px] text-slate-500"></span>
+        </div>
+        <img id="attr-preview" class="hidden max-h-48 rounded-xl border border-slate-800">
+      </div>
+
+      <div id="attr-result" class="hidden split bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="p-5 space-y-2">
+          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Our pipeline</div>
+          <pre id="attr-ours" class="text-[11px] text-slate-300 whitespace-pre-wrap break-words"></pre>
+        </div>
+        <div class="divider"></div>
+        <div class="p-5 space-y-2">
+          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hopit &middot; MODA_NER (crop)</div>
+          <pre id="attr-moda" class="text-[11px] text-slate-300 whitespace-pre-wrap break-words"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Styling ============ -->
+    <section class="space-y-4">
+      <div>
+        <h2 class="text-base font-bold text-white">Styling</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Our StylingOrchestrator vs. Hopit's hosted /v1/outfits:rank, against the same wardrobe candidates and request.</p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <input id="style-query" type="text" placeholder="e.g. something smart for a client meeting"
+               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
+        <div class="flex flex-wrap gap-2">
+          <input id="style-occasion" type="text" placeholder="occasion (e.g. smart casual)" class="flex-1 min-w-[140px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-600">
+          <input id="style-season" type="text" placeholder="season" class="flex-1 min-w-[100px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-600">
+          <input id="style-temp" type="number" placeholder="temp (°C)" class="w-28 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-600">
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="compareStyling()" class="text-xs font-bold px-4 py-2 rounded-xl bg-ct-ink text-white hover:opacity-90 transition">Compare styling</button>
+          <span id="style-status" class="text-[11px] text-slate-500"></span>
+        </div>
+      </div>
+
+      <div id="style-result" class="hidden split bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="p-5 space-y-3">
+          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Our pipeline</div>
+          <div id="style-ours"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="p-5 space-y-3">
+          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hopit &middot; outfits:rank</div>
+          <div id="style-hopit"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const API_BASE = "/api/v1/wardrobe";
+    const HOPIT_BASE = "/api/v1/hopit";
+
+    if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
+    function ctActingAs() { try { return localStorage.getItem("ct_acting_persona") || ""; } catch (e) { return ""; } }
+    function ctSetActingAs(personaId, name) {
+      try {
+        if (personaId) { localStorage.setItem("ct_acting_persona", personaId); localStorage.setItem("ct_acting_persona_name", name || personaId); }
+        else { localStorage.removeItem("ct_acting_persona"); localStorage.removeItem("ct_acting_persona_name"); }
+      } catch (e) {}
+    }
+    async function ctFetch(url, opts = {}) {
+      const token = localStorage.getItem("ct_auth_token");
+      const acting = ctActingAs();
+      const headers = Object.assign({}, opts.headers || {},
+        token ? {Authorization: `Bearer ${token}`} : {},
+        acting ? {"X-Acting-As-Persona": acting} : {});
+      const res = await fetch(url, Object.assign({}, opts, {headers}));
+      if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
+      if (res.status === 403 && !acting) {
+        const body = await res.clone().text().catch(() => "");
+        if (body.includes("act as an assigned character")) {
+          window.location.href = "/stylist";
+          throw new Error("Pick a character first");
+        }
+      }
+      return res;
+    }
+    function ctRenderActingBanner() {
+      const id = ctActingAs();
+      const existing = document.getElementById("ct-acting-banner");
+      if (existing) existing.remove();
+      if (!id) return;
+      let name = "this character";
+      try { name = localStorage.getItem("ct_acting_persona_name") || name; } catch (e) {}
+      const bar = document.createElement("div");
+      bar.id = "ct-acting-banner";
+      bar.className = "sticky top-0 z-40 bg-ct-primary text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-3";
+      bar.innerHTML = '<span>Working as <strong>' + name + '</strong> — uploads and outfits go to their wardrobe</span>' +
+        '<button onclick="ctSetActingAs(null); location.reload();" class="underline underline-offset-2 hover:opacity-80">Exit</button>';
+      document.body.prepend(bar);
+    }
+    document.addEventListener("DOMContentLoaded", ctRenderActingBanner);
+    function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
+
+    // --- attribute comparison ---
+    let pendingFile = null;
+
+    document.getElementById("attr-file").addEventListener("change", (e) => {
+      pendingFile = e.target.files[0] || null;
+      const preview = document.getElementById("attr-preview");
+      const saveBtn = document.getElementById("save-btn");
+      document.getElementById("attr-result").classList.add("hidden");
+      saveBtn.disabled = true;
+      saveBtn.className = "text-xs font-bold px-4 py-2 rounded-xl bg-slate-800 text-slate-500 transition";
+      if (pendingFile) {
+        preview.src = URL.createObjectURL(pendingFile);
+        preview.classList.remove("hidden");
+      } else {
+        preview.classList.add("hidden");
+      }
+    });
+
+    async function compareAttributes() {
+      const status = document.getElementById("attr-status");
+      if (!pendingFile) { status.textContent = "Choose an image first."; return; }
+      status.textContent = "Comparing…";
+      try {
+        const form = new FormData();
+        form.append("file", pendingFile);
+        const res = await ctFetch(`${HOPIT_BASE}/attributes/compare/upload`, { method: "POST", body: form });
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const data = await res.json();
+        document.getElementById("attr-ours").textContent = JSON.stringify(data.ours, null, 2);
+        document.getElementById("attr-moda").textContent = JSON.stringify(data.moda, null, 2);
+        document.getElementById("attr-result").classList.remove("hidden");
+        status.textContent = "";
+        const saveBtn = document.getElementById("save-btn");
+        saveBtn.disabled = false;
+        saveBtn.className = "text-xs font-bold px-4 py-2 rounded-xl bg-emerald-600 text-white hover:opacity-90 transition";
+      } catch (e) {
+        status.textContent = `Failed: ${e.message}`;
+      }
+    }
+
+    async function saveToCatalogue() {
+      const status = document.getElementById("attr-status");
+      if (!pendingFile) return;
+      status.textContent = "Saving to catalogue…";
+      try {
+        const form = new FormData();
+        form.append("file", pendingFile);
+        const uploadRes = await ctFetch(`${API_BASE}/images`, { method: "POST", body: form });
+        if (!uploadRes.ok) throw new Error((await uploadRes.json()).detail || `HTTP ${uploadRes.status}`);
+        const { image_id } = await uploadRes.json();
+        const createRes = await ctFetch(`${API_BASE}/garments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_image_id: image_id, auto_process: true }),
+        });
+        if (!createRes.ok) throw new Error((await createRes.json()).detail || `HTTP ${createRes.status}`);
+        const garment = await createRes.json();
+        status.textContent = `Saved — processing as ${garment.garment_id}. See it in the Catalogue once it finishes.`;
+      } catch (e) {
+        status.textContent = `Failed to save: ${e.message}`;
+      }
+    }
+
+    // --- styling comparison ---
+    function outfitCardHTML(o) {
+      const slots = Object.entries(o.slots || {}).map(([role, id]) => `<span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded-full">${role}: ${String(id).slice(-8)}</span>`).join(" ");
+      return `<div class="border border-slate-800 rounded-xl p-3 space-y-2">
+        <div class="text-sm font-bold text-white">score ${typeof o.score === "number" ? o.score.toFixed(3) : o.score ?? "—"}</div>
+        <div class="flex flex-wrap gap-1.5">${slots}</div>
+        ${o.warnings && o.warnings.length ? `<div class="text-[10px] text-amber-400">${o.warnings.join(", ")}</div>` : ""}
+      </div>`;
+    }
+
+    async function compareStyling() {
+      const status = document.getElementById("style-status");
+      const query = document.getElementById("style-query").value.trim();
+      const occasion = document.getElementById("style-occasion").value.trim();
+      const season = document.getElementById("style-season").value.trim();
+      const temp = document.getElementById("style-temp").value;
+      status.textContent = "Comparing…";
+      try {
+        const context = {};
+        if (occasion) context.occasion = occasion;
+        if (season) context.season = season;
+        if (temp) context.temperature_c = Number(temp);
+
+        const res = await ctFetch(`${HOPIT_BASE}/styling/compare`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_text: query || null, context: Object.keys(context).length ? context : null, outfit_count: 3 }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const data = await res.json();
+
+        const oursEl = document.getElementById("style-ours");
+        if (data.ours.ok) {
+          const outfits = data.ours.result.outfits || [];
+          oursEl.innerHTML = outfits.length
+            ? outfits.map(o => outfitCardHTML({ score: o.scores ? o.scores.final_score : undefined, slots: o.roles || {}, warnings: [] })).join("")
+            : `<p class="text-xs text-slate-500">${data.ours.result.no_outfit_reason || "No outfits returned."}</p>`;
+        } else {
+          oursEl.innerHTML = `<p class="text-xs text-red-400">${data.ours.error}</p>`;
+        }
+
+        const hopitEl = document.getElementById("style-hopit");
+        if (data.hopit.ok) {
+          const outfits = data.hopit.result.outfits || [];
+          hopitEl.innerHTML = outfits.length ? outfits.map(outfitCardHTML).join("") : `<p class="text-xs text-slate-500">No outfits returned.</p>`;
+          if (data.hopit.result.warnings && data.hopit.result.warnings.length) {
+            hopitEl.innerHTML += `<p class="text-[10px] text-amber-400 mt-2">${data.hopit.result.warnings.join(", ")}</p>`;
+          }
+        } else {
+          hopitEl.innerHTML = `<p class="text-xs text-red-400">${data.hopit.error}</p>`;
+        }
+
+        document.getElementById("style-result").classList.remove("hidden");
+        status.textContent = "";
+      } catch (e) {
+        status.textContent = `Failed: ${e.message}`;
+      }
+    }
+  </script>
+
+</body>
+</html>

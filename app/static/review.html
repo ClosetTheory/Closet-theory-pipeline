@@ -33,6 +33,9 @@
       --ct-hairline: #dadad3;
     }
     body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+    .split { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; }
+    .split > .divider { background: linear-gradient(to bottom, transparent, #3f3f3a, transparent); }
+    @media (max-width: 768px) { .split { grid-template-columns: 1fr; } .split > .divider { display: none; } }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
@@ -50,6 +53,7 @@
         <a href="/" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Catalogue</a>
         <a href="/visualizer" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Ingestion</a>
         <a href="/styling" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Styling</a>
+        <a href="/hopit" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Hopit</a>
         <a href="/pipeline-info" class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Pipeline Info</a>
         <a href="/stylist" data-role-link="stylist" data-nav-characters hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">My Characters</a>
         <a href="/admin" data-role-link="admin" hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Admin</a>
@@ -116,8 +120,61 @@
   </script>
 
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
 
+    <!-- ============ Pipeline comparison: ours (left) vs Hopit (right) ============ -->
+    <section class="space-y-5">
+      <div>
+        <h1 class="text-xl font-bold text-white">Pipeline comparison</h1>
+        <p class="text-sm text-slate-500 max-w-2xl mt-1">Pick a garment or type a styling request — both run live through our pipeline and Hopit's, side by side. See the <a href="/hopit" class="text-ct-ink-soft hover:underline">Hopit tab</a> to try a fresh image instead of one already in the catalogue.</p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Garment attributes</div>
+        <div class="flex flex-wrap items-center gap-3">
+          <select id="cmp-garment-select" class="flex-1 min-w-[220px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100">
+            <option value="">Loading wardrobe…</option>
+          </select>
+          <button onclick="compareGarment()" class="text-xs font-bold px-4 py-2 rounded-xl bg-ct-ink text-white hover:opacity-90 transition">Compare</button>
+          <span id="cmp-garment-status" class="text-[11px] text-slate-500"></span>
+        </div>
+      </div>
+      <div id="cmp-garment-result" class="hidden split bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="p-5 space-y-2">
+          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Our pipeline</div>
+          <pre id="cmp-garment-ours" class="text-[11px] text-slate-300 whitespace-pre-wrap break-words"></pre>
+        </div>
+        <div class="divider"></div>
+        <div class="p-5 space-y-2">
+          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hopit &middot; MODA_NER (crop)</div>
+          <pre id="cmp-garment-moda" class="text-[11px] text-slate-300 whitespace-pre-wrap break-words"></pre>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Styling</div>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="cmp-style-query" type="text" placeholder="e.g. something smart for a client meeting"
+                 class="flex-1 min-w-[220px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-600">
+          <button onclick="compareStylingReview()" class="text-xs font-bold px-4 py-2 rounded-xl bg-ct-ink text-white hover:opacity-90 transition">Compare</button>
+          <span id="cmp-style-status" class="text-[11px] text-slate-500"></span>
+        </div>
+      </div>
+      <div id="cmp-style-result" class="hidden split bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="p-5 space-y-3">
+          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Our pipeline</div>
+          <div id="cmp-style-ours"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="p-5 space-y-3">
+          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hopit &middot; outfits:rank</div>
+          <div id="cmp-style-hopit"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Existing outfit QA feed ============ -->
+    <section class="space-y-6">
     <div class="flex items-center justify-between">
       <p class="text-sm text-slate-500 max-w-xl">Every outfit generated for this account, most recent first. Mark whether the dressing sense/overall aesthetic works and leave a comment — this is a separate internal QA record, it doesn't affect ranking or this account's learned style profile.</p>
       <span id="queue-count" class="text-xs font-medium text-slate-500 whitespace-nowrap"></span>
@@ -128,11 +185,13 @@
     <div id="empty-state" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
       No outfits generated yet — run the <a href="/styling" class="text-ct-ink-soft hover:underline">Styling Pipeline</a> from this account first.
     </div>
+    </section>
 
   </main>
 
   <script>
     const API_BASE = "/api/v1/wardrobe";
+    const HOPIT_BASE = "/api/v1/hopit";
 
     if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
     // Character context: when a stylist is working on an assigned evaluation character, every
@@ -297,6 +356,87 @@
     }
 
     loadQueue();
+
+    // --- pipeline comparison ---
+    function outfitCardHTML(o) {
+      const slots = Object.entries(o.slots || {}).map(([role, id]) => `<span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded-full">${role}: ${String(id).slice(-8)}</span>`).join(" ");
+      return `<div class="border border-slate-800 rounded-xl p-3 space-y-2">
+        <div class="text-sm font-bold text-white">score ${typeof o.score === "number" ? o.score.toFixed(3) : o.score ?? "—"}</div>
+        <div class="flex flex-wrap gap-1.5">${slots}</div>
+        ${o.warnings && o.warnings.length ? `<div class="text-[10px] text-amber-400">${o.warnings.join(", ")}</div>` : ""}
+      </div>`;
+    }
+
+    async function loadCompareGarments() {
+      const select = document.getElementById("cmp-garment-select");
+      try {
+        const res = await ctFetch(`${API_BASE}/garments?limit=100`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const items = await res.json();
+        select.innerHTML = items.length
+          ? items.map(g => `<option value="${g.garment_id}">${(g.subcategory || g.category || g.garment_id).replace(/_/g, " ")} — ${g.garment_id.slice(-8)}</option>`).join("")
+          : `<option value="">No garments in this wardrobe yet</option>`;
+      } catch (e) {
+        select.innerHTML = `<option value="">Failed to load wardrobe: ${e.message}</option>`;
+      }
+    }
+    loadCompareGarments();
+
+    async function compareGarment() {
+      const status = document.getElementById("cmp-garment-status");
+      const garmentId = document.getElementById("cmp-garment-select").value;
+      if (!garmentId) { status.textContent = "Pick a garment first."; return; }
+      status.textContent = "Comparing…";
+      try {
+        const res = await ctFetch(`${HOPIT_BASE}/attributes/compare/${encodeURIComponent(garmentId)}`, { method: "POST" });
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const data = await res.json();
+        document.getElementById("cmp-garment-ours").textContent = JSON.stringify(data.ours, null, 2);
+        document.getElementById("cmp-garment-moda").textContent = JSON.stringify(data.moda, null, 2);
+        document.getElementById("cmp-garment-result").classList.remove("hidden");
+        status.textContent = "";
+      } catch (e) {
+        status.textContent = `Failed: ${e.message}`;
+      }
+    }
+
+    async function compareStylingReview() {
+      const status = document.getElementById("cmp-style-status");
+      const query = document.getElementById("cmp-style-query").value.trim();
+      status.textContent = "Comparing…";
+      try {
+        const res = await ctFetch(`${HOPIT_BASE}/styling/compare`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_text: query || null, outfit_count: 3 }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+        const data = await res.json();
+
+        const oursEl = document.getElementById("cmp-style-ours");
+        if (data.ours.ok) {
+          const outfits = data.ours.result.outfits || [];
+          oursEl.innerHTML = outfits.length
+            ? outfits.map(o => outfitCardHTML({ score: o.scores ? o.scores.final_score : undefined, slots: o.roles || {}, warnings: [] })).join("")
+            : `<p class="text-xs text-slate-500">${data.ours.result.no_outfit_reason || "No outfits returned."}</p>`;
+        } else {
+          oursEl.innerHTML = `<p class="text-xs text-red-400">${data.ours.error}</p>`;
+        }
+
+        const hopitEl = document.getElementById("cmp-style-hopit");
+        if (data.hopit.ok) {
+          const outfits = data.hopit.result.outfits || [];
+          hopitEl.innerHTML = outfits.length ? outfits.map(outfitCardHTML).join("") : `<p class="text-xs text-slate-500">No outfits returned.</p>`;
+        } else {
+          hopitEl.innerHTML = `<p class="text-xs text-red-400">${data.hopit.error}</p>`;
+        }
+
+        document.getElementById("cmp-style-result").classList.remove("hidden");
+        status.textContent = "";
+      } catch (e) {
+        status.textContent = `Failed: ${e.message}`;
+      }
+    }
   </script>
 
 </body>

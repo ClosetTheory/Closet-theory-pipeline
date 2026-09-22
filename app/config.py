@@ -121,6 +121,11 @@ class Settings(BaseSettings):
     RUNPOD_ATTRIBUTE_ENDPOINT_ID: Optional[str] = None
     RUNPOD_DETECTION_ENDPOINT_ID: Optional[str] = None
 
+    # Hopit's own hosted MODA API (distinct from RUNPOD_* above, which runs the same underlying
+    # model on our own infra) — garment ingestion + outfit ranking. See app/providers/hopit_client.py.
+    MODA_API: Optional[str] = None
+    MODA_KEY: Optional[str] = None
+
     # Stage 6: Category Bundling (Lookup Table)
     TAXONOMY_VERSION: str = "taxonomy_v1"
 
