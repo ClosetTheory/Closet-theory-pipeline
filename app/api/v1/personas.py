@@ -28,7 +28,7 @@ from app.models.image_asset import ImageAsset
 from app.models.persona import Persona, PersonaAssignment
 from app.models.persona_review import PersonaOutfitReview
 from app.models.role import ROLE_ADMIN
-from app.models.styling import Outfit
+from app.models.styling import Outfit, StylingRequest
 from app.models.user import User
 from app.schemas.persona import (
     AssignmentRequest,
@@ -304,6 +304,19 @@ async def list_persona_outfits(
         return []
 
     outfit_ids = [o.id for o in outfits]
+    # Outfit.request_id -> styling_requests.id already exists; this was just never joined on
+    # this path, so a review had no way to show what query/prompt produced the outfit it's
+    # attached to.
+    request_ids = list({o.request_id for o in outfits if o.request_id})
+    request_text_by_id: Dict[str, Optional[str]] = {}
+    if request_ids:
+        request_rows = (
+            await session.execute(
+                select(StylingRequest.id, StylingRequest.raw_text).where(StylingRequest.id.in_(request_ids))
+            )
+        ).all()
+        request_text_by_id = {rid: text for rid, text in request_rows}
+
     review_rows = (
         await session.execute(
             select(PersonaOutfitReview, User.display_name, User.email)
@@ -323,6 +336,8 @@ async def list_persona_outfits(
         items.append({
             "outfit": (await build_outfit_result(session, outfit)).model_dump(mode="json"),
             "generated_at": outfit.created_at.isoformat(),
+            "request_id": outfit.request_id,
+            "request_text": request_text_by_id.get(outfit.request_id),
             "my_review": next(
                 (r.model_dump(mode="json") for r in reviews if r.reviewer_user_id == current_user.id),
                 None,

@@ -41,10 +41,12 @@ from app.schemas.styling import (
 from app.storage.base import StorageClient
 from app.styling.combinator import build_outfit_combinations
 from app.styling.filtering import filter_candidates, get_anchor_garments
+from app.styling.hopit_adapter import hopit_response_to_ranking_trace
 from app.styling.imaging import generate_and_run_gates, load_persona_portrait
 from app.styling.ranking import rank_combinations
 from app.styling.retrieval import resolve_role, retrieve_by_role
 from app.styling.semantic_validation import validate_outfits
+from app.providers.hopit_client import HopitClient
 
 # How many extra semantically-validated candidates beyond top_k to keep as a fallback
 # pool, so a candidate that fails the post-generation gates can be replaced by the
@@ -290,44 +292,97 @@ class StylingOrchestrator:
             t3,
         )
 
-        # Stage 5: Candidate Retrieval (role-aware)
-        t4 = time.perf_counter()
-        role_candidates = await retrieve_by_role(self.session, candidates, anchors)
-        await self._record(
-            "STAGE_05_RETRIEVAL",
-            "Candidate Retrieval",
-            {
-                "max_candidates_per_role": settings.STYLING_MAX_CANDIDATES_PER_ROLE,
-                "candidates_per_role": {role: len(items) for role, items in role_candidates.items()},
-                "candidates_per_role_detail": {
-                    role: [{"garment_id": g.id, "subcategory": g.subcategory, "score": round(score, 3)} for g, score in items]
-                    for role, items in role_candidates.items()
-                },
-                "method": "cosine similarity to anchor embeddings (Python/numpy) or versatility fallback",
-            },
-            "SUCCEEDED",
-            t4,
-        )
+        top_k_pool = max(request.top_k * 2, request.top_k + 2)
 
-        # Stage 6 + 7: Combination assembly, compatibility rules + VLM fallback, weighted ranking
-        t5 = time.perf_counter()
-        combos = build_outfit_combinations(role_candidates, anchors, intent)
-        ranking_trace = await rank_combinations(combos, intent, context, top_k=max(request.top_k * 2, request.top_k + 2))
-        rejected_incompatible = ranking_trace.total_evaluated - ranking_trace.total_compatible
-        await self._record(
-            "STAGE_06_COMPATIBILITY",
-            "Candidate Compatibility Analysis",
-            {
-                "combinations_built": len(combos),
-                "combinations_evaluated": ranking_trace.total_evaluated,
-                "rejected_incompatible": rejected_incompatible,
-                "pairing_rejected": ranking_trace.pairing_rejected,
-                "surviving_combinations": ranking_trace.total_compatible,
-                "method": "deterministic pairing/layering/structural rules (hard reject) + visual rules/VLM (soft penalty only)",
-            },
-            "SUCCEEDED",
-            t5,
-        )
+        if request.use_hopit:
+            # Hopit tab: Stage 5 (retrieval) and Stage 6 (compatibility) are routed through
+            # Hopit's hosted /v1/outfits:rank instead of our own retrieve_by_role +
+            # build_outfit_combinations + rank_combinations. Stages 1-4 and 7-10 are
+            # completely unaware of the difference — they only ever see a RankingTrace, and
+            # hopit_response_to_ranking_trace() produces exactly that shape. A Hopit failure
+            # is a real pipeline failure, not silently backfilled with our own retrieval —
+            # same principle as every other provider call in this codebase.
+            t4 = time.perf_counter()
+            hopit_client = HopitClient()
+            hopit_context: Dict[str, Any] = {}
+            if intent.occasion:
+                hopit_context["occasion"] = intent.occasion
+            if intent.weather:
+                hopit_context["weather"] = intent.weather
+            hopit_result = await hopit_client.rank_outfits(
+                candidates=[c.id for c in candidates],
+                query=request.request_text,
+                context=hopit_context or None,
+                outfit_count=top_k_pool,
+            )
+            await self._record(
+                "STAGE_05_RETRIEVAL",
+                "Candidate Retrieval",
+                {
+                    "provider": "hopit",
+                    "model_version": hopit_result.get("model_version"),
+                    "compatibility_source": hopit_result.get("compatibility_source"),
+                    "candidates_submitted": len(candidates),
+                    "query_interpretation": hopit_result.get("query_interpretation"),
+                },
+                "SUCCEEDED",
+                t4,
+            )
+
+            t5 = time.perf_counter()
+            ranking_trace = hopit_response_to_ranking_trace(hopit_result)
+            await self._record(
+                "STAGE_06_COMPATIBILITY",
+                "Candidate Compatibility Analysis",
+                {
+                    "provider": "hopit",
+                    "combinations_evaluated": ranking_trace.total_evaluated,
+                    "surviving_combinations": ranking_trace.total_compatible,
+                    "method": "Hopit /v1/outfits:rank (external, hosted)",
+                    "hopit_warnings": hopit_result.get("warnings", []),
+                },
+                "SUCCEEDED",
+                t5,
+            )
+        else:
+            # Stage 5: Candidate Retrieval (role-aware)
+            t4 = time.perf_counter()
+            role_candidates = await retrieve_by_role(self.session, candidates, anchors)
+            await self._record(
+                "STAGE_05_RETRIEVAL",
+                "Candidate Retrieval",
+                {
+                    "max_candidates_per_role": settings.STYLING_MAX_CANDIDATES_PER_ROLE,
+                    "candidates_per_role": {role: len(items) for role, items in role_candidates.items()},
+                    "candidates_per_role_detail": {
+                        role: [{"garment_id": g.id, "subcategory": g.subcategory, "score": round(score, 3)} for g, score in items]
+                        for role, items in role_candidates.items()
+                    },
+                    "method": "cosine similarity to anchor embeddings (Python/numpy) or versatility fallback",
+                },
+                "SUCCEEDED",
+                t4,
+            )
+
+            # Stage 6 + 7: Combination assembly, compatibility rules + VLM fallback, weighted ranking
+            t5 = time.perf_counter()
+            combos = build_outfit_combinations(role_candidates, anchors, intent)
+            ranking_trace = await rank_combinations(combos, intent, context, top_k=top_k_pool)
+            rejected_incompatible = ranking_trace.total_evaluated - ranking_trace.total_compatible
+            await self._record(
+                "STAGE_06_COMPATIBILITY",
+                "Candidate Compatibility Analysis",
+                {
+                    "combinations_built": len(combos),
+                    "combinations_evaluated": ranking_trace.total_evaluated,
+                    "rejected_incompatible": rejected_incompatible,
+                    "pairing_rejected": ranking_trace.pairing_rejected,
+                    "surviving_combinations": ranking_trace.total_compatible,
+                    "method": "deterministic pairing/layering/structural rules (hard reject) + visual rules/VLM (soft penalty only)",
+                },
+                "SUCCEEDED",
+                t5,
+            )
 
         t6 = time.perf_counter()
         await self._record(

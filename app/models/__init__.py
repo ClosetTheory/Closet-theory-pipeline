@@ -13,6 +13,7 @@ from app.models.pipeline_stage import PipelineStageRun
 from app.models.embedding import GarmentEmbedding, PortableVector
 from app.models.compatibility import CompatibilityResult
 from app.models.styling import StylingRequest, Outfit, OutfitGarment, StylistReview
+from app.models.styling_run import StylingRunProgress, RUN_STATUSES
 from app.models.ootd import OOTDSubscription, OutfitOfTheDay
 from app.models.style_profile import StyleProfile
 from app.models.user import User
@@ -35,6 +36,8 @@ __all__ = [
     "Outfit",
     "OutfitGarment",
     "StylistReview",
+    "StylingRunProgress",
+    "RUN_STATUSES",
     "OOTDSubscription",
     "OutfitOfTheDay",
     "StyleProfile",

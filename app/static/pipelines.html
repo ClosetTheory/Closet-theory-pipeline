@@ -230,11 +230,9 @@
         var characters = document.querySelector("[data-nav-characters]");
         if (characters && isAdmin) characters.textContent = "All Characters";
 
-        // A stylist has no wardrobe of their own: those endpoints resolve scope from the
-        // character being worked as and refuse outright when none is selected.
-        var acting = "";
-        try { acting = localStorage.getItem("ct_acting_persona") || ""; } catch (e) {}
-        if (isStylistOnly && !acting) {
+        // Stylists work through a character, never a top-level tab -- hidden unconditionally,
+        // not just while no character is active.
+        if (isStylistOnly) {
           document.querySelectorAll("[data-needs-wardrobe]").forEach(function (el) { el.hidden = true; });
         }
       } catch (e) { /* nav state is cosmetic; never break the page over it */ }

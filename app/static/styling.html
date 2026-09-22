@@ -108,11 +108,9 @@
         var characters = document.querySelector("[data-nav-characters]");
         if (characters && isAdmin) characters.textContent = "All Characters";
 
-        // A stylist has no wardrobe of their own: those endpoints resolve scope from the
-        // character being worked as and refuse outright when none is selected.
-        var acting = "";
-        try { acting = localStorage.getItem("ct_acting_persona") || ""; } catch (e) {}
-        if (isStylistOnly && !acting) {
+        // Stylists work through a character, never a top-level tab -- hidden unconditionally,
+        // not just while no character is active.
+        if (isStylistOnly) {
           document.querySelectorAll("[data-needs-wardrobe]").forEach(function (el) { el.hidden = true; });
         }
       } catch (e) { /* nav state is cosmetic; never break the page over it */ }
@@ -143,6 +141,10 @@
           </button>
         </div>
       </div>
+      <label class="flex items-center gap-2 text-xs text-slate-400 mt-4">
+        <input type="checkbox" id="use-hopit" class="rounded">
+        Match via Hopit — routes Stage 5 (retrieval) and Stage 6 (compatibility) through Hopit's hosted <code class="text-[10px]">/v1/outfits:rank</code> instead of our own; every other stage runs unchanged.
+      </label>
     </div>
 
     <!-- Outfit of the Day -->
@@ -261,6 +263,13 @@
     document.addEventListener("DOMContentLoaded", ctRenderActingBanner);
     function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
 
+    // Same self-contained-deep-link pattern as /stylist and /review: ?persona=<id> works from
+    // a fresh tab, not just after clicking through from My Characters.
+    (function bootstrapPersonaFromUrl() {
+      const id = new URLSearchParams(window.location.search).get("persona");
+      if (id && ctActingAs() !== id) ctSetActingAs(id, null);
+    })();
+
     (function prefillFromQuery() {
       const params = new URLSearchParams(window.location.search);
       const anchor = params.get("anchor");
@@ -268,8 +277,84 @@
       if (anchor) document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("anchor-ids").value = anchor;
       });
-      if (requestId) document.addEventListener("DOMContentLoaded", () => loadReplay(requestId));
+      if (requestId) {
+        document.addEventListener("DOMContentLoaded", () => loadReplay(requestId));
+      } else {
+        // No explicit request_id in the URL -- check whether this scope has a run already
+        // in flight (or just finished and not yet picked up) before assuming a blank page,
+        // so a tab switch away from a live run and back doesn't lose it.
+        document.addEventListener("DOMContentLoaded", resumeActiveRunIfAny);
+      }
     })();
+
+    let _pollTimer = null;
+
+    async function resumeActiveRunIfAny() {
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/runs/active`);
+        if (!res.ok) return;
+        const run = await res.json();
+        if (!run) return;
+        renderRunSnapshot(run);
+        if (run.status === "RUNNING") {
+          pollRun(run.id);
+        } else if (run.status === "SUCCEEDED" && run.styling_request_id) {
+          loadReplay(run.styling_request_id);
+        }
+      } catch (e) { /* resume is best-effort; a blank form is a safe fallback */ }
+    }
+
+    function renderRunSnapshot(run) {
+      document.getElementById("run-btn").disabled = true;
+      document.getElementById("run-btn").textContent = "Resuming…";
+      document.getElementById("progress-bar").classList.remove("hidden");
+      document.getElementById("live-spinner").classList.remove("hidden");
+      renderStageGrid();
+      document.getElementById("stage-grid").classList.remove("hidden");
+      if (run.request_payload && run.request_payload.request_text) {
+        document.getElementById("request-text").value = run.request_payload.request_text;
+      }
+      applyTraceSnapshot(run.trace || [], run.current_stage);
+    }
+
+    function applyTraceSnapshot(trace, currentStage) {
+      for (const def of STAGE_DEFS) {
+        const entry = trace.find(t => t.stage === def.key);
+        if (entry) {
+          markCard(def.key, "done", entry);
+        } else if (def.key === currentStage) {
+          markCard(def.key, "active");
+        }
+      }
+      const activeDef = STAGE_DEFS.find(d => d.key === currentStage);
+      document.getElementById("live-stage-title").textContent = activeDef ? activeDef.title : "Resuming…";
+    }
+
+    async function pollRun(runId) {
+      if (_pollTimer) clearTimeout(_pollTimer);
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/runs/${encodeURIComponent(runId)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const run = await res.json();
+        applyTraceSnapshot(run.trace || [], run.current_stage);
+
+        if (run.status === "RUNNING") {
+          _pollTimer = setTimeout(() => pollRun(runId), 2000);
+          return;
+        }
+        document.getElementById("run-btn").disabled = false;
+        document.getElementById("run-btn").textContent = "✨ Run Styling Pipeline";
+        document.getElementById("live-spinner").classList.add("hidden");
+        if (run.status === "SUCCEEDED" && run.styling_request_id) {
+          loadReplay(run.styling_request_id);
+        } else {
+          document.getElementById("live-stage-title").textContent =
+            run.status === "FAILED" ? `Failed: ${run.error_message || "unknown error"}` : "This run was interrupted";
+        }
+      } catch (e) {
+        _pollTimer = setTimeout(() => pollRun(runId), 4000); // transient network hiccup — keep trying
+      }
+    }
 
     async function loadReplay(requestId) {
       document.getElementById("progress-bar").classList.remove("hidden");
@@ -882,10 +967,12 @@
     }
 
     async function runPipeline() {
+      if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
       const btn = document.getElementById("run-btn");
       const requestText = document.getElementById("request-text").value.trim();
       const anchorIds = document.getElementById("anchor-ids").value.trim();
       const anchors = anchorIds ? anchorIds.split(",").map(s => s.trim()).filter(Boolean) : null;
+      const useHopit = document.getElementById("use-hopit").checked;
 
       if (!requestText && !anchors) {
         alert("Provide a styling request and/or at least one anchor garment ID.");
@@ -908,7 +995,7 @@
         const res = await ctFetch(`${API_BASE}/styling/recommendations/stream`, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({request_text: requestText || null, anchor_garment_ids: anchors, top_k: 3}),
+          body: JSON.stringify({request_text: requestText || null, anchor_garment_ids: anchors, top_k: 3, use_hopit: useHopit}),
         });
         if (!res.ok || !res.body) throw new Error(await res.text());
 
@@ -930,7 +1017,9 @@
             if (!line) continue;
             const evt = JSON.parse(line.slice(6));
 
-            if (evt.type === "stage") {
+            if (evt.type === "run_started") {
+              document.getElementById("live-request-id").textContent = evt.run_id;
+            } else if (evt.type === "stage") {
               const stage = evt.stage;
               markCard(stage.stage, "done", stage);
               document.getElementById("live-stage-title").textContent = stage.title;

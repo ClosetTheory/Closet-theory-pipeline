@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stylist Review Queue</title>
+  <title>Review</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -29,13 +29,11 @@
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --ct-hairline: #dadad3;
-    }
+    :root { --ct-hairline: #dadad3; }
     body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
-    .split { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; }
-    .split > .divider { background: linear-gradient(to bottom, transparent, #3f3f3a, transparent); }
-    @media (max-width: 768px) { .split { grid-template-columns: 1fr; } .split > .divider { display: none; } }
+    .star { cursor: pointer; font-size: 22px; line-height: 1; color: #c7c7be; transition: color .1s; }
+    .star.on { color: #e60023; }
+    .star:hover { color: #e60023; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
@@ -66,30 +64,23 @@
   </header>
 
   <style>
-    /* The nav scrolls rather than wraps: its item count varies by role, and a wrapping bar makes
-       the header taller on exactly the pages that show the extra tabs. */
     .ct-navbar { scrollbar-width: none; -ms-overflow-style: none; }
     .ct-navbar::-webkit-scrollbar { display: none; }
   </style>
 
   <script>
-    // Active tab is derived from the URL, not hardcoded per page. Hardcoding it is exactly how
-    // this navbar ended up highlighting correctly on three pages out of nine.
     (function ctMarkActiveNav() {
       var here = window.location.pathname.replace(/\/$/, "") || "/";
       document.querySelectorAll("a.ct-nav").forEach(function (el) {
         var href = el.getAttribute("href");
         if (href === "/docs" || el.target === "_blank") { el.className += " text-ct-ink-soft hover:bg-black/5"; return; }
         var path = href.replace(/\/$/, "") || "/";
-        // /garment is a detail view of the catalogue, so the Catalogue tab stays lit there.
         var active = path === here || (path === "/" && here === "/garment");
         el.className += active ? " bg-ct-primary text-white" : " text-slate-400 hover:text-slate-200";
         if (active) el.setAttribute("aria-current", "page");
       });
     })();
 
-    // Role decides both which tabs exist and what the characters tab is called: an admin sees
-    // the whole roster there, so "My Characters" would be a lie.
     (async function ctGateNav() {
       try {
         var token = localStorage.getItem("ct_auth_token");
@@ -108,96 +99,43 @@
         var characters = document.querySelector("[data-nav-characters]");
         if (characters && isAdmin) characters.textContent = "All Characters";
 
-        // A stylist has no wardrobe of their own: those endpoints resolve scope from the
-        // character being worked as and refuse outright when none is selected.
-        var acting = "";
-        try { acting = localStorage.getItem("ct_acting_persona") || ""; } catch (e) {}
-        if (isStylistOnly && !acting) {
+        // Stylists work through a character, never a top-level tab -- hidden unconditionally,
+        // not just while no character is active.
+        if (isStylistOnly) {
           document.querySelectorAll("[data-needs-wardrobe]").forEach(function (el) { el.hidden = true; });
         }
       } catch (e) { /* nav state is cosmetic; never break the page over it */ }
     })();
   </script>
 
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
-
-    <!-- ============ Pipeline comparison: ours (left) vs Hopit (right) ============ -->
-    <section class="space-y-5">
-      <div>
-        <h1 class="text-xl font-bold text-white">Pipeline comparison</h1>
-        <p class="text-sm text-slate-500 max-w-2xl mt-1">Pick a garment or type a styling request — both run live through our pipeline and Hopit's, side by side. See the <a href="/hopit" class="text-ct-ink-soft hover:underline">Hopit tab</a> to try a fresh image instead of one already in the catalogue.</p>
-      </div>
-
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-        <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Garment attributes</div>
-        <div class="flex flex-wrap items-center gap-3">
-          <select id="cmp-garment-select" class="flex-1 min-w-[220px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100">
-            <option value="">Loading wardrobe…</option>
-          </select>
-          <button onclick="compareGarment()" class="text-xs font-bold px-4 py-2 rounded-xl bg-ct-ink text-white hover:opacity-90 transition">Compare</button>
-          <span id="cmp-garment-status" class="text-[11px] text-slate-500"></span>
-        </div>
-      </div>
-      <div id="cmp-garment-result" class="hidden split bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-        <div class="p-5 space-y-2">
-          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Our pipeline</div>
-          <pre id="cmp-garment-ours" class="text-[11px] text-slate-300 whitespace-pre-wrap break-words"></pre>
-        </div>
-        <div class="divider"></div>
-        <div class="p-5 space-y-2">
-          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hopit &middot; MODA_NER (crop)</div>
-          <pre id="cmp-garment-moda" class="text-[11px] text-slate-300 whitespace-pre-wrap break-words"></pre>
-        </div>
-      </div>
-
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-        <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Styling</div>
-        <div class="flex flex-wrap items-center gap-3">
-          <input id="cmp-style-query" type="text" placeholder="e.g. something smart for a client meeting"
-                 class="flex-1 min-w-[220px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-600">
-          <button onclick="compareStylingReview()" class="text-xs font-bold px-4 py-2 rounded-xl bg-ct-ink text-white hover:opacity-90 transition">Compare</button>
-          <span id="cmp-style-status" class="text-[11px] text-slate-500"></span>
-        </div>
-      </div>
-      <div id="cmp-style-result" class="hidden split bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-        <div class="p-5 space-y-3">
-          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Our pipeline</div>
-          <div id="cmp-style-ours"></div>
-        </div>
-        <div class="divider"></div>
-        <div class="p-5 space-y-3">
-          <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hopit &middot; outfits:rank</div>
-          <div id="cmp-style-hopit"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ Existing outfit QA feed ============ -->
-    <section class="space-y-6">
-    <div class="flex items-center justify-between">
-      <p class="text-sm text-slate-500 max-w-xl">Every outfit generated for this account, most recent first. Mark whether the dressing sense/overall aesthetic works and leave a comment — this is a separate internal QA record, it doesn't affect ranking or this account's learned style profile.</p>
-      <span id="queue-count" class="text-xs font-medium text-slate-500 whitespace-nowrap"></span>
+    <div id="need-persona" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
+      Pick a character on <a href="/stylist" class="text-ct-ink-soft hover:underline">My Characters</a> first — reviews are scored per character.
     </div>
 
-    <div id="queue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    <div id="page-body" class="hidden space-y-6">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h1 id="page-title" class="text-xl font-bold text-white">Review</h1>
+          <p class="text-sm text-slate-500 max-w-2xl mt-1">Every outfit generated for this character, most recent first. Score dressing sense across all five dimensions — this is what feeds their learned profile and what the team judges against.</p>
+        </div>
+        <span id="review-count" class="text-xs font-medium text-slate-500 whitespace-nowrap"></span>
+      </div>
 
-    <div id="empty-state" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
-      No outfits generated yet — run the <a href="/styling" class="text-ct-ink-soft hover:underline">Styling Pipeline</a> from this account first.
+      <div id="outfit-grid" class="space-y-5"></div>
+
+      <div id="empty-state" class="hidden text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
+        No outfits generated yet — run <a href="#" id="styling-link" class="text-ct-ink-soft hover:underline">Styling</a> for this character first.
+      </div>
     </div>
-    </section>
 
   </main>
 
   <script>
-    const API_BASE = "/api/v1/wardrobe";
-    const HOPIT_BASE = "/api/v1/hopit";
-
+    const API = "/api/v1";
     if (!localStorage.getItem("ct_auth_token")) window.location.href = "/login";
-    // Character context: when a stylist is working on an assigned evaluation character, every
-    // wardrobe and styling call is made AS that character. One header does it — the server
-    // resolves the scope and the existing endpoints operate on that character's wardrobe, so
-    // these pages need no other change. See app/api/dependencies.py.
+
     function ctActingAs() { try { return localStorage.getItem("ct_acting_persona") || ""; } catch (e) { return ""; } }
     function ctSetActingAs(personaId, name) {
       try {
@@ -205,6 +143,11 @@
         else { localStorage.removeItem("ct_acting_persona"); localStorage.removeItem("ct_acting_persona_name"); }
       } catch (e) {}
     }
+    // Same self-contained-deep-link pattern as /stylist and /styling: ?persona=<id> works from
+    // a fresh tab, not just after clicking through from My Characters.
+    const personaIdFromUrl = new URLSearchParams(window.location.search).get("persona");
+    if (personaIdFromUrl && ctActingAs() !== personaIdFromUrl) ctSetActingAs(personaIdFromUrl, null);
+
     async function ctFetch(url, opts = {}) {
       const token = localStorage.getItem("ct_auth_token");
       const acting = ctActingAs();
@@ -213,230 +156,194 @@
         acting ? {"X-Acting-As-Persona": acting} : {});
       const res = await fetch(url, Object.assign({}, opts, {headers}));
       if (res.status === 401) { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; throw new Error("Not authenticated"); }
-      // A stylist with no character selected is refused by every wardrobe endpoint, by design —
-      // it stops them silently ingesting into their own account. Send them to pick one rather
-      // than leaving a page full of errors they cannot act on.
-      if (res.status === 403 && !acting) {
-        const body = await res.clone().text().catch(() => "");
-        if (body.includes("act as an assigned character")) {
-          window.location.href = "/stylist";
-          throw new Error("Pick a character first");
-        }
-      }
       return res;
     }
-
-    // A persistent reminder of whose wardrobe you are editing. Without it a stylist can easily
-    // ingest forty garments into the wrong character and not find out until review.
-    function ctRenderActingBanner() {
-      const id = ctActingAs();
-      const existing = document.getElementById("ct-acting-banner");
-      if (existing) existing.remove();
-      if (!id) return;
-      let name = "this character";
-      try { name = localStorage.getItem("ct_acting_persona_name") || name; } catch (e) {}
-      const bar = document.createElement("div");
-      bar.id = "ct-acting-banner";
-      bar.className = "sticky top-0 z-40 bg-ct-primary text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-3";
-      bar.innerHTML = '<span>Working as <strong>' + name + '</strong> — uploads and outfits go to their wardrobe</span>' +
-        '<button onclick="ctSetActingAs(null); location.reload();" class="underline underline-offset-2 hover:opacity-80">Exit</button>';
-      document.body.prepend(bar);
-    }
-    document.addEventListener("DOMContentLoaded", ctRenderActingBanner);
     function ctLogout() { localStorage.removeItem("ct_auth_token"); window.location.href = "/login"; }
 
-    function queueItemCard(item) {
-      const outfit = item.outfit;
-      const review = item.review;
-      const likeActive = review && review.vote === "like";
-      const dislikeActive = review && review.vote === "dislike";
-      const garmentTags = outfit.garments.map(g =>
-        `<span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded-full">${(g.role || g.category || '').toLowerCase()}: ${(g.subcategory || '').replace(/_/g,' ')}</span>`
-      ).join("");
-
-      return `
-        <div id="review-card-${outfit.outfit_id}" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
-          ${outfit.generated_image_url
-            ? `<img src="${outfit.generated_image_url}?thumb=640" class="w-full aspect-[3/4] object-cover" alt="Generated outfit" loading="lazy">`
-            : `<div class="w-full aspect-[3/4] bg-slate-950 flex items-center justify-center text-xs text-slate-600">no image generated</div>`}
-          <div class="p-4 space-y-3 flex-1 flex flex-col">
-            <div>
-              <div class="text-[10px] text-slate-500">${item.request_text ? `"${item.request_text}"` : "no request text (anchor-only)"}</div>
-              <div class="text-[10px] text-slate-600">${new Date(item.generated_at).toLocaleString()}</div>
-            </div>
-            <div class="flex flex-wrap gap-1.5">${garmentTags}</div>
-            <div class="flex gap-2 pt-1">
-              <button onclick="setVote('${outfit.outfit_id}', 'like', this)"
-                      class="vote-btn like-btn flex-1 text-xs px-2.5 py-2 rounded-xl transition ${likeActive ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}">
-                👍 Works
-              </button>
-              <button onclick="setVote('${outfit.outfit_id}', 'dislike', this)"
-                      class="vote-btn dislike-btn flex-1 text-xs px-2.5 py-2 rounded-xl transition ${dislikeActive ? "bg-red-500/20 text-red-400" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}">
-                👎 Doesn't work
-              </button>
-            </div>
-            <textarea id="comment-${outfit.outfit_id}" placeholder="Notes on dressing sense, proportions, colour story…"
-                      class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-ct-primary/40 resize-none"
-                      rows="2">${review && review.comment ? review.comment : ""}</textarea>
-            <button onclick="saveReview('${outfit.outfit_id}')" class="save-btn w-full text-xs font-bold px-3 py-2 rounded-xl bg-ct-ink text-white hover:opacity-90 transition">
-              Save review
-            </button>
-            <div class="save-status text-[10px] text-slate-500 text-center h-3"></div>
-          </div>
-        </div>`;
+    function renderActingBanner() {
+      const id = ctActingAs();
+      if (!id) return;
+      let name = "a character";
+      try { name = localStorage.getItem("ct_acting_persona_name") || name; } catch (e) {}
+      const bar = document.createElement("div");
+      bar.className = "sticky top-0 z-40 bg-ct-primary text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-3";
+      bar.innerHTML = `<span>Working as <strong>${esc(name)}</strong></span>
+        <button onclick="ctSetActingAs(null); location.href='/stylist';" class="underline underline-offset-2 hover:opacity-80">Switch character</button>`;
+      document.body.prepend(bar);
     }
 
-    let queueItemsById = {};
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+      {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-    async function loadQueue() {
-      const grid = document.getElementById("queue-grid");
-      const empty = document.getElementById("empty-state");
-      const count = document.getElementById("queue-count");
+    // The five fields the review must collect: an overall score plus four named dimensions.
+    // "persona_fit" is the stored key (matches app/models/persona_review.py's
+    // REVIEW_DIMENSIONS) -- "Right for this Person" is just its label here.
+    const DIMENSIONS = [
+      ["colour_harmony", "Colour Harmony"],
+      ["fit_and_silhouette", "Fit and Silhouette"],
+      ["occasion_fit", "Occasion Fit"],
+      ["persona_fit", "Right for this Person"],
+    ];
+
+    function stars(name, value, outfitId) {
+      return [1,2,3,4,5].map(n =>
+        `<span class="star ${n <= value ? 'on' : ''}" data-outfit="${esc(outfitId)}" data-field="${esc(name)}" data-value="${n}"
+               onclick="setStar(this)" role="button" aria-label="${n} of 5">★</span>`).join("");
+    }
+
+    const pending = {};
+
+    function setStar(el) {
+      const outfitId = el.dataset.outfit, field = el.dataset.field, value = Number(el.dataset.value);
+      pending[outfitId] = pending[outfitId] || {rating: 0, dimension_ratings: {}};
+      if (field === "rating") pending[outfitId].rating = value;
+      else pending[outfitId].dimension_ratings[field] = value;
+      el.parentElement.querySelectorAll(".star").forEach(s =>
+        s.classList.toggle("on", Number(s.dataset.value) <= value));
+    }
+
+    function outfitCard(item, personaId) {
+      const o = item.outfit || {};
+      const mine = item.my_review;
+      const others = (item.reviews || []).filter(r => !mine || r.id !== mine.id);
+      if (mine) pending[o.outfit_id] = {rating: mine.rating, dimension_ratings: mine.dimension_ratings || {}};
+      return `
+        <article class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
+          <div>
+            ${o.generated_image_url
+              ? `<img src="${esc(o.generated_image_url)}" alt="Generated outfit" class="w-full rounded-xl bg-slate-800" loading="lazy">`
+              : `<div class="w-full aspect-[3/4] rounded-xl bg-slate-800 flex items-center justify-center text-xs text-slate-500">No image generated</div>`}
+            <p class="text-[11px] text-slate-500 mt-2">${esc((item.generated_at || "").slice(0,10))} · ${(o.garments || []).length} pieces</p>
+            ${item.request_text ? `<p class="text-[11px] text-slate-500 mt-1 italic">"${esc(item.request_text)}"</p>` : ""}
+          </div>
+          <div class="space-y-4">
+            <div class="flex flex-wrap gap-1.5">
+              ${(o.garments || []).map(g =>
+                `<span class="text-[11px] px-2 py-1 rounded-lg bg-slate-800 text-slate-300">${esc((g.attributes && g.attributes.casual_name) || g.subcategory || g.category || "piece")}</span>`).join("")}
+            </div>
+            ${o.compatibility_reason ? `<p class="text-xs text-slate-500 line-clamp-3">${esc(o.compatibility_reason)}</p>` : ""}
+
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Overall</p>
+              <div>${stars("rating", mine ? mine.rating : 0, o.outfit_id)}</div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              ${DIMENSIONS.map(([key, label]) => `
+                <div>
+                  <p class="text-[11px] text-slate-500 mb-0.5">${label}</p>
+                  <div>${stars(key, mine && mine.dimension_ratings ? (mine.dimension_ratings[key] || 0) : 0, o.outfit_id)}</div>
+                </div>`).join("")}
+            </div>
+
+            <label class="flex items-center gap-2 text-xs text-slate-500">
+              <input type="checkbox" id="ww-${esc(o.outfit_id)}" ${mine && mine.would_wear ? "checked" : ""} class="rounded">
+              I would actually put a client in this
+            </label>
+
+            <textarea id="cm-${esc(o.outfit_id)}" rows="2" placeholder="What works, what doesn't, and why"
+                      class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary">${esc(mine ? (mine.comment || "") : "")}</textarea>
+
+            <div class="flex items-center gap-3">
+              <button onclick="saveReview('${esc(personaId)}', '${esc(o.outfit_id)}')"
+                      class="px-4 py-2 rounded-xl bg-ct-primary hover:bg-ct-primary-pressed text-white text-xs font-bold transition">
+                ${mine ? "Update score" : "Save score"}
+              </button>
+              <span id="st-${esc(o.outfit_id)}" class="text-xs text-slate-500"></span>
+            </div>
+
+            ${others.length ? `
+              <div class="pt-3 border-t border-slate-800">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Other reviewers</p>
+                ${others.map(r => `<p class="text-xs text-slate-500"><strong class="text-ct-ink">${esc(r.reviewer_name || "Reviewer")}</strong> — ${r.rating}/5${r.comment ? " · " + esc(r.comment) : ""}</p>`).join("")}
+              </div>` : ""}
+          </div>
+        </article>`;
+    }
+
+    async function saveReview(personaId, outfitId) {
+      const el = document.getElementById("st-" + outfitId);
+      const state = pending[outfitId] || {rating: 0, dimension_ratings: {}};
+      if (!state.rating) { el.textContent = "Give an overall score first."; return; }
+      el.textContent = "Saving…";
       try {
-        const res = await ctFetch(`${API_BASE}/styling/review-queue?limit=60`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const items = await res.json();
-        queueItemsById = {};
-        items.forEach(it => { queueItemsById[it.outfit.outfit_id] = it; });
+        const res = await ctFetch(`${API}/personas/${personaId}/outfits/${outfitId}/review`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rating: state.rating,
+            dimension_ratings: state.dimension_ratings,
+            comment: document.getElementById("cm-" + outfitId).value || null,
+            would_wear: document.getElementById("ww-" + outfitId).checked,
+            vote: state.rating >= 4 ? "like" : (state.rating <= 2 ? "dislike" : null),
+          }),
+        });
+        if (!res.ok) { el.textContent = "Could not save: " + (await res.text()).slice(0, 120); return; }
+        const saved = await res.json();
+        // Reflect immediately rather than waiting for a reload -- this is the same staleness
+        // gap that made the "0 reviewed" bug hard to notice was actually fixed.
+        el.textContent = "Saved.";
+        if (!pending[outfitId]._counted) {
+          pending[outfitId]._counted = true;
+          reviewedCount += 1;
+          renderCount();
+        }
+      } catch (e) {
+        el.textContent = "Could not save: " + e.message;
+      }
+    }
 
-        if (!items.length) {
+    let reviewedCount = 0;
+    let totalCount = 0;
+    function renderCount() {
+      document.getElementById("review-count").textContent =
+        `${totalCount} outfit${totalCount === 1 ? "" : "s"} — ${reviewedCount} reviewed`;
+    }
+
+    async function loadReview() {
+      const personaId = ctActingAs();
+      if (!personaId) {
+        document.getElementById("need-persona").classList.remove("hidden");
+        return;
+      }
+      document.getElementById("page-body").classList.remove("hidden");
+      document.getElementById("styling-link").href = "/styling?persona=" + encodeURIComponent(personaId);
+
+      const grid = document.getElementById("outfit-grid");
+      const empty = document.getElementById("empty-state");
+      try {
+        const [personaRes, outfitsRes] = await Promise.all([
+          ctFetch(`${API}/personas/${personaId}`),
+          ctFetch(`${API}/personas/${personaId}/outfits`),
+        ]);
+        if (!personaRes.ok) throw new Error(`HTTP ${personaRes.status}`);
+        if (!outfitsRes.ok) throw new Error(`HTTP ${outfitsRes.status}`);
+        const persona = await personaRes.json();
+        const outfits = await outfitsRes.json();
+
+        document.getElementById("page-title").textContent = "Review — " + persona.display_name;
+
+        totalCount = outfits.length;
+        // Matches _persona_counts()'s own definition (a row count in persona_outfit_reviews,
+        // grouped by persona) so this header and the "N reviewed" shown on My Characters'
+        // roster/detail cards always agree -- that mismatch was the actual bug.
+        reviewedCount = outfits.reduce((n, it) => n + (it.reviews || []).length, 0);
+        renderCount();
+
+        if (!outfits.length) {
           grid.innerHTML = "";
           empty.classList.remove("hidden");
-          count.textContent = "";
           return;
         }
         empty.classList.add("hidden");
-        const reviewed = items.filter(it => it.review).length;
-        count.textContent = `${items.length} outfit${items.length === 1 ? "" : "s"} — ${reviewed} reviewed`;
-        grid.innerHTML = items.map(queueItemCard).join("");
+        grid.innerHTML = outfits.map(item => outfitCard(item, personaId)).join("");
       } catch (e) {
-        grid.innerHTML = `<p class="text-sm text-red-400 col-span-full">Failed to load review queue: ${e}</p>`;
+        grid.innerHTML = `<p class="text-sm text-red-400">Failed to load: ${esc(e.message)}</p>`;
       }
     }
 
-    function setVote(outfitId, vote, btnEl) {
-      const card = document.getElementById(`review-card-${outfitId}`);
-      card.querySelector(".like-btn").className = "vote-btn like-btn flex-1 text-xs px-2.5 py-2 rounded-xl transition " +
-        (vote === "like" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-300 hover:bg-slate-700");
-      card.querySelector(".dislike-btn").className = "vote-btn dislike-btn flex-1 text-xs px-2.5 py-2 rounded-xl transition " +
-        (vote === "dislike" ? "bg-red-500/20 text-red-400" : "bg-slate-800 text-slate-300 hover:bg-slate-700");
-      card.dataset.pendingVote = vote;
-    }
-
-    async function saveReview(outfitId) {
-      const card = document.getElementById(`review-card-${outfitId}`);
-      const statusEl = card.querySelector(".save-status");
-      const existing = queueItemsById[outfitId] && queueItemsById[outfitId].review;
-      const vote = card.dataset.pendingVote || (existing && existing.vote);
-      const comment = document.getElementById(`comment-${outfitId}`).value.trim();
-
-      if (!vote) {
-        statusEl.textContent = "Pick 👍 Works or 👎 Doesn't work first.";
-        statusEl.className = "save-status text-[10px] text-amber-400 text-center h-3";
-        return;
-      }
-
-      statusEl.textContent = "Saving…";
-      statusEl.className = "save-status text-[10px] text-slate-500 text-center h-3";
-      try {
-        const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(outfitId)}/review`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vote, comment: comment || null }),
-        });
-        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
-        const saved = await res.json();
-        if (queueItemsById[outfitId]) queueItemsById[outfitId].review = saved;
-        statusEl.textContent = `Saved ${new Date(saved.updated_at).toLocaleTimeString()}`;
-        statusEl.className = "save-status text-[10px] text-emerald-400 text-center h-3";
-      } catch (e) {
-        statusEl.textContent = `Failed to save: ${e.message}`;
-        statusEl.className = "save-status text-[10px] text-red-400 text-center h-3";
-      }
-    }
-
-    loadQueue();
-
-    // --- pipeline comparison ---
-    function outfitCardHTML(o) {
-      const slots = Object.entries(o.slots || {}).map(([role, id]) => `<span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded-full">${role}: ${String(id).slice(-8)}</span>`).join(" ");
-      return `<div class="border border-slate-800 rounded-xl p-3 space-y-2">
-        <div class="text-sm font-bold text-white">score ${typeof o.score === "number" ? o.score.toFixed(3) : o.score ?? "—"}</div>
-        <div class="flex flex-wrap gap-1.5">${slots}</div>
-        ${o.warnings && o.warnings.length ? `<div class="text-[10px] text-amber-400">${o.warnings.join(", ")}</div>` : ""}
-      </div>`;
-    }
-
-    async function loadCompareGarments() {
-      const select = document.getElementById("cmp-garment-select");
-      try {
-        const res = await ctFetch(`${API_BASE}/garments?limit=100`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const items = await res.json();
-        select.innerHTML = items.length
-          ? items.map(g => `<option value="${g.garment_id}">${(g.subcategory || g.category || g.garment_id).replace(/_/g, " ")} — ${g.garment_id.slice(-8)}</option>`).join("")
-          : `<option value="">No garments in this wardrobe yet</option>`;
-      } catch (e) {
-        select.innerHTML = `<option value="">Failed to load wardrobe: ${e.message}</option>`;
-      }
-    }
-    loadCompareGarments();
-
-    async function compareGarment() {
-      const status = document.getElementById("cmp-garment-status");
-      const garmentId = document.getElementById("cmp-garment-select").value;
-      if (!garmentId) { status.textContent = "Pick a garment first."; return; }
-      status.textContent = "Comparing…";
-      try {
-        const res = await ctFetch(`${HOPIT_BASE}/attributes/compare/${encodeURIComponent(garmentId)}`, { method: "POST" });
-        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
-        const data = await res.json();
-        document.getElementById("cmp-garment-ours").textContent = JSON.stringify(data.ours, null, 2);
-        document.getElementById("cmp-garment-moda").textContent = JSON.stringify(data.moda, null, 2);
-        document.getElementById("cmp-garment-result").classList.remove("hidden");
-        status.textContent = "";
-      } catch (e) {
-        status.textContent = `Failed: ${e.message}`;
-      }
-    }
-
-    async function compareStylingReview() {
-      const status = document.getElementById("cmp-style-status");
-      const query = document.getElementById("cmp-style-query").value.trim();
-      status.textContent = "Comparing…";
-      try {
-        const res = await ctFetch(`${HOPIT_BASE}/styling/compare`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ request_text: query || null, outfit_count: 3 }),
-        });
-        if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
-        const data = await res.json();
-
-        const oursEl = document.getElementById("cmp-style-ours");
-        if (data.ours.ok) {
-          const outfits = data.ours.result.outfits || [];
-          oursEl.innerHTML = outfits.length
-            ? outfits.map(o => outfitCardHTML({ score: o.scores ? o.scores.final_score : undefined, slots: o.roles || {}, warnings: [] })).join("")
-            : `<p class="text-xs text-slate-500">${data.ours.result.no_outfit_reason || "No outfits returned."}</p>`;
-        } else {
-          oursEl.innerHTML = `<p class="text-xs text-red-400">${data.ours.error}</p>`;
-        }
-
-        const hopitEl = document.getElementById("cmp-style-hopit");
-        if (data.hopit.ok) {
-          const outfits = data.hopit.result.outfits || [];
-          hopitEl.innerHTML = outfits.length ? outfits.map(outfitCardHTML).join("") : `<p class="text-xs text-slate-500">No outfits returned.</p>`;
-        } else {
-          hopitEl.innerHTML = `<p class="text-xs text-red-400">${data.hopit.error}</p>`;
-        }
-
-        document.getElementById("cmp-style-result").classList.remove("hidden");
-        status.textContent = "";
-      } catch (e) {
-        status.textContent = `Failed: ${e.message}`;
-      }
-    }
+    renderActingBanner();
+    loadReview();
   </script>
 
 </body>

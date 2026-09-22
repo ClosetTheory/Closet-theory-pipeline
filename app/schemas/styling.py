@@ -222,6 +222,12 @@ class StylingRecommendationRequest(BaseModel):
     request_text: Optional[str] = None
     anchor_garment_ids: Optional[List[str]] = None
     top_k: int = Field(default=3, ge=1, le=10)
+    use_hopit: bool = Field(
+        default=False,
+        description="Route Stage 5 (retrieval) and Stage 6 (compatibility) through Hopit's "
+        "hosted /v1/outfits:rank instead of our own retrieval+combinator+ranking. Every other "
+        "stage runs unchanged on whatever candidates that stage produces.",
+    )
     boldness_preference: Optional[float] = Field(
         default=None,
         ge=0.0,
@@ -244,6 +250,21 @@ class StylingRecommendationResponse(BaseModel):
     # combination was rejected (drawn from Stage 8/10's real rejection reasons), so the frontend
     # can show the caller something actionable instead of a bare empty result.
     no_outfit_reason: Optional[str] = None
+
+
+class StylingRunProgressResponse(BaseModel):
+    """A checkpointed snapshot of an in-flight (or just-finished) streaming styling run —
+    what GET /wardrobe/styling/runs/active and /runs/{id} return, so a client that switched
+    tabs mid-run can rebuild the stage grid from `trace` and pick up polling from
+    `current_stage`/`status` instead of starting over."""
+
+    id: str
+    status: str
+    current_stage: Optional[str] = None
+    trace: List[StageTrace] = Field(default_factory=list)
+    styling_request_id: Optional[str] = None
+    error_message: Optional[str] = None
+    request_payload: Dict[str, Any] = Field(default_factory=dict)
 
 
 class OutfitVoteRequest(BaseModel):

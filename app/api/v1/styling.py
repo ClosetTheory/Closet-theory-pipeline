@@ -2,16 +2,20 @@
 
 import asyncio
 import json
+from datetime import timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import ActingScope, get_acting_scope, get_db_session, get_storage
+from app.database import AsyncSessionLocal
+from app.models.base import utc_now
 from app.models.garment import Garment
 from app.models.ootd import OOTDSubscription
 from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest, StylistReview
+from app.models.styling_run import StylingRunProgress
 from app.models.user import User
 from app.rules.style_profile import (
     confidence_for_count,
@@ -30,10 +34,12 @@ from app.schemas.styling import (
     OutfitReviewQueueItem,
     OutfitVoteRequest,
     OutfitVoteResponse,
+    StageTrace,
     StyleProfileResponse,
     StylingIntent,
     StylingRecommendationRequest,
     StylingRecommendationResponse,
+    StylingRunProgressResponse,
     StylistReviewRequest,
     StylistReviewResult,
     SwapCandidateSummary,
@@ -67,11 +73,44 @@ async def get_outfit_recommendations(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
+STALE_RUN_MINUTES = 20  # how long a RUNNING row can go without a checkpoint before we assume
+# the process that owned it crashed and lazily mark it ABANDONED (see get_active_styling_run).
+
+
+def _run_to_response(row: StylingRunProgress) -> StylingRunProgressResponse:
+    return StylingRunProgressResponse(
+        id=row.id,
+        status=row.status,
+        current_stage=row.current_stage,
+        trace=[StageTrace(**t) for t in (row.trace or [])],
+        styling_request_id=row.styling_request_id,
+        error_message=row.error_message,
+        request_payload=row.request_payload or {},
+    )
+
+
+async def _abandon_stale_active_runs(session: AsyncSession, tenant_id: str, member_id: str) -> None:
+    """No dedicated cleanup job — a RUNNING row that's gone quiet (its owning process died
+    mid-run) is flipped to ABANDONED the next time anyone asks "is anything active" for that
+    scope, rather than lingering forever."""
+    cutoff = utc_now() - timedelta(minutes=STALE_RUN_MINUTES)
+    await session.execute(
+        update(StylingRunProgress)
+        .where(
+            StylingRunProgress.tenant_id == tenant_id,
+            StylingRunProgress.member_id == member_id,
+            StylingRunProgress.status == "RUNNING",
+            StylingRunProgress.updated_at < cutoff,
+        )
+        .values(status="ABANDONED")
+    )
+    await session.commit()
+
+
 @router.post("/recommendations/stream")
 async def stream_outfit_recommendations(
     request: StylingRecommendationRequest,
     scope: ActingScope = Depends(get_acting_scope),
-    session: AsyncSession = Depends(get_db_session),
     storage: StorageClient = Depends(get_storage),
 ):
     """
@@ -79,52 +118,144 @@ async def stream_outfit_recommendations(
     Server-Sent Event the moment it actually happens, instead of the client blocking
     on one long request with no feedback until everything finishes.
 
+    The run itself is driven on its own database session (AsyncSessionLocal(), not
+    Depends(get_db_session)) and is not tied to this request's task/cancellation scope: if
+    the client disconnects (e.g. a tab switch), the pipeline keeps running and keeps
+    checkpointing to StylingRunProgress rather than being torn down mid-flight. A client
+    can reconnect via GET /wardrobe/styling/runs/active or /runs/{run_id} and resume from
+    the last checkpoint instead of losing all progress.
+
     Event shapes (each a `data: <json>\\n\\n` line):
+      {"type": "run_started", "run_id": str}
       {"type": "stage", "stage": <StageTrace>}
       {"type": "done", "result": <StylingRecommendationResponse>}
       {"type": "error", "message": str}
     """
     queue: "asyncio.Queue[tuple]" = asyncio.Queue()
+    run_session = AsyncSessionLocal()
+
+    # A new request for this scope supersedes whatever was already running there.
+    await run_session.execute(
+        update(StylingRunProgress)
+        .where(
+            StylingRunProgress.tenant_id == scope.tenant_id,
+            StylingRunProgress.member_id == scope.member_id,
+            StylingRunProgress.status == "RUNNING",
+        )
+        .values(status="ABANDONED")
+    )
+    progress = StylingRunProgress(
+        tenant_id=scope.tenant_id,
+        member_id=scope.member_id,
+        persona_id=scope.persona_id,
+        initiated_by_user_id=scope.actor.id,
+        request_payload=request.model_dump(mode="json"),
+    )
+    run_session.add(progress)
+    await run_session.commit()
+    run_id = progress.id
+
+    async def checkpoint(entry) -> None:
+        async with AsyncSessionLocal() as cp_session:
+            row = await cp_session.get(StylingRunProgress, run_id)
+            if row:
+                row.current_stage = entry.stage
+                row.trace = row.trace + [entry.model_dump(mode="json")]
+                await cp_session.commit()
 
     async def on_stage(entry) -> None:
         await queue.put(("stage", entry))
+        await checkpoint(entry)
 
     async def runner() -> None:
         try:
-            orchestrator = StylingOrchestrator(session, storage, on_stage=on_stage)
+            orchestrator = StylingOrchestrator(run_session, storage, on_stage=on_stage)
             result = await orchestrator.run(request, scope.tenant_id, scope.member_id)
+            async with AsyncSessionLocal() as cp_session:
+                row = await cp_session.get(StylingRunProgress, run_id)
+                if row:
+                    row.status = "SUCCEEDED"
+                    row.styling_request_id = result.request_id
+                    await cp_session.commit()
             await queue.put(("done", result))
         except Exception as e:
+            async with AsyncSessionLocal() as cp_session:
+                row = await cp_session.get(StylingRunProgress, run_id)
+                if row:
+                    row.status = "FAILED"
+                    row.error_message = str(e)
+                    await cp_session.commit()
             await queue.put(("error", str(e)))
+        finally:
+            await run_session.close()
 
     async def event_stream():
-        task = asyncio.create_task(runner())
-        try:
-            while True:
-                try:
-                    kind, payload = await asyncio.wait_for(queue.get(), timeout=15.0)
-                except asyncio.TimeoutError:
-                    # Keep reverse proxies and browsers from treating a long image-generation
-                    # stage as an idle/dead HTTP response. SSE comments are ignored by the UI
-                    # but still flush bytes over the connection.
-                    yield ": heartbeat\n\n"
-                    continue
-                if kind == "stage":
-                    yield f"data: {json.dumps({'type': 'stage', 'stage': payload.model_dump(mode='json')})}\n\n"
-                elif kind == "done":
-                    yield f"data: {json.dumps({'type': 'done', 'result': payload.model_dump(mode='json')})}\n\n"
-                    break
-                else:
-                    yield f"data: {json.dumps({'type': 'error', 'message': payload})}\n\n"
-                    break
-        finally:
-            await task
+        # Deliberately not awaited here or in a finally block below: the task owns its own
+        # session and keeps running (and checkpointing) regardless of whether this generator
+        # is still being consumed — that decoupling is the whole point of this change.
+        asyncio.create_task(runner())
+        yield f"data: {json.dumps({'type': 'run_started', 'run_id': run_id})}\n\n"
+        while True:
+            try:
+                kind, payload = await asyncio.wait_for(queue.get(), timeout=15.0)
+            except asyncio.TimeoutError:
+                # Keep reverse proxies and browsers from treating a long image-generation
+                # stage as an idle/dead HTTP response. SSE comments are ignored by the UI
+                # but still flush bytes over the connection.
+                yield ": heartbeat\n\n"
+                continue
+            if kind == "stage":
+                yield f"data: {json.dumps({'type': 'stage', 'stage': payload.model_dump(mode='json')})}\n\n"
+            elif kind == "done":
+                yield f"data: {json.dumps({'type': 'done', 'result': payload.model_dump(mode='json')})}\n\n"
+                break
+            else:
+                yield f"data: {json.dumps({'type': 'error', 'message': payload})}\n\n"
+                break
 
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.get("/runs/active", response_model=Optional[StylingRunProgressResponse])
+async def get_active_styling_run(
+    scope: ActingScope = Depends(get_acting_scope),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """The in-flight run for this scope, if any — lets a client that switched tabs mid-run
+    (or just reloaded) find its way back without already knowing a request_id."""
+    await _abandon_stale_active_runs(session, scope.tenant_id, scope.member_id)
+    row = (
+        await session.execute(
+            select(StylingRunProgress)
+            .where(
+                StylingRunProgress.tenant_id == scope.tenant_id,
+                StylingRunProgress.member_id == scope.member_id,
+                StylingRunProgress.status == "RUNNING",
+            )
+            .order_by(StylingRunProgress.created_at.desc())
+        )
+    ).scalars().first()
+    return _run_to_response(row) if row else None
+
+
+@router.get("/runs/{run_id}", response_model=StylingRunProgressResponse)
+async def get_styling_run(
+    run_id: str,
+    scope: ActingScope = Depends(get_acting_scope),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Poll target for a client that's already resumed via /runs/active (or that has the id
+    from this run's own `run_started` event) — the checkpointed trace plus current status."""
+    row = await session.get(StylingRunProgress, run_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Styling run '{run_id}' not found")
+    if row.tenant_id != scope.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This run belongs to another account")
+    return _run_to_response(row)
 
 
 @router.get("/requests/{request_id}", response_model=StylingRecommendationResponse)
