@@ -5,7 +5,7 @@ Everything here requires the admin role. Roles live in `user_roles` rather than 
 migrations.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -147,6 +147,38 @@ async def create_stylist(
     session.add(UserRole(user_id=user_id, role=ROLE_STYLIST, granted_by_user_id=admin.id))
     await session.commit()
     return {"user_id": user_id, "email": email, "roles": [ROLE_STYLIST]}
+
+
+@router.patch("/users/{user_id}/credentials")
+async def update_user_credentials(
+    user_id: str,
+    email: Optional[str] = Body(default=None),
+    password: Optional[str] = Body(default=None),
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Resets an account's email and/or password directly — for fixing a seeded account's
+    credentials (e.g. the original demo/admin login) without raw database access, which this
+    project has no migration tooling to make routine. At least one of email/password is
+    required; the other is left unchanged."""
+    if not email and not password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide email and/or password")
+
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if email and email != user.email:
+        existing = (await session.execute(select(User).where(User.email == email))).scalars().first()
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="That email already exists")
+        user.email = email
+
+    if password:
+        user.password_hash = hash_password(password)
+
+    await session.commit()
+    return {"user_id": user.id, "email": user.email}
 
 
 @router.get("/assignments")

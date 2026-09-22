@@ -7,8 +7,8 @@ from app.config import settings
 from app.models.base import Base
 
 DEMO_USER_ID = "tenant_1"
-DEMO_USER_EMAIL = "demo@closettheory.local"
-DEMO_USER_PASSWORD = "demo1234"
+DEMO_USER_EMAIL = "admin@closettheory.co"
+DEMO_USER_PASSWORD = "admin1234"
 
 engine = create_async_engine(
     settings.DATABASE_URL,
