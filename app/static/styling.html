@@ -145,6 +145,35 @@
     </div>
   </div>
 
+  <!-- Anchor garment picker (shared — opened for whichever pane's button was clicked) -->
+  <div id="anchor-modal" class="hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeAnchorPicker()">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between gap-4 p-5 border-b border-slate-800">
+        <div>
+          <h3 class="text-sm font-bold text-ct-ink">Choose anchor garments</h3>
+          <p class="text-[11px] text-slate-500 mt-0.5">Every outfit the pipeline builds will include the garments you pick here. Select as many as you like.</p>
+        </div>
+        <button onclick="closeAnchorPicker()" class="text-slate-400 hover:text-ct-ink text-lg leading-none">✕</button>
+      </div>
+      <div class="px-5 pt-4 pb-3 border-b border-slate-800 space-y-3">
+        <input id="anchor-search" type="text" placeholder="Search by name, colour, category…" oninput="renderAnchorPickerBody()"
+               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
+        <div id="anchor-category-tabs" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div id="anchor-modal-body" class="flex-1 min-h-0 overflow-y-auto p-5 space-y-8"></div>
+      <div class="flex items-center justify-between gap-4 p-4 border-t border-slate-800 bg-slate-900 rounded-b-2xl">
+        <div class="flex items-center gap-3">
+          <span id="anchor-selected-count" class="text-xs font-bold text-slate-300">0 selected</span>
+          <button onclick="clearAnchorDraft()" class="text-[11px] text-slate-500 hover:text-red-400 transition">Clear</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="closeAnchorPicker()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 transition">Cancel</button>
+          <button onclick="confirmAnchorPicker()" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-ct-primary hover:bg-ct-primary-pressed transition">Use selected</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = "/api/v1/wardrobe";
 
@@ -245,10 +274,13 @@
                 <span class="text-[10px] text-slate-500 block">Optional — leave blank to style purely from anchor garments below.</span>
               </div>
               <div class="${heading ? "" : "lg:col-span-3"} space-y-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Anchor Garment IDs</span>
-                <input id="anchor-ids-${s}" type="text" placeholder="garm_abc, garm_def"
-                       class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
-                <span class="text-[10px] text-slate-500 block">Comma-separated, optional preselected garments.</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Anchor Garments</span>
+                <button type="button" id="anchor-btn-${s}" onclick="openAnchorPicker('${s}')"
+                        class="w-full bg-slate-950 border border-slate-700 hover:border-ct-primary/50 rounded-2xl px-4 py-3 text-sm text-left text-slate-400 transition flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
+                  <span id="anchor-btn-label-${s}" class="truncate">Choose from wardrobe…</span>
+                  <span class="text-slate-500 shrink-0">▾</span>
+                </button>
+                <span class="text-[10px] text-slate-500 block">Optional — any number of garments the outfit must include.</span>
               </div>
               <div class="${heading ? "" : "lg:col-span-2"}">
                 <button id="run-btn-${s}" onclick="runPipeline('${s}')" class="w-full py-3 px-4 bg-ct-primary hover:bg-ct-primary-pressed disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2">
@@ -256,6 +288,7 @@
                 </button>
               </div>
             </div>
+            <div id="anchor-chips-${s}" class="hidden mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-2"></div>
           </div>
 
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
@@ -340,7 +373,10 @@
       const params = new URLSearchParams(window.location.search);
       const anchor = params.get("anchor");
       const requestId = params.get("request_id");
-      if (anchor) PANE_SUFFIXES.forEach(s => { document.getElementById("anchor-ids-" + s).value = anchor; });
+      if (anchor) {
+        const ids = anchor.split(",").map(x => x.trim()).filter(Boolean);
+        PANE_SUFFIXES.forEach(s => setAnchorIds(s, ids));
+      }
       if (requestId) {
         // Which pane a replayed request belongs to is only known once its trace is fetched
         // (STAGE_05's summary says whether Hopit produced it) — default to the first pane and
@@ -575,6 +611,232 @@
         (stageEntriesBySuffix[suffix] || (stageEntriesBySuffix[suffix] = {}))[stageKey] = entry;
       }
     }
+
+    // --- Anchor garment picker ------------------------------------------------------
+    // Anchors used to be typed in as comma-separated garment IDs, which nobody can recall
+    // by heart. The selection now lives in memory per pane and is chosen from a modal of
+    // the acting member's wardrobe, grouped by category, with any number selectable.
+
+    const anchorIdsBySuffix = {};       // suffix -> ordered array of garment IDs
+    let wardrobeListPromise = null;     // one fetch of the whole wardrobe, shared by modal + chips
+    let wardrobeById = {};
+    let anchorPickerSuffix = null;      // which pane the open modal is editing
+    let anchorDraft = new Set();        // modal's in-progress selection (committed on "Use selected")
+    let anchorCategoryFilter = "ALL";
+
+    function getAnchorIds(suffix) { return (anchorIdsBySuffix[suffix] || []).slice(); }
+    function setAnchorIds(suffix, ids) {
+      anchorIdsBySuffix[suffix] = Array.from(new Set((ids || []).filter(Boolean)));
+      renderAnchorChips(suffix);
+    }
+    function removeAnchorId(suffix, id) {
+      setAnchorIds(suffix, getAnchorIds(suffix).filter(x => x !== id));
+    }
+
+    async function loadWardrobe() {
+      if (!wardrobeListPromise) {
+        wardrobeListPromise = ctFetch(`${API_BASE}/garments?limit=3000`)
+          .then(async res => {
+            if (!res.ok) throw new Error(await res.text());
+            const list = await res.json();
+            wardrobeById = {};
+            (Array.isArray(list) ? list : []).forEach(g => { wardrobeById[g.garment_id] = g; });
+            return Array.isArray(list) ? list : [];
+          })
+          .catch(e => { wardrobeListPromise = null; throw e; });
+      }
+      return wardrobeListPromise;
+    }
+
+    function wardrobeLabel(g) {
+      const attrs = (g && g.attributes) || {};
+      return String(attrs.casual_name || g?.subcategory || g?.category || "garment").toLowerCase().replace(/_/g, " ");
+    }
+    function wardrobeThumb(g, size) {
+      return g && g.canonical_image_url ? `${g.canonical_image_url}?thumb=${size}` : null;
+    }
+    function categoryLabel(c) { return String(c || "uncategorised").toLowerCase().replace(/_/g, " "); }
+
+    async function renderAnchorChips(suffix) {
+      const ids = getAnchorIds(suffix);
+      const strip = document.getElementById("anchor-chips-" + suffix);
+      const label = document.getElementById("anchor-btn-label-" + suffix);
+      if (!strip || !label) return;
+      label.textContent = ids.length ? `${ids.length} garment${ids.length === 1 ? "" : "s"} selected` : "Choose from wardrobe…";
+      label.className = ids.length ? "truncate text-slate-100" : "truncate";
+      if (!ids.length) { strip.classList.add("hidden"); strip.innerHTML = ""; return; }
+      strip.classList.remove("hidden");
+      // Deep links may arrive before the wardrobe has loaded — render IDs first, upgrade to thumbs after.
+      const paint = () => {
+        strip.innerHTML = ids.map(id => {
+          const g = wardrobeById[id];
+          const img = wardrobeThumb(g, 96);
+          return `
+            <span class="inline-flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-full pl-1 pr-2 py-1 text-[11px] text-slate-200 max-w-[220px]">
+              <span class="w-7 h-7 rounded-full overflow-hidden bg-slate-800 shrink-0 flex items-center justify-center text-[9px] text-slate-500">
+                ${img ? `<img src="${img}" class="w-full h-full object-cover" alt="">` : "?"}
+              </span>
+              <span class="truncate capitalize" title="${esc(id)}">${g ? esc(wardrobeLabel(g)) : esc(id)}</span>
+              <button type="button" onclick="removeAnchorId('${esc(suffix)}', '${esc(id)}')" class="text-slate-500 hover:text-red-400 leading-none ml-0.5" aria-label="Remove">✕</button>
+            </span>`;
+        }).join("");
+      };
+      paint();
+      if (ids.some(id => !wardrobeById[id])) {
+        try { await loadWardrobe(); paint(); } catch (e) { /* IDs stay as plain chips */ }
+      }
+    }
+
+    async function openAnchorPicker(suffix) {
+      anchorPickerSuffix = suffix;
+      anchorDraft = new Set(getAnchorIds(suffix));
+      anchorCategoryFilter = "ALL";
+      document.getElementById("anchor-search").value = "";
+      document.getElementById("anchor-modal").classList.remove("hidden");
+      document.getElementById("anchor-modal-body").innerHTML = `<div class="text-sm text-slate-500">Loading wardrobe…</div>`;
+      document.getElementById("anchor-category-tabs").innerHTML = "";
+      updateAnchorSelectedCount();
+      try {
+        await loadWardrobe();
+        renderAnchorCategoryTabs();
+        renderAnchorPickerBody();
+      } catch (e) {
+        document.getElementById("anchor-modal-body").innerHTML = `<div class="text-sm text-red-400">Failed to load wardrobe: ${esc(e.message || e)}</div>`;
+      }
+    }
+    function closeAnchorPicker() {
+      document.getElementById("anchor-modal").classList.add("hidden");
+      anchorPickerSuffix = null;
+    }
+    function confirmAnchorPicker() {
+      if (anchorPickerSuffix !== null) setAnchorIds(anchorPickerSuffix, Array.from(anchorDraft));
+      closeAnchorPicker();
+    }
+    function clearAnchorDraft() {
+      anchorDraft = new Set();
+      updateAnchorSelectedCount();
+      renderAnchorCategoryTabs();
+      renderAnchorPickerBody();
+    }
+    function toggleAnchorDraft(id) {
+      if (anchorDraft.has(id)) anchorDraft.delete(id); else anchorDraft.add(id);
+      updateAnchorSelectedCount();
+      const tile = document.querySelector(`#anchor-modal-body [data-gid="${CSS.escape(id)}"]`);
+      if (tile) tile.outerHTML = anchorTile(wardrobeById[id]);
+      renderAnchorCategoryTabs();
+    }
+    function updateAnchorSelectedCount() {
+      const n = anchorDraft.size;
+      document.getElementById("anchor-selected-count").textContent = `${n} selected`;
+    }
+
+    function wardrobeGrouped() {
+      const groups = {};
+      Object.values(wardrobeById).forEach(g => {
+        const c = g.category || "UNCATEGORISED";
+        (groups[c] = groups[c] || []).push(g);
+      });
+      // Body-coverage order first so the modal reads like an outfit top-to-bottom.
+      const ORDER = ["TOP", "BOTTOM", "ONE_PIECE", "OUTERWEAR", "FOOTWEAR", "ACCESSORY", "BAG"];
+      return Object.keys(groups).sort((a, b) => {
+        const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+      }).map(c => ({ category: c, garments: groups[c] }));
+    }
+
+    function renderAnchorCategoryTabs() {
+      const tabs = document.getElementById("anchor-category-tabs");
+      const groups = wardrobeGrouped();
+      const total = Object.keys(wardrobeById).length;
+      const pill = (key, text, count, selectedCount) => {
+        const active = anchorCategoryFilter === key;
+        return `
+          <button type="button" onclick="setAnchorCategory('${esc(key)}')"
+                  class="px-3 py-1.5 rounded-full text-[11px] font-semibold capitalize border transition ${active ? "bg-ct-primary border-ct-primary text-white" : "bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-500"}">
+            ${esc(text)} <span class="${active ? "text-white/70" : "text-slate-500"}">${count}</span>
+            ${selectedCount ? `<span class="ml-1 inline-block min-w-[16px] px-1 rounded-full text-[9px] ${active ? "bg-white text-ct-primary" : "bg-ct-primary text-white"}">${selectedCount}</span>` : ""}
+          </button>`;
+      };
+      tabs.innerHTML = pill("ALL", "All", total, anchorDraft.size)
+        + groups.map(gr => pill(gr.category, categoryLabel(gr.category), gr.garments.length,
+                                gr.garments.filter(g => anchorDraft.has(g.garment_id)).length)).join("");
+    }
+    function setAnchorCategory(key) {
+      anchorCategoryFilter = key;
+      renderAnchorCategoryTabs();
+      renderAnchorPickerBody();
+    }
+
+    function anchorMatchesSearch(g, q) {
+      if (!q) return true;
+      const attrs = g.attributes || {};
+      const hay = [g.garment_id, g.category, g.subcategory, attrs.casual_name, ...(attrs.colour || [])]
+        .filter(Boolean).join(" ").toLowerCase().replace(/_/g, " ");
+      return hay.includes(q);
+    }
+
+    function anchorTile(g) {
+      const selected = anchorDraft.has(g.garment_id);
+      const img = wardrobeThumb(g, 320);
+      const needsReview = g.status === "REVIEW_REQUIRED" || g.quality_status === "REVIEW_REQUIRED";
+      const colour = ((g.attributes || {}).colour || []).join(", ");
+      return `
+        <button type="button" data-gid="${esc(g.garment_id)}" onclick="toggleAnchorDraft('${esc(g.garment_id)}')"
+                class="group relative text-left bg-slate-950 border rounded-xl overflow-hidden transition ${selected ? "border-ct-primary glow-active" : "border-slate-800 hover:border-slate-600"}">
+          <div class="aspect-[3/4] bg-slate-800 overflow-hidden">
+            ${img ? `<img src="${img}" class="w-full h-full object-cover" alt="" loading="lazy">` : `<div class="w-full h-full flex items-center justify-center text-slate-600 text-[10px]">No image</div>`}
+          </div>
+          <span class="absolute top-2 right-2 w-5 h-5 rounded-full border flex items-center justify-center text-[11px] font-bold transition ${selected ? "bg-ct-primary border-ct-primary text-white" : "bg-slate-950/80 border-slate-500 text-transparent group-hover:text-slate-500"}">✓</span>
+          ${needsReview ? `<span class="absolute top-2 left-2 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/90 text-slate-950">⚠</span>` : ""}
+          <div class="p-2">
+            <p class="text-[11px] font-semibold ${selected ? "text-ct-ink" : "text-slate-200"} truncate capitalize">${esc(wardrobeLabel(g))}</p>
+            <p class="text-[10px] text-slate-500 truncate">${esc(colour || (g.subcategory || "").toLowerCase().replace(/_/g, " ") || "—")}</p>
+          </div>
+        </button>`;
+    }
+
+    function renderAnchorPickerBody() {
+      const body = document.getElementById("anchor-modal-body");
+      const q = document.getElementById("anchor-search").value.trim().toLowerCase();
+      const groups = wardrobeGrouped()
+        .filter(gr => anchorCategoryFilter === "ALL" || gr.category === anchorCategoryFilter)
+        .map(gr => ({ category: gr.category, garments: gr.garments.filter(g => anchorMatchesSearch(g, q)) }))
+        .filter(gr => gr.garments.length);
+      if (!Object.keys(wardrobeById).length) {
+        body.innerHTML = `<div class="text-sm text-slate-500">This wardrobe has no fully processed garments yet.</div>`;
+        return;
+      }
+      if (!groups.length) {
+        body.innerHTML = `<div class="text-sm text-slate-500">No garments match “${esc(q)}”.</div>`;
+        return;
+      }
+      body.innerHTML = groups.map(gr => `
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">${esc(categoryLabel(gr.category))}
+              <span class="text-slate-600 font-mono ml-1">${gr.garments.length}</span></h4>
+            <button type="button" onclick="selectAllInCategory('${esc(gr.category)}')" class="text-[10px] text-slate-500 hover:text-ct-ink transition">
+              ${gr.garments.every(g => anchorDraft.has(g.garment_id)) ? "Deselect all" : "Select all"}
+            </button>
+          </div>
+          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+            ${gr.garments.map(anchorTile).join("")}
+          </div>
+        </section>`).join("");
+    }
+    function selectAllInCategory(category) {
+      const q = document.getElementById("anchor-search").value.trim().toLowerCase();
+      const visible = Object.values(wardrobeById).filter(g => (g.category || "UNCATEGORISED") === category && anchorMatchesSearch(g, q));
+      const allOn = visible.every(g => anchorDraft.has(g.garment_id));
+      visible.forEach(g => allOn ? anchorDraft.delete(g.garment_id) : anchorDraft.add(g.garment_id));
+      updateAnchorSelectedCount();
+      renderAnchorCategoryTabs();
+      renderAnchorPickerBody();
+    }
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && !document.getElementById("anchor-modal").classList.contains("hidden")) closeAnchorPicker();
+    });
 
     // --- Stage detail modal ---------------------------------------------------------
 
@@ -1074,11 +1336,11 @@
     // parallel off, or on the stylist's single pane, only the clicked pane runs.
     async function runPipeline(clickedSuffix) {
       const requestText = document.getElementById("request-text-" + clickedSuffix).value.trim();
-      const anchorIds = document.getElementById("anchor-ids-" + clickedSuffix).value.trim();
-      const anchors = anchorIds ? anchorIds.split(",").map(s => s.trim()).filter(Boolean) : null;
+      const anchorIds = getAnchorIds(clickedSuffix);
+      const anchors = anchorIds.length ? anchorIds : null;
 
       if (!requestText && !anchors) {
-        alert("Provide a styling request and/or at least one anchor garment ID.");
+        alert("Provide a styling request and/or pick at least one anchor garment.");
         return;
       }
 
@@ -1087,7 +1349,7 @@
         targets.forEach(s => {
           if (s === clickedSuffix) return;
           document.getElementById("request-text-" + s).value = requestText;
-          document.getElementById("anchor-ids-" + s).value = anchorIds;
+          setAnchorIds(s, anchorIds);
         });
       }
       await Promise.all(targets.map(s => runPipelineForPane(s, requestText, anchors)));
