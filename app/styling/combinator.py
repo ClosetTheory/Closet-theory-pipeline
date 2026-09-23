@@ -33,6 +33,20 @@ def _occasion_prefers_no_outerwear(intent: Optional[StylingIntent]) -> bool:
 # unless the layer actually improves the outfit's final score (see ranking.py).
 ComboEntry = Tuple[List[Garment], float, Optional[FrozenSet[str]]]
 
+# Roles that form the structural skeleton of an outfit. Anything else an anchor resolves
+# to (ACCESSORY, BAG, ...) is an "extra" that, in anchors-only mode, rides along on every
+# combination rather than occupying a slot of its own.
+BODY_ROLES = ("TOP", "BOTTOM", "ONE_PIECE")
+SLOT_ROLES = BODY_ROLES + ("FOOTWEAR", "OUTERWEAR")
+
+
+def anchors_cover_body(anchors: List[Garment]) -> bool:
+    """True when the anchored garments alone can dress a body: a TOP plus a BOTTOM, or a
+    ONE_PIECE. Used to fail an anchors-only request up front, with a message the stylist can
+    act on, instead of letting it run nine stages and come back with nothing."""
+    roles = {resolve_role(a) for a in anchors}
+    return ("TOP" in roles and "BOTTOM" in roles) or "ONE_PIECE" in roles
+
 
 def _role_options(role_candidates: RoleCandidates, role: str) -> List[Tuple[Garment, float]]:
     return role_candidates.get(role, [])
@@ -42,6 +56,7 @@ def build_outfit_combinations(
     role_candidates: RoleCandidates,
     anchors: List[Garment],
     intent: Optional[StylingIntent] = None,
+    anchors_only: bool = False,
 ) -> List[ComboEntry]:
     """
     Returns a capped list of (garments, retrieval_score_sum, base_combo_key) candidate outfit
@@ -51,6 +66,14 @@ def build_outfit_combinations(
     skipped entirely for party/formal/evening requests, where a layered coat reads as "outfit
     plus a coat" rather than the actual look. ACCESSORY: only included via anchors (not
     auto-added in V1).
+
+    anchors_only=True changes the contract: the anchored garments are the *entire* candidate
+    pool. No slot is ever filled from role_candidates, every role the anchors cover becomes a
+    required slot (an anchored jacket is worn, not "suggested"), and anchored accessories/bags
+    ride along on every combination. A stylist who pins five garments wants outfits made of
+    those five and nothing else — confirmed live: with the previous "lock anchors, fill the
+    rest from the wardrobe" behaviour, pinning a shirt and trousers still came back with
+    unrelated shoes and a coat the stylist never picked.
     """
     anchors_by_role: Dict[str, List[Garment]] = {}
     for anchor in anchors:
@@ -61,7 +84,12 @@ def build_outfit_combinations(
     def options_for(role: str) -> List[Tuple[Garment, float]]:
         if role in anchors_by_role:
             return [(g, 1.0) for g in anchors_by_role[role]]
+        if anchors_only:
+            return []
         return _role_options(role_candidates, role)
+
+    if anchors_only:
+        return _anchors_only_combinations(anchors_by_role)
 
     body_options: List[List[Tuple[Garment, float]]] = []
     has_top, has_bottom = bool(options_for("TOP")), bool(options_for("BOTTOM"))
@@ -120,6 +148,40 @@ def build_outfit_combinations(
         deduped.append((garments, score, base_key))
 
     return _diversity_capped(deduped, MAX_COMBOS_TO_EVALUATE)
+
+
+def _anchors_only_combinations(anchors_by_role: Dict[str, List[Garment]]) -> List[ComboEntry]:
+    """Every combination that can be dressed from the anchors alone: one garment per anchored
+    slot role (TOP+BOTTOM and/or ONE_PIECE, plus FOOTWEAR and OUTERWEAR when anchored), with
+    every anchored extra (accessories, bags, ...) attached to each. Retrieval score is a flat
+    1.0 — these garments were hand-picked, there is nothing to rank them against — so the
+    ranking stage decides purely on compatibility, request match and visual harmony."""
+    body_options: List[List[List[Tuple[Garment, float]]]] = []
+    if anchors_by_role.get("TOP") and anchors_by_role.get("BOTTOM"):
+        body_options.append([[(g, 1.0) for g in anchors_by_role["TOP"]], [(g, 1.0) for g in anchors_by_role["BOTTOM"]]])
+    if anchors_by_role.get("ONE_PIECE"):
+        body_options.append([[(g, 1.0) for g in anchors_by_role["ONE_PIECE"]]])
+    if not body_options:
+        return []
+
+    required_layers = [
+        [(g, 1.0) for g in anchors_by_role[role]]
+        for role in ("FOOTWEAR", "OUTERWEAR")
+        if anchors_by_role.get(role)
+    ]
+    extras = [g for role, garments in anchors_by_role.items() if role not in SLOT_ROLES for g in garments]
+
+    seen = set()
+    combos: List[ComboEntry] = []
+    for slot_groups in body_options:
+        for combo in product(*(slot_groups + required_layers)):
+            garments = [g for g, _s in combo] + extras
+            key = frozenset(g.id for g in garments)
+            if key in seen:
+                continue
+            seen.add(key)
+            combos.append((garments, 1.0, None))
+    return _diversity_capped(combos, MAX_COMBOS_TO_EVALUATE)
 
 
 def _diversity_capped(combos: List[ComboEntry], cap: int) -> List[ComboEntry]:

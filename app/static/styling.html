@@ -151,7 +151,7 @@
       <div class="flex items-center justify-between gap-4 p-5 border-b border-slate-800">
         <div>
           <h3 class="text-sm font-bold text-ct-ink">Choose anchor garments</h3>
-          <p class="text-[11px] text-slate-500 mt-0.5">Every outfit the pipeline builds will include the garments you pick here. Select as many as you like.</p>
+          <p class="text-[11px] text-slate-500 mt-0.5">Outfits are built only from the garments you pick here — nothing else from the wardrobe is used. Pick a top and a bottom, or a one-piece, plus anything else you want worn with them.</p>
         </div>
         <button onclick="closeAnchorPicker()" class="text-slate-400 hover:text-ct-ink text-lg leading-none">✕</button>
       </div>
@@ -271,7 +271,7 @@
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Styling Request</span>
                 <input id="request-text-${s}" type="text" placeholder="e.g. smart casual dinner tonight, dark colors"
                        class="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40">
-                <span class="text-[10px] text-slate-500 block">Optional — leave blank to style purely from anchor garments below.</span>
+                <span class="text-[10px] text-slate-500 block">Optional — with anchors, describes which outfit to make from them; without, styles the whole wardrobe.</span>
               </div>
               <div class="${heading ? "" : "lg:col-span-3"} space-y-2">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Anchor Garments</span>
@@ -280,7 +280,7 @@
                   <span id="anchor-btn-label-${s}" class="truncate">Choose from wardrobe…</span>
                   <span class="text-slate-500 shrink-0">▾</span>
                 </button>
-                <span class="text-[10px] text-slate-500 block">Optional — any number of garments the outfit must include.</span>
+                <span class="text-[10px] text-slate-500 block">Optional — outfits are built only from these garments.</span>
               </div>
               <div class="${heading ? "" : "lg:col-span-2"}">
                 <button id="run-btn-${s}" onclick="runPipeline('${s}')" class="w-full py-3 px-4 bg-ct-primary hover:bg-ct-primary-pressed disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2">
@@ -436,7 +436,7 @@
       { key: "STAGE_04_FILTERING", title: "Stage 4: Attribute Filtering", color: "blue", tech: "PostgreSQL",
         blurb: "A cheap database query narrows your whole wardrobe down to garments that are fully processed, approved, and roughly match any color preference — before any expensive AI calls happen." },
       { key: "STAGE_05_RETRIEVAL", title: "Stage 5: Candidate Retrieval", color: "blue", tech: "Embedding Similarity",
-        blurb: "Groups the filtered garments by role (top, bottom, footwear, ...) and ranks each group by visual similarity to any anchor garment, keeping only the top few per role." },
+        blurb: "Groups the filtered garments by role (top, bottom, footwear, ...) and ranks each group by visual similarity, keeping only the top few per role. With anchors, every anchored garment is kept and nothing else is retrieved." },
       { key: "STAGE_06_COMPATIBILITY", title: "Stage 6: Candidate Compatibility", color: "amber", tech: "Decision Tree + VLM",
         blurb: "Builds candidate outfit combinations and checks each pair of garments for hard conflicts (can't wear two bottoms, clashing formality). Visual style clashes only lower the score — they don't reject an outfit." },
       { key: "STAGE_07_RANKING", title: "Stage 7: Outfit Ranking", color: "amber", tech: "Weighted Scorer",
@@ -508,6 +508,11 @@
         case "STAGE_03_WARDROBE_BEHAVIOUR":
           return note(summary.note) + row("Score every garment gets", `${summary.neutral_score} (neutral)`);
         case "STAGE_04_FILTERING":
+          if (summary.anchors_only) {
+            return row("Anchored garments", (summary.anchors_locked_in || []).length, "text-slate-200 font-bold")
+              + row("Wardrobe searched", "no")
+              + note("Anchors are a hard restriction — the outfit is built only from the garments you picked; the rest of the wardrobe is never considered.");
+          }
           return row("Wardrobe items that qualified", summary.candidates_after_filter, "text-slate-200 font-bold")
             + row("Preselected garments kept as-is", (summary.anchors_locked_in || []).length)
             + row("Filters applied", (summary.filters_applied || []).join(", "))
@@ -524,7 +529,7 @@
           const roleRows = roles.length
             ? roles.map(([r, n]) => row(r, `${n} candidate${n === 1 ? "" : "s"}`)).join("")
             : note("No garments matched any outfit role — try ingesting more variety.");
-          return roleRows + row("Max kept per role", summary.max_candidates_per_role)
+          return roleRows + row("Max kept per role", summary.anchors_only ? "no cap (anchors only)" : summary.max_candidates_per_role)
             + note(`Ranking method: ${summary.method}`);
         }
         case "STAGE_06_COMPATIBILITY":
@@ -632,6 +637,7 @@
     function removeAnchorId(suffix, id) {
       setAnchorIds(suffix, getAnchorIds(suffix).filter(x => x !== id));
     }
+    function clearAnchors(suffix) { setAnchorIds(suffix, []); }
 
     async function loadWardrobe() {
       if (!wardrobeListPromise) {
@@ -667,8 +673,13 @@
       if (!ids.length) { strip.classList.add("hidden"); strip.innerHTML = ""; return; }
       strip.classList.remove("hidden");
       // Deep links may arrive before the wardrobe has loaded — render IDs first, upgrade to thumbs after.
+      const clearAll = `
+            <button type="button" onclick="clearAnchors('${esc(suffix)}')"
+                    class="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-600 hover:border-red-400 px-3 py-1 text-[11px] text-slate-400 hover:text-red-400 transition">
+              ✕ Clear all
+            </button>`;
       const paint = () => {
-        strip.innerHTML = ids.map(id => {
+        strip.innerHTML = clearAll + ids.map(id => {
           const g = wardrobeById[id];
           const img = wardrobeThumb(g, 96);
           return `

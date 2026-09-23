@@ -41,6 +41,7 @@ from app.schemas.styling import (
 from app.storage.base import StorageClient
 from app.styling.combinator import build_outfit_combinations
 from app.styling.filtering import filter_candidates, get_anchor_garments
+from app.styling.combinator import anchors_cover_body
 from app.styling.hopit_adapter import hopit_response_to_ranking_trace
 from app.styling.imaging import generate_and_run_gates, load_persona_portrait
 from app.styling.ranking import rank_combinations
@@ -185,6 +186,19 @@ class StylingOrchestrator:
         )
         anchor_categories = [a.category for a in anchors if a.category]
 
+        # Anchors are a hard restriction, not a hint: when the stylist pins garments, the
+        # outfit is built from those garments and nothing else. Fail now, in plain words, if
+        # what they pinned cannot dress a body — otherwise the run would grind through every
+        # stage and come back empty with a far less useful explanation.
+        anchors_only = bool(anchors)
+        if anchors_only and not anchors_cover_body(anchors):
+            picked = ", ".join(sorted({(resolve_role(a) or "uncategorised").lower().replace("_", " ") for a in anchors}))
+            raise ValueError(
+                "The anchored garments cannot form a complete outfit on their own "
+                f"(you picked: {picked}). Outfits are built only from anchored garments, so add a top and a "
+                "bottom, or a one-piece — or clear the anchors to style from the whole wardrobe."
+            )
+
         # Stage 1: Request Normalisation (LLM)
         intent: StylingIntent = StylingIntent()
         normalizer_used = "none (no request_text supplied)"
@@ -274,9 +288,17 @@ class StylingOrchestrator:
             t2,
         )
 
-        # Stage 4: DB Filtering
+        # Stage 4: DB Filtering. With anchors the wardrobe query is skipped entirely — the
+        # anchors *are* the candidate pool, so nothing the stylist did not pick can appear.
         t3 = time.perf_counter()
-        candidates = await filter_candidates(self.session, tenant_id, member_id, intent)
+        if anchors_only:
+            candidates = list(anchors)
+            filters_applied = ["restricted to anchored garments only (wardrobe not searched)"]
+        else:
+            candidates = await filter_candidates(self.session, tenant_id, member_id, intent)
+            filters_applied = ["status=COMPLETED", "quality_status in (APPROVED, PENDING)"] + (
+                ["color preference (soft)"] if intent.colors else []
+            )
         garments_by_id: Dict[str, Garment] = {g.id: g for g in candidates}
         for a in anchors:
             garments_by_id[a.id] = a
@@ -288,8 +310,8 @@ class StylingOrchestrator:
                 "member_id": member_id,
                 "candidates_after_filter": len(candidates),
                 "anchors_locked_in": [a.id for a in anchors],
-                "filters_applied": ["status=COMPLETED", "quality_status in (APPROVED, PENDING)"]
-                + (["color preference (soft)"] if intent.colors else []),
+                "anchors_only": anchors_only,
+                "filters_applied": filters_applied,
             },
             "SUCCEEDED",
             t3,
@@ -348,20 +370,32 @@ class StylingOrchestrator:
                 t5,
             )
         else:
-            # Stage 5: Candidate Retrieval (role-aware)
+            # Stage 5: Candidate Retrieval (role-aware). In anchors-only mode there is nothing
+            # to retrieve — every anchor is kept, grouped by role, with no similarity ranking
+            # and no per-role cap (a stylist who pins eight tops gets all eight considered).
             t4 = time.perf_counter()
-            role_candidates = await retrieve_by_role(self.session, candidates, anchors)
+            if anchors_only:
+                role_candidates = {}
+                for a in anchors:
+                    role = resolve_role(a)
+                    if role:
+                        role_candidates.setdefault(role, []).append((a, 1.0))
+                retrieval_method = "anchors only — every anchored garment kept, grouped by role, no similarity ranking or per-role cap"
+            else:
+                role_candidates = await retrieve_by_role(self.session, candidates, anchors)
+                retrieval_method = "cosine similarity to anchor embeddings (Python/numpy) or versatility fallback"
             await self._record(
                 "STAGE_05_RETRIEVAL",
                 "Candidate Retrieval",
                 {
-                    "max_candidates_per_role": settings.STYLING_MAX_CANDIDATES_PER_ROLE,
+                    "max_candidates_per_role": None if anchors_only else settings.STYLING_MAX_CANDIDATES_PER_ROLE,
+                    "anchors_only": anchors_only,
                     "candidates_per_role": {role: len(items) for role, items in role_candidates.items()},
                     "candidates_per_role_detail": {
                         role: [{"garment_id": g.id, "subcategory": g.subcategory, "score": round(score, 3)} for g, score in items]
                         for role, items in role_candidates.items()
                     },
-                    "method": "cosine similarity to anchor embeddings (Python/numpy) or versatility fallback",
+                    "method": retrieval_method,
                 },
                 "SUCCEEDED",
                 t4,
@@ -369,7 +403,7 @@ class StylingOrchestrator:
 
             # Stage 6 + 7: Combination assembly, compatibility rules + VLM fallback, weighted ranking
             t5 = time.perf_counter()
-            combos = build_outfit_combinations(role_candidates, anchors, intent)
+            combos = build_outfit_combinations(role_candidates, anchors, intent, anchors_only=anchors_only)
             ranking_trace = await rank_combinations(combos, intent, context, top_k=top_k_pool)
             rejected_incompatible = ranking_trace.total_evaluated - ranking_trace.total_compatible
             await self._record(
