@@ -64,3 +64,43 @@ class PersonaOutfitReview(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
+
+
+class OwnOutfitReview(Base):
+    """The same five-dimension score, for an outfit generated in the reviewer's *own* account.
+
+    An admin styling their own wardrobe wants to rank those outfits exactly as a stylist ranks a
+    character's, but `persona_outfit_reviews.persona_id` is NOT NULL with a foreign key into
+    `personas`, and there is no character behind an admin's own account. Relaxing that column
+    would be an `ALTER TABLE` on the deployed database, which `create_all` never performs (see
+    the module docstring above for the same reasoning applied to `stylist_reviews`). A sibling
+    table with the persona column simply absent is the one shape that both works on a fresh
+    `create_all` and leaves the character panel's data and aggregates untouched.
+    """
+
+    __tablename__ = "own_outfit_reviews"
+    __table_args__ = (
+        UniqueConstraint("outfit_id", "reviewer_user_id", name="uq_own_outfit_review_reviewer"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: generate_uuid("oorev"))
+    outfit_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("outfits.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reviewer_user_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    member_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-5
+    vote: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)  # "like" | "dislike"
+    dimension_ratings: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    would_wear: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    tags: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )

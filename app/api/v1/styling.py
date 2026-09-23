@@ -13,6 +13,7 @@ from app.database import AsyncSessionLocal
 from app.models.base import utc_now
 from app.models.garment import Garment
 from app.models.ootd import OOTDSubscription
+from app.models.persona_review import OwnOutfitReview
 from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest, StylistReview
 from app.models.styling_run import StylingRunProgress
@@ -34,6 +35,8 @@ from app.schemas.styling import (
     OutfitReviewQueueItem,
     OutfitVoteRequest,
     OutfitVoteResponse,
+    OwnOutfitReviewItem,
+    OwnOutfitReviewResult,
     StageTrace,
     StyleProfileResponse,
     StylingIntent,
@@ -45,6 +48,7 @@ from app.schemas.styling import (
     SwapCandidateSummary,
     SwapGarmentRequest,
 )
+from app.schemas.persona import PersonaOutfitReviewRequest
 from app.storage.base import StorageClient
 from app.styling.ootd import get_or_generate_ootd
 from app.styling.orchestrator import StylingOrchestrator
@@ -407,6 +411,130 @@ async def review_outfit(
     await session.commit()
     await session.refresh(review)
     return _review_to_result(review)
+
+
+def _own_review_to_result(review: OwnOutfitReview, reviewer_name: Optional[str] = None) -> OwnOutfitReviewResult:
+    return OwnOutfitReviewResult(
+        id=review.id,
+        outfit_id=review.outfit_id,
+        reviewer_user_id=review.reviewer_user_id,
+        reviewer_name=reviewer_name,
+        rating=review.rating,
+        vote=review.vote,
+        dimension_ratings=review.dimension_ratings or {},
+        comment=review.comment,
+        would_wear=review.would_wear,
+        tags=review.tags or [],
+        created_at=review.created_at.isoformat(),
+        updated_at=review.updated_at.isoformat(),
+    )
+
+
+@router.get("/outfits/reviewable", response_model=List[OwnOutfitReviewItem])
+async def list_own_reviewable_outfits(
+    limit: int = 50,
+    scope: ActingScope = Depends(get_acting_scope),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Every outfit generated in the acting account, newest first, with the caller's own
+    five-dimension score and anyone else's alongside — the same rubric and item shape the
+    character panel uses (/personas/{id}/outfits), for an admin ranking their *own* outfits.
+    The /review page shows this when no character is active."""
+    outfits = list((
+        await session.execute(
+            select(Outfit)
+            .where(Outfit.tenant_id == scope.tenant_id, Outfit.member_id == scope.member_id)
+            .order_by(Outfit.created_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all())
+    if not outfits:
+        return []
+
+    request_ids = list({o.request_id for o in outfits if o.request_id})
+    request_text_by_id: dict = {}
+    used_hopit_by_id: dict = {}
+    if request_ids:
+        for rid, text, context in (
+            await session.execute(
+                select(StylingRequest.id, StylingRequest.raw_text, StylingRequest.context)
+                .where(StylingRequest.id.in_(request_ids))
+            )
+        ).all():
+            request_text_by_id[rid] = text
+            used_hopit_by_id[rid] = bool((context or {}).get("used_hopit"))
+
+    review_rows = (
+        await session.execute(
+            select(OwnOutfitReview, User.display_name, User.email)
+            .join(User, User.id == OwnOutfitReview.reviewer_user_id)
+            .where(OwnOutfitReview.outfit_id.in_([o.id for o in outfits]))
+        )
+    ).all()
+    by_outfit: dict = {}
+    for review, display_name, email in review_rows:
+        by_outfit.setdefault(review.outfit_id, []).append(_own_review_to_result(review, display_name or email))
+
+    items = []
+    for outfit in outfits:
+        reviews = by_outfit.get(outfit.id, [])
+        items.append(
+            OwnOutfitReviewItem(
+                outfit=await build_outfit_result(session, outfit),
+                generated_at=outfit.created_at.isoformat(),
+                request_id=outfit.request_id,
+                request_text=request_text_by_id.get(outfit.request_id),
+                used_hopit=used_hopit_by_id.get(outfit.request_id, False),
+                my_review=next((r for r in reviews if r.reviewer_user_id == scope.actor.id), None),
+                reviews=reviews,
+            )
+        )
+    return items
+
+
+@router.put("/outfits/{outfit_id}/score", response_model=OwnOutfitReviewResult)
+async def score_own_outfit(
+    outfit_id: str,
+    request: PersonaOutfitReviewRequest,
+    scope: ActingScope = Depends(get_acting_scope),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Upserts the caller's five-dimension score on an outfit generated in the acting account —
+    one row per (outfit, reviewer), revised in place. Distinct from the older like/dislike
+    /review endpoint above, which keeps one opinion per outfit and no reviewer."""
+    outfit = await session.get(Outfit, outfit_id)
+    if not outfit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outfit '{outfit_id}' not found")
+    if outfit.tenant_id != scope.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This outfit belongs to another account")
+
+    review = (
+        await session.execute(
+            select(OwnOutfitReview).where(
+                OwnOutfitReview.outfit_id == outfit_id,
+                OwnOutfitReview.reviewer_user_id == scope.actor.id,
+            )
+        )
+    ).scalars().first()
+    if review is None:
+        review = OwnOutfitReview(
+            outfit_id=outfit_id,
+            reviewer_user_id=scope.actor.id,
+            tenant_id=outfit.tenant_id,
+            member_id=outfit.member_id,
+            rating=request.rating,
+        )
+        session.add(review)
+
+    review.rating = request.rating
+    review.vote = request.vote
+    review.dimension_ratings = request.dimension_ratings
+    review.comment = request.comment
+    review.would_wear = request.would_wear
+    review.tags = request.tags
+    await session.commit()
+    await session.refresh(review)
+    return _own_review_to_result(review, scope.actor.display_name or scope.actor.email)
 
 
 @router.get("/profile", response_model=StyleProfileResponse)

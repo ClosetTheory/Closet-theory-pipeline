@@ -395,3 +395,35 @@ class OutfitReviewQueueItem(BaseModel):
     request_text: Optional[str] = None
     generated_at: str
     review: Optional[StylistReviewResult] = None
+
+
+# --- Scoring one's own outfits with the character panel's five-dimension rubric ---
+# Same request shape as PersonaOutfitReviewRequest (and the same dimension validation), so the
+# /review page can drive both with one form; only the storage table differs (see
+# app.models.persona_review.OwnOutfitReview for why).
+
+class OwnOutfitReviewResult(BaseModel):
+    id: str
+    outfit_id: str
+    reviewer_user_id: str
+    reviewer_name: Optional[str] = None
+    rating: int
+    vote: Optional[str] = None
+    dimension_ratings: Dict[str, int] = Field(default_factory=dict)
+    comment: Optional[str] = None
+    would_wear: Optional[bool] = None
+    tags: List[str] = Field(default_factory=list)
+    created_at: str
+    updated_at: str
+
+
+class OwnOutfitReviewItem(BaseModel):
+    """One of this account's generated outfits with every five-dimension score attached — the
+    same item shape /personas/{id}/outfits returns, so the review page renders both alike."""
+    outfit: OutfitResult
+    generated_at: str
+    request_id: Optional[str] = None
+    request_text: Optional[str] = None
+    used_hopit: bool = False
+    my_review: Optional[OwnOutfitReviewResult] = None
+    reviews: List[OwnOutfitReviewResult] = Field(default_factory=list)

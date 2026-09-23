@@ -124,10 +124,15 @@
       Pick a character on <a href="/stylist" class="text-ct-ink-soft hover:underline">My Characters</a> first — reviews are scored per character.
     </div>
 
+    <div id="own-outfits-note" class="hidden flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 bg-slate-900/70 border border-slate-800 rounded-2xl px-4 py-3">
+      <span>Reviewing outfits generated for <strong class="text-ct-ink">your own account</strong>. To review a character instead, open one from <a href="/stylist" class="text-ct-ink-soft hover:underline">All Characters</a>.</span>
+      <a href="/styling" class="text-ct-ink-soft hover:underline whitespace-nowrap">Generate more →</a>
+    </div>
+
     <div id="page-body" class="hidden space-y-6">
       <div class="flex items-center justify-between gap-4">
         <div>
-          <h1 id="page-title" class="text-xl font-bold text-white">Review</h1>
+          <h1 id="page-title" class="text-xl font-bold text-ct-ink">Review</h1>
           <p id="page-subtitle" class="text-sm text-slate-500 max-w-2xl mt-1">Every outfit generated for this character, most recent first. Score dressing sense across all five dimensions — this is what feeds their learned profile and what the team judges against.</p>
         </div>
         <span id="review-count" class="text-xs font-medium text-slate-500 whitespace-nowrap"></span>
@@ -218,6 +223,14 @@
         s.classList.toggle("on", Number(s.dataset.value) <= value));
     }
 
+    // personaId === null means the page is scoring the caller's own account's outfits (an admin
+    // ranking what the pipeline made for them) — same card, same rubric, different endpoints.
+    function reviewPutUrl(personaId, outfitId) {
+      return personaId
+        ? `${API}/personas/${personaId}/outfits/${outfitId}/review`
+        : `${API}/wardrobe/styling/outfits/${encodeURIComponent(outfitId)}/score`;
+    }
+
     function outfitCard(item, personaId) {
       const o = item.outfit || {};
       const mine = item.my_review;
@@ -261,7 +274,7 @@
                       class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary">${esc(mine ? (mine.comment || "") : "")}</textarea>
 
             <div class="flex items-center gap-3">
-              <button onclick="saveReview('${esc(personaId)}', '${esc(o.outfit_id)}')"
+              <button onclick="saveReview(${personaId ? `'${esc(personaId)}'` : "null"}, '${esc(o.outfit_id)}')"
                       class="px-4 py-2 rounded-xl bg-ct-primary hover:bg-ct-primary-pressed text-white text-xs font-bold transition">
                 ${mine ? "Update score" : "Save score"}
               </button>
@@ -283,7 +296,7 @@
       if (!state.rating) { el.textContent = "Give an overall score first."; return; }
       el.textContent = "Saving…";
       try {
-        const res = await ctFetch(`${API}/personas/${personaId}/outfits/${outfitId}/review`, {
+        const res = await ctFetch(reviewPutUrl(personaId, outfitId), {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -317,32 +330,50 @@
     }
 
     function emptyStateHtml(personaId) {
+      const stylingHref = personaId ? `/styling?persona=${encodeURIComponent(personaId)}` : "/styling";
       return `<div class="text-center text-slate-500 text-sm py-16 border border-dashed border-slate-800 rounded-2xl">
-        No outfits generated yet — run <a href="/styling?persona=${encodeURIComponent(personaId)}" class="text-ct-ink-soft hover:underline">Styling</a> for this character first.
+        No outfits generated yet — run <a href="${stylingHref}" class="text-ct-ink-soft hover:underline">Styling</a> ${personaId ? "for this character" : "on your own wardrobe"} first.
       </div>`;
     }
 
     async function loadReview() {
-      const personaId = ctActingAs();
+      const acting = ctActingAs();
+      const body = document.getElementById("review-body");
+
+      // No character active: an admin (or any member) scores the outfits generated for their
+      // OWN account, with the same rubric. A stylist-only account is never in this branch — every
+      // wardrobe call 403s without a character and ctFetch sends them to pick one. Entering a
+      // character from All Characters sets the acting header and takes the branch below.
+      let personaId = acting || null;
+      let me = null;
       if (!personaId) {
-        document.getElementById("need-persona").classList.remove("hidden");
-        return;
+        const meRes = await ctFetch(`${API}/auth/me`).catch(() => null);
+        me = meRes && meRes.ok ? await meRes.json() : null;
+        const roles = (me && me.roles) || [];
+        if (roles.indexOf("stylist") !== -1 && roles.indexOf("admin") === -1) {
+          document.getElementById("need-persona").classList.remove("hidden");
+          return;
+        }
       }
       document.getElementById("page-body").classList.remove("hidden");
 
-      const body = document.getElementById("review-body");
       try {
         const [personaRes, outfitsRes, isAdmin] = await Promise.all([
-          ctFetch(`${API}/personas/${personaId}`),
-          ctFetch(`${API}/personas/${personaId}/outfits`),
+          personaId ? ctFetch(`${API}/personas/${personaId}`) : Promise.resolve(null),
+          ctFetch(personaId ? `${API}/personas/${personaId}/outfits` : `${API}/wardrobe/styling/outfits/reviewable`),
           ctIsAdmin(),
         ]);
-        if (!personaRes.ok) throw new Error(`HTTP ${personaRes.status}`);
+        if (personaRes && !personaRes.ok) throw new Error(`HTTP ${personaRes.status}`);
         if (!outfitsRes.ok) throw new Error(`HTTP ${outfitsRes.status}`);
-        const persona = await personaRes.json();
+        const persona = personaRes ? await personaRes.json() : null;
         const outfits = await outfitsRes.json();
 
-        document.getElementById("page-title").textContent = "Review — " + persona.display_name;
+        if (persona) {
+          document.getElementById("page-title").textContent = "Review — " + persona.display_name;
+        } else {
+          document.getElementById("page-title").textContent = "Review — my outfits";
+          document.getElementById("own-outfits-note").classList.remove("hidden");
+        }
 
         totalCount = outfits.length;
         // Matches _persona_counts()'s own definition (a row count in persona_outfit_reviews,
@@ -354,8 +385,9 @@
         if (!isAdmin) {
           // Stylists review blind: one list, no indication of which pipeline produced an
           // outfit, so seeing "Altered Moda" vs "Our Pipeline" never biases their score.
-          document.getElementById("page-subtitle").textContent =
-            "Every outfit generated for this character, most recent first. Score dressing sense across all five dimensions — this is what feeds their learned profile and what the team judges against.";
+          document.getElementById("page-subtitle").textContent = personaId
+            ? "Every outfit generated for this character, most recent first. Score dressing sense across all five dimensions — this is what feeds their learned profile and what the team judges against."
+            : "Every outfit generated for your account, most recent first. Score dressing sense across all five dimensions.";
           body.innerHTML = outfits.length
             ? `<div class="space-y-5">${outfits.map(item => outfitCard(item, personaId)).join("")}</div>`
             : emptyStateHtml(personaId);

@@ -19,7 +19,7 @@ from app.models.style_profile import StyleProfile
 from app.models.user import User
 from app.models.role import UserRole, ROLE_ADMIN, ROLE_STYLIST, KNOWN_ROLES
 from app.models.persona import Persona, PersonaAssignment, PersonaGarmentUpload
-from app.models.persona_review import PersonaOutfitReview, REVIEW_DIMENSIONS
+from app.models.persona_review import OwnOutfitReview, PersonaOutfitReview, REVIEW_DIMENSIONS
 
 __all__ = [
     "Base",
@@ -50,5 +50,6 @@ __all__ = [
     "PersonaAssignment",
     "PersonaGarmentUpload",
     "PersonaOutfitReview",
+    "OwnOutfitReview",
     "REVIEW_DIMENSIONS",
 ]
