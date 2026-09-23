@@ -10,14 +10,14 @@ via StylingContext.user_preferences["attribute_affinities"] (see app/rules/style
 """
 
 import asyncio
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from app.models.garment import Garment
 from app.providers.aesthetic import get_aesthetic_provider
 from app.rules.scoring import DEFAULT_STYLING_WEIGHTS, apply_diversity_penalty, compute_outfit_score
 from app.rules.style_profile import attribute_affinity_score
 from app.rules.taxonomy import bundle_category
 from app.rules.visual import FORMALITY_SCORES, NEUTRAL_COLORS, _get_max_formality
-from app.rules.wardrobe_behavior import score_wardrobe_behavior
+from app.rules.wardrobe_behavior import NEUTRAL_BEHAVIOR_SCORE, WardrobeBehaviorModel, score_wardrobe_behavior
 from app.schemas.styling import OutfitCandidate, ScoreBreakdown, StylingContext, StylingIntent
 from app.styling.aesthetics import _to_summary as _to_garment_summary
 from app.styling.compatibility import evaluate_outfit_compatibility
@@ -147,11 +147,65 @@ def _user_preference(visual_harmony_score: float, context: StylingContext) -> fl
 class RankingTrace:
     """Bundles ranking-stage telemetry alongside the diversified outfits, for the pipeline detail view."""
 
-    def __init__(self, outfits: List[OutfitCandidate], total_evaluated: int, total_compatible: int, pairing_rejected: int = 0):
+    def __init__(
+        self,
+        outfits: List[OutfitCandidate],
+        total_evaluated: int,
+        total_compatible: int,
+        pairing_rejected: int = 0,
+        behavior_rejected: int = 0,
+    ):
         self.outfits = outfits
         self.total_evaluated = total_evaluated
         self.total_compatible = total_compatible
         self.pairing_rejected = pairing_rejected
+        # Combinations skipped because they contain a garment pairing the member has disliked
+        # three or more times (see app.rules.wardrobe_behavior) — never sent to the VLM at all.
+        self.behavior_rejected = behavior_rejected
+
+
+# How strongly a learned pair residual (in [-1, 1]) moves the compatibility component. 0.25 means
+# the most-disliked pairing imaginable knocks a perfect compatibility score down to 0.75 — a
+# real demotion, but never a hard reject; the hard reject is a separate, evidence-gated rule.
+PAIR_RESIDUAL_WEIGHT = 0.25
+
+
+def _behavior_adjusted_compatibility(compatibility_score: float, garment_ids: List[str], behavior: Optional[WardrobeBehaviorModel]) -> float:
+    if behavior is None:
+        return compatibility_score
+    adjusted = compatibility_score + PAIR_RESIDUAL_WEIGHT * behavior.outfit_pair_adjustment(garment_ids)
+    return max(0.0, min(1.0, adjusted))
+
+
+def apply_behavior_rerank(
+    trace: RankingTrace, behavior: Optional[WardrobeBehaviorModel], anchor_ids: Optional[Set[str]] = None
+) -> RankingTrace:
+    """Applies the member's learned behaviour to outfits ranked *outside* our own scorer (the Hopit
+    path skips Stages 5 and 6 entirely). Blocked pairings are dropped; the behaviour and pairing
+    terms shift final_score by the same weights the native path uses, so the two pipelines are
+    penalised alike and comparable in the admin split view."""
+    if behavior is None or behavior.is_empty:
+        return trace
+    kept: List[OutfitCandidate] = []
+    rejected = 0
+    for outfit in trace.outfits:
+        if behavior.blocked_pair(outfit.garment_ids, exempt=anchor_ids):
+            rejected += 1
+            continue
+        beh = behavior.outfit_behavior_score(outfit.garment_ids)
+        pair_adj = PAIR_RESIDUAL_WEIGHT * behavior.outfit_pair_adjustment(outfit.garment_ids)
+        delta = DEFAULT_STYLING_WEIGHTS["wardrobe_behavior"] * (beh - NEUTRAL_BEHAVIOR_SCORE) + DEFAULT_STYLING_WEIGHTS["compatibility"] * pair_adj
+        outfit.scores.wardrobe_behavior = beh
+        outfit.scores.final_score = max(0.0, min(1.0, outfit.scores.final_score + delta))
+        kept.append(outfit)
+    kept.sort(key=lambda o: o.scores.final_score, reverse=True)
+    return RankingTrace(
+        outfits=kept,
+        total_evaluated=trace.total_evaluated,
+        total_compatible=len(kept),
+        pairing_rejected=trace.pairing_rejected,
+        behavior_rejected=trace.behavior_rejected + rejected,
+    )
 
 
 LAYER_IMPROVEMENT_EPSILON = 0.01  # minimum final_score gain required to suggest an optional layer
@@ -162,6 +216,8 @@ async def rank_combinations(
     intent: StylingIntent,
     context: StylingContext,
     top_k: int,
+    behavior: Optional[WardrobeBehaviorModel] = None,
+    anchor_ids: Optional[Set[str]] = None,
 ) -> RankingTrace:
     """Evaluates compatibility + scores every combination, drops INCOMPATIBLE ones, returns
     diversified top_k. Combos tagged with a base_combo_key (an optional outerwear layer added
@@ -172,6 +228,7 @@ async def rank_combinations(
     scored_by_key: Dict[frozenset, float] = {}
     pending_layered: List[Tuple[OutfitCandidate, Optional[frozenset]]] = []
     pairing_rejected = 0
+    behavior_rejected = 0
     aesthetic_provider = get_aesthetic_provider()
 
     # Pass 1: compatibility + every cheap (local, no-I/O) component, sequentially — matches the
@@ -181,6 +238,13 @@ async def rank_combinations(
     survivors: List[Tuple[List[Garment], Optional[frozenset], Dict[str, str], str, Dict[str, float]]] = []
     for entry in combinations_with_retrieval:
         garments, _retrieval_sum, base_combo_key = entry if len(entry) == 3 else (*entry, None)
+        garment_ids = [g.id for g in garments]
+
+        # Stage 3 says the member has rejected this exact pairing again and again — skip it before
+        # spending a compatibility/VLM call on it. Anchored pairs are exempt: chosen on purpose.
+        if behavior is not None and behavior.blocked_pair(garment_ids, exempt=anchor_ids):
+            behavior_rejected += 1
+            continue
 
         decision, compatibility_score, reason, hard_reject_source = await evaluate_outfit_compatibility(garments)
         if decision == "INCOMPATIBLE":
@@ -192,11 +256,11 @@ async def rank_combinations(
         visual_harmony_score = await _visual_harmony(garments)
         partial_components = {
             "request_match": _request_match(garments, intent),
-            "compatibility": compatibility_score,
+            "compatibility": _behavior_adjusted_compatibility(compatibility_score, garment_ids, behavior),
             "user_preference": _user_preference(visual_harmony_score, context),
             "occasion_fit": _occasion_fit(garments, intent),
             "visual_harmony": visual_harmony_score,
-            "wardrobe_behavior": sum(score_wardrobe_behavior(g) for g in garments) / len(garments),
+            "wardrobe_behavior": sum(score_wardrobe_behavior(g, behavior) for g in garments) / len(garments),
             "weather_fit": _weather_fit(garments, intent),
             "attribute_affinity": attribute_affinity_score(
                 [g.attributes_json or {} for g in garments], context.user_preferences.get("attribute_affinities", {})
@@ -240,4 +304,5 @@ async def rank_combinations(
         total_evaluated=len(combinations_with_retrieval),
         total_compatible=len(scored),
         pairing_rejected=pairing_rejected,
+        behavior_rejected=behavior_rejected,
     )

@@ -15,6 +15,7 @@ from app.config import settings
 from app.models.embedding import GarmentEmbedding
 from app.models.garment import Garment
 from app.rules.garment_class import bundle_garment_class, infer_garment_class_from_subcategory
+from app.rules.wardrobe_behavior import WardrobeBehaviorModel
 
 RoleCandidates = Dict[str, List[Tuple[Garment, float]]]
 
@@ -52,8 +53,14 @@ async def retrieve_by_role(
     candidates: List[Garment],
     anchors: List[Garment],
     max_per_role: int = settings.STYLING_MAX_CANDIDATES_PER_ROLE,
+    behavior: Optional[WardrobeBehaviorModel] = None,
 ) -> RoleCandidates:
-    """Groups candidates by canonical role, scores by similarity to anchors (or neutral), caps per role."""
+    """Groups candidates by canonical role, scores by similarity to anchors (or neutral), caps per role.
+
+    With a Stage 3 behaviour model, each garment's retrieval score is scaled by (0.5 + its learned
+    score): neutral 0.5 leaves it untouched, a repeatedly-disliked garment at the exploration floor
+    is retrieved ~35% less eagerly, a favourite up to 50% more — so disliked garments stop being
+    pulled into combinations as often, before any compatibility or VLM cost is spent on them."""
     anchor_ids = {a.id for a in anchors}
     non_anchor_candidates = [g for g in candidates if g.id not in anchor_ids]
 
@@ -77,6 +84,9 @@ async def retrieve_by_role(
             # garments out of a now much larger wardrobe — real users see the same few outfits
             # every time otherwise.
             score = float((garment.attributes_json or {}).get("versatility", 0.5)) + random.uniform(0.0, 0.35)
+
+        if behavior is not None:
+            score *= 0.5 + behavior.garment_score(garment.id)
 
         role_map.setdefault(role, []).append((garment, score))
 

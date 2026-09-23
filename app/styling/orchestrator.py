@@ -44,7 +44,8 @@ from app.styling.filtering import filter_candidates, get_anchor_garments
 from app.styling.combinator import anchors_cover_body
 from app.styling.hopit_adapter import hopit_response_to_ranking_trace
 from app.styling.imaging import generate_and_run_gates, load_persona_portrait
-from app.styling.ranking import rank_combinations
+from app.styling.behavior import load_behavior_model
+from app.styling.ranking import apply_behavior_rerank, rank_combinations
 from app.styling.retrieval import resolve_role, retrieve_by_role
 from app.styling.semantic_validation import validate_outfits
 from app.providers.hopit_client import HopitClient
@@ -167,6 +168,31 @@ class StylingOrchestrator:
         if self.on_stage:
             await self.on_stage(entry)
 
+    async def _label_behavior_summary(self, summary: Dict[str, Any]) -> None:
+        """Adds human-readable garment labels to Stage 3's trace so the stage card can say
+        "👎 linen shirt" rather than a bare id. Mutates in place; ids stay for deep links."""
+        ids: set = set()
+        for item in summary.get("penalised_garments", []) + summary.get("boosted_garments", []):
+            ids.add(item["garment_id"])
+        for pair in summary.get("disliked_pairs", []):
+            ids.update(pair["garment_ids"])
+        for pair in summary.get("blocked_pairs", []):
+            ids.update(pair)
+        if not ids:
+            return
+        rows = (await self.session.execute(select(Garment.id, Garment.subcategory, Garment.category, Garment.attributes_json).where(Garment.id.in_(ids)))).all()
+        labels = {
+            gid: str((attrs or {}).get("casual_name") or sub or cat or gid).lower().replace("_", " ")
+            for gid, sub, cat, attrs in rows
+        }
+        for item in summary.get("penalised_garments", []) + summary.get("boosted_garments", []):
+            item["label"] = labels.get(item["garment_id"], item["garment_id"])
+        for pair in summary.get("disliked_pairs", []):
+            pair["labels"] = [labels.get(g, g) for g in pair["garment_ids"]]
+        summary["blocked_pairs"] = [
+            {"garment_ids": pair, "labels": [labels.get(g, g) for g in pair]} for pair in summary.get("blocked_pairs", [])
+        ]
+
     async def run(self, request: StylingRecommendationRequest, tenant_id: str, member_id: str) -> StylingRecommendationResponse:
         # tenant_id/member_id come from the authenticated caller (see app/api/v1/styling.py),
         # never from the request body — StylingRecommendationRequest no longer carries them.
@@ -275,18 +301,34 @@ class StylingOrchestrator:
             t1,
         )
 
-        # Stage 3: Wardrobe Behaviour (stub — no WearLog data yet)
+        # Stage 3: Wardrobe Behaviour — learned from this member's 👍/👎 and review stars on past
+        # outfits (app.rules.wardrobe_behavior). Feeds Stage 5 (retrieval weighting), Stage 6
+        # (pairing residuals + blocked pairings) and Stage 7 (the wardrobe_behavior component, and
+        # a re-rank of Hopit's results so both pipelines are penalised alike).
         t2 = time.perf_counter()
+        behavior = await load_behavior_model(self.session, tenant_id, member_id)
+        behavior_summary = behavior.summary()
+        await self._label_behavior_summary(behavior_summary)
+        if behavior.is_empty:
+            behavior_note = (
+                "No outfit votes yet for this member — every garment keeps the neutral score (0.5) "
+                "until 👍/👎 on the styling page or review stars accumulate."
+            )
+        else:
+            behavior_note = (
+                f"Learned from {behavior.votes_considered} vote(s): "
+                f"{len(behavior_summary['penalised_garments'])} garment(s) penalised, "
+                f"{len(behavior_summary['boosted_garments'])} boosted, "
+                f"{len(behavior_summary['blocked_pairs'])} pairing(s) blocked outright."
+            )
         await self._record(
             "STAGE_03_WARDROBE_BEHAVIOUR",
             "Wardrobe Behaviour Analysis",
-            {
-                "note": "No WearLog/StyleProfile tables yet — every garment receives a neutral stub score (0.5).",
-                "neutral_score": 0.5,
-            },
+            {"note": behavior_note, "neutral_score": 0.5, **behavior_summary},
             "SUCCEEDED",
             t2,
         )
+        anchor_ids = {a.id for a in anchors}
 
         # Stage 4: DB Filtering. With anchors the wardrobe query is skipped entirely — the
         # anchors *are* the candidate pool, so nothing the stylist did not pick can appear.
@@ -355,7 +397,7 @@ class StylingOrchestrator:
             )
 
             t5 = time.perf_counter()
-            ranking_trace = hopit_response_to_ranking_trace(hopit_result)
+            ranking_trace = apply_behavior_rerank(hopit_response_to_ranking_trace(hopit_result), behavior, anchor_ids)
             await self._record(
                 "STAGE_06_COMPATIBILITY",
                 "Candidate Compatibility Analysis",
@@ -365,6 +407,7 @@ class StylingOrchestrator:
                     "surviving_combinations": ranking_trace.total_compatible,
                     "method": "Hopit /v1/outfits:rank (external, hosted)",
                     "hopit_warnings": hopit_result.get("warnings", []),
+                    "behavior_rejected": ranking_trace.behavior_rejected,
                 },
                 "SUCCEEDED",
                 t5,
@@ -382,7 +425,7 @@ class StylingOrchestrator:
                         role_candidates.setdefault(role, []).append((a, 1.0))
                 retrieval_method = "anchors only — every anchored garment kept, grouped by role, no similarity ranking or per-role cap"
             else:
-                role_candidates = await retrieve_by_role(self.session, candidates, anchors)
+                role_candidates = await retrieve_by_role(self.session, candidates, anchors, behavior=behavior)
                 retrieval_method = "cosine similarity to anchor embeddings (Python/numpy) or versatility fallback"
             await self._record(
                 "STAGE_05_RETRIEVAL",
@@ -404,7 +447,9 @@ class StylingOrchestrator:
             # Stage 6 + 7: Combination assembly, compatibility rules + VLM fallback, weighted ranking
             t5 = time.perf_counter()
             combos = build_outfit_combinations(role_candidates, anchors, intent, anchors_only=anchors_only)
-            ranking_trace = await rank_combinations(combos, intent, context, top_k=top_k_pool)
+            ranking_trace = await rank_combinations(
+                combos, intent, context, top_k=top_k_pool, behavior=behavior, anchor_ids=anchor_ids
+            )
             rejected_incompatible = ranking_trace.total_evaluated - ranking_trace.total_compatible
             await self._record(
                 "STAGE_06_COMPATIBILITY",
@@ -414,6 +459,7 @@ class StylingOrchestrator:
                     "combinations_evaluated": ranking_trace.total_evaluated,
                     "rejected_incompatible": rejected_incompatible,
                     "pairing_rejected": ranking_trace.pairing_rejected,
+                    "behavior_rejected": ranking_trace.behavior_rejected,
                     "surviving_combinations": ranking_trace.total_compatible,
                     "method": "deterministic pairing/layering/structural rules (hard reject) + visual rules/VLM (soft penalty only)",
                 },

@@ -431,8 +431,8 @@
         blurb: "Reads your free-text request (and any preselected garments) and turns it into structured facts — occasion, formality, colors — that the rest of the pipeline can act on. Never invents garments." },
       { key: "STAGE_02_CONTEXT", title: "Stage 2: Contextual Analysis", color: "purple", tech: "LLM + App Context",
         blurb: "Combines the normalised request with app context (user preferences, environment). No behavioral history exists yet, so this mostly passes the intent through." },
-      { key: "STAGE_03_WARDROBE_BEHAVIOUR", title: "Stage 3: Wardrobe Behaviour", color: "blue", tech: "Weighted Scorer",
-        blurb: "Would score garments by how often you actually wear/like them. No wear-history data exists yet, so every garment currently gets a neutral placeholder score." },
+      { key: "STAGE_03_WARDROBE_BEHAVIOUR", title: "Stage 3: Wardrobe Behaviour", color: "blue", tech: "Bayesian vote model",
+        blurb: "Learns from your 👍/👎 and review stars: a garment disliked across many different outfits is penalised, a pairing disliked together again and again is demoted or blocked outright, and favourites are boosted. With no votes yet every garment stays neutral." },
       { key: "STAGE_04_FILTERING", title: "Stage 4: Attribute Filtering", color: "blue", tech: "PostgreSQL",
         blurb: "A cheap database query narrows your whole wardrobe down to garments that are fully processed, approved, and roughly match any color preference — before any expensive AI calls happen." },
       { key: "STAGE_05_RETRIEVAL", title: "Stage 5: Candidate Retrieval", color: "blue", tech: "Embedding Similarity",
@@ -505,8 +505,27 @@
         }
         case "STAGE_02_CONTEXT":
           return note(summary.note) + row("Occasion carried forward", summary.context?.intent?.occasion || "not specified");
-        case "STAGE_03_WARDROBE_BEHAVIOUR":
-          return note(summary.note) + row("Score every garment gets", `${summary.neutral_score} (neutral)`);
+        case "STAGE_03_WARDROBE_BEHAVIOUR": {
+          const name = it => esc(it.label || it.garment_id);
+          const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+          let html = note(summary.note) + row("Votes learned from", summary.votes_considered || 0, "text-slate-200 font-bold");
+          if (!summary.votes_considered) return html + row("Score every garment gets", `${summary.neutral_score} (neutral)`);
+          html += row("Garments scored", summary.garments_scored) + row("Pairings scored", summary.pairs_scored);
+          (summary.penalised_garments || []).forEach(p => {
+            html += row(`👎 ${name(p)}`, `${p.score} · ${plural(p.dislikes, "dislike")} across ${plural(p.distinct_disliked_partners, "partner")}`, "text-red-400");
+          });
+          (summary.boosted_garments || []).forEach(p => {
+            html += row(`👍 ${name(p)}`, `${p.score} · ${plural(p.likes, "like")}`, "text-emerald-400");
+          });
+          (summary.blocked_pairs || []).forEach(pair => {
+            const labels = pair.labels || pair.garment_ids || pair;
+            html += row("⛔ blocked pairing", labels.map(esc).join(" + "), "text-red-400");
+          });
+          (summary.disliked_pairs || []).filter(pr => !pr.blocked).slice(0, 3).forEach(pr => {
+            html += row("pairing penalised", `${(pr.labels || pr.garment_ids).map(esc).join(" + ")} (${pr.residual})`, "text-amber-400");
+          });
+          return html;
+        }
         case "STAGE_04_FILTERING":
           if (summary.anchors_only) {
             return row("Anchored garments", (summary.anchors_locked_in || []).length, "text-slate-200 font-bold")
@@ -1019,8 +1038,11 @@
               </div>`;
     }
 
+    const outfitGarmentsById = {}; // outfit_id -> garment ids, for reacting to a 👎 across the shortlist
+
     function outfitCard(outfit) {
       const scores = outfit.scores || {};
+      outfitGarmentsById[outfit.outfit_id] = (outfit.garments || []).map(g => g.garment_id);
       const validationBadge = (v, label) => {
         if (!v) return "";
         const color = v.status === "PASS" ? "emerald" : v.status === "FAIL" ? "red" : "amber";
@@ -1262,11 +1284,37 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        feedbackEl.textContent = `boldness pref → ${data.boldness_preference.toFixed(3)} (${data.vote_count} votes)`;
+        const n = data.ledger_votes || data.vote_count;
+        feedbackEl.textContent = `noted · ${n} vote${n === 1 ? "" : "s"} learned`;
+        feedbackEl.title = vote === "down"
+          ? "These garments and this pairing will rank lower on the next run."
+          : "These garments will rank higher on the next run.";
+        if (vote === "down") markSharedGarmentCards(card, data.garment_ids || []);
       } catch (e) {
         feedbackEl.textContent = "vote failed";
         card.querySelectorAll(".vote-btn").forEach(b => b.disabled = false);
       }
+    }
+
+    // A 👎 should be felt immediately, not only on the next run: other shortlisted outfits that
+    // share a just-disliked garment are dimmed and labelled so the member sees why.
+    function markSharedGarmentCards(votedCard, dislikedGarmentIds) {
+      const grid = votedCard.parentElement;
+      if (!grid || !dislikedGarmentIds.length) return;
+      grid.querySelectorAll("[id^='outfit-card-']").forEach(other => {
+        if (other === votedCard) return;
+        const ids = outfitGarmentsById[other.id.replace("outfit-card-", "")] || [];
+        const shared = ids.filter(id => dislikedGarmentIds.includes(id));
+        if (!shared.length) return;
+        other.classList.add("opacity-60");
+        let tag = other.querySelector(".shared-dislike");
+        if (!tag) {
+          tag = document.createElement("div");
+          tag.className = "shared-dislike text-[10px] text-amber-400 pt-1 border-t border-slate-800";
+          other.appendChild(tag);
+        }
+        tag.textContent = `shares ${shared.length} garment${shared.length === 1 ? "" : "s"} with an outfit you disliked`;
+      });
     }
 
     // --- run / resume / poll ---------------------------------------------------------

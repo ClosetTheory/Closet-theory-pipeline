@@ -30,6 +30,7 @@ from app.models.persona_review import PersonaOutfitReview
 from app.models.role import ROLE_ADMIN
 from app.models.styling import Outfit, StylingRequest
 from app.models.user import User
+from app.styling.behavior import record_outfit_vote, vote_from_rating
 from app.schemas.persona import (
     AssignmentRequest,
     PersonaOutfitReviewRequest,
@@ -404,6 +405,10 @@ async def upsert_persona_outfit_review(
     review.comment = request.comment
     review.would_wear = request.would_wear
     review.tags = request.tags
+    # Stars are also behaviour: a 1-2 star review is a dislike and a 4-5 a like in the ledger
+    # Stage 3 learns from, so the character's next styling run reflects the panel's verdicts.
+    ledger_vote, ledger_weight = vote_from_rating(request.rating)
+    await record_outfit_vote(session, outfit, current_user.id, "persona_review", ledger_vote, ledger_weight)
     await session.commit()
     await session.refresh(review)
     return _review_to_result(review, current_user.display_name or current_user.email)

@@ -50,6 +50,7 @@ from app.schemas.styling import (
 )
 from app.schemas.persona import PersonaOutfitReviewRequest
 from app.storage.base import StorageClient
+from app.styling.behavior import load_behavior_model, record_outfit_vote, vote_from_rating
 from app.styling.ootd import get_or_generate_ootd
 from app.styling.orchestrator import StylingOrchestrator
 from app.styling.replay import build_outfit_result, replay_styling_request
@@ -317,15 +318,23 @@ async def vote_outfit(
     profile.boldness_preference = update_boldness_preference(profile.boldness_preference, boldness, request.vote)
     profile.attribute_affinities = update_attribute_affinities(profile.attribute_affinities or {}, garments_attrs, request.vote)
     profile.vote_count += 1
+
+    # The durable record Stage 3 (Wardrobe Behaviour) learns garment and pairing scores from —
+    # the StyleProfile nudges above keep no memory of *which* outfit was voted on.
+    await record_outfit_vote(session, outfit, scope.actor.id, "styling_page", request.vote, 1.0)
     await session.commit()
     await session.refresh(profile)
 
+    behavior = await load_behavior_model(session, outfit.tenant_id, outfit.member_id)
     return OutfitVoteResponse(
         outfit_id=outfit_id,
         vote=request.vote,
         outfit_boldness=boldness,
         boldness_preference=profile.boldness_preference,
         vote_count=profile.vote_count,
+        garment_ids=garment_ids,
+        garment_behavior_scores={gid: round(behavior.garment_score(gid), 3) for gid in garment_ids},
+        ledger_votes=behavior.votes_considered,
     )
 
 
@@ -532,6 +541,8 @@ async def score_own_outfit(
     review.comment = request.comment
     review.would_wear = request.would_wear
     review.tags = request.tags
+    ledger_vote, ledger_weight = vote_from_rating(request.rating)
+    await record_outfit_vote(session, outfit, scope.actor.id, "own_review", ledger_vote, ledger_weight)
     await session.commit()
     await session.refresh(review)
     return _own_review_to_result(review, scope.actor.display_name or scope.actor.email)

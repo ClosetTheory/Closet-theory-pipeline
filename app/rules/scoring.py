@@ -12,8 +12,10 @@ DEFAULT_STYLING_WEIGHTS: Dict[str, float] = {
     "user_preference": 0.13,
     "occasion_fit": 0.13,
     "visual_harmony": 0.08,
-    "aesthetic_score": 0.15,
-    "wardrobe_behavior": 0.06,
+    # Behaviour used to sit at 0.06 while it was a constant stub; now that it is learned from the
+    # member's own 👍/👎 it carries real signal and the LLM aesthetic opinion gives up the difference.
+    "aesthetic_score": 0.06,
+    "wardrobe_behavior": 0.15,
     "weather_fit": 0.04,
     "attribute_affinity": 0.04,
     "novelty": 0.03,

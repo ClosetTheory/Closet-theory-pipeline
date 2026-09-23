@@ -282,6 +282,12 @@ class OutfitVoteResponse(BaseModel):
     outfit_boldness: float
     boldness_preference: float
     vote_count: int
+    # The behaviour ledger's view after this vote (see app.rules.wardrobe_behavior): which garments
+    # the vote touched and what each now scores, so the UI can react immediately — e.g. dim other
+    # shortlisted outfits that share a just-disliked garment.
+    garment_ids: List[str] = Field(default_factory=list)
+    garment_behavior_scores: Dict[str, float] = Field(default_factory=dict)
+    ledger_votes: int = 0
 
 
 class AttributeAffinityValue(BaseModel):
