@@ -1,0 +1,1956 @@
+{
+ "run_at": "2026-09-23",
+ "moda_api": "https://api.closettheory.hopit.ai",
+ "model_version": "moda-pro-lite@1",
+ "compatibility_source": "embedding_proxy",
+ "key_scopes": "ingest,styling (search and embeddings were 403 scope_forbidden)",
+ "note": "Assembled from three exploratory rounds run on 2026-09-23 under scratch owner ctbench_mislabel (120 records, deleted afterwards). The committed run_benchmark.py reproduces the same probes in one pass; its own end-to-end run was stopped by the local harness for memory pressure after ingesting 228/230 records, and that scratch owner was deleted too.",
+ "images": {
+  "shirt": {
+   "src": "garm_5a53779ed7924d5eb2795eed49ee117d",
+   "url": "https://visualiser-dsfja238un9.closettheory.co/api/v1/wardrobe/images/img_23d45bdc6a6b4e7d866fae97c64185be/bytes",
+   "attrs": {
+    "category": "top",
+    "subcategory": "button_down_shirt",
+    "garment_class": "SHIRT",
+    "colour": [
+     "light blue"
+    ],
+    "pattern": "solid",
+    "material": "denim",
+    "fit": "relaxed",
+    "silhouette": "straight",
+    "sleeve_length": "sleeveless",
+    "occasion": [
+     "casual"
+    ],
+    "season": [
+     "summer",
+     "spring"
+    ],
+    "layering_role": "standalone",
+    "gender": "women",
+    "warmth": 0.3,
+    "versatility": 0.6,
+    "confidence": 0.9,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null
+   }
+  },
+  "bag": {
+   "src": "garm_1891fa69285040b89f90222c95b96db5",
+   "url": "https://visualiser-dsfja238un9.closettheory.co/api/v1/wardrobe/images/img_c6cddbe2116b488abdbb9ff4453d2295/bytes",
+   "attrs": {
+    "category": "accessory",
+    "subcategory": "bag",
+    "garment_class": "BAG",
+    "colour": [
+     "brown"
+    ],
+    "pattern": "textured",
+    "material": "rattan",
+    "fit": "not_applicable",
+    "silhouette": "not_applicable",
+    "sleeve_length": "not_applicable",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "season": [
+     "summer",
+     "spring",
+     "fall"
+    ],
+    "layering_role": "accessory",
+    "gender": "women",
+    "warmth": 0.1,
+    "versatility": 0.6,
+    "confidence": 1.0,
+    "visual_description": null,
+    "pattern_detail": null,
+    "pocket_detail": null,
+    "button_detail": null,
+    "collar_detail": null,
+    "brand_label": null
+   }
+  }
+ },
+ "variant_ids": {
+  "S0_correct": "ctb_s0_correct",
+  "S1_named_bag": "ctb_s1_named_bag",
+  "S2_cat_accessory_only": "ctb_s2_cat_accessory_only",
+  "S3_sub_bag_only": "ctb_s3_sub_bag_only",
+  "S4_no_attrs": "ctb_s4_no_attrs",
+  "S5_top_but_sub_bag": "ctb_s5_top_but_sub_bag",
+  "S6_cat_bag": "ctb_s6_cat_bag",
+  "S7_CAT_UPPER": "ctb_s7_cat_upper",
+  "S8_cat_nonsense": "ctb_s8_cat_nonsense",
+  "S9_name_bag_only": "ctb_s9_name_bag_only",
+  "S10_cat_bottom": "ctb_s10_cat_bottom",
+  "S11_cat_footwear": "ctb_s11_cat_footwear",
+  "S12_cat_shirt_word": "ctb_s12_cat_shirt_word",
+  "S13_cat_accessories_pl": "ctb_s13_cat_accessories_pl",
+  "S14_cat_empty": "ctb_s14_cat_empty",
+  "B0_correct": "ctb_b0_correct",
+  "B1_named_shirt": "ctb_b1_named_shirt",
+  "B2_no_attrs": "ctb_b2_no_attrs",
+  "J_jeans": "ctb_j_jeans",
+  "F_boots": "ctb_f_boots",
+  "D_dress": "ctb_d_dress",
+  "O_blazer": "ctb_o_blazer"
+ },
+ "stored_by_moda": {
+  "S0_correct": {
+   "garment_id": "ctb_s0_correct",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "top",
+    "colour": [
+     "light blue"
+    ],
+    "fit": "relaxed",
+    "layering_role": "standalone",
+    "material": "denim",
+    "occasion": [
+     "casual"
+    ],
+    "pattern": "solid",
+    "season": [
+     "summer",
+     "spring"
+    ],
+    "subcategory": "button_down_shirt",
+    "warmth": 0.3
+   },
+   "updated_at": "2026-09-23T11:13:14+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S1_named_bag": {
+   "garment_id": "ctb_s1_named_bag",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "accessory",
+    "colour": [
+     "light blue"
+    ],
+    "fit": "relaxed",
+    "layering_role": "standalone",
+    "material": "denim",
+    "occasion": [
+     "casual"
+    ],
+    "pattern": "solid",
+    "season": [
+     "summer",
+     "spring"
+    ],
+    "subcategory": "bag",
+    "warmth": 0.3
+   },
+   "updated_at": "2026-09-23T11:13:16+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S2_cat_accessory_only": {
+   "garment_id": "ctb_s2_cat_accessory_only",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "accessory"
+   },
+   "updated_at": "2026-09-23T11:13:18+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S3_sub_bag_only": {
+   "garment_id": "ctb_s3_sub_bag_only",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "subcategory": "bag"
+   },
+   "updated_at": "2026-09-23T11:13:19+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S4_no_attrs": {
+   "garment_id": "ctb_s4_no_attrs",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {},
+   "updated_at": "2026-09-23T11:13:21+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S5_top_but_sub_bag": {
+   "garment_id": "ctb_s5_top_but_sub_bag",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "top",
+    "subcategory": "bag"
+   },
+   "updated_at": "2026-09-23T11:13:23+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S6_cat_bag": {
+   "garment_id": "ctb_s6_cat_bag",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "bag"
+   },
+   "updated_at": "2026-09-23T11:13:24+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S7_CAT_UPPER": {
+   "garment_id": "ctb_s7_cat_upper",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "ACCESSORY",
+    "subcategory": "BAG"
+   },
+   "updated_at": "2026-09-23T11:13:26+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S8_cat_nonsense": {
+   "garment_id": "ctb_s8_cat_nonsense",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "xyz_nonsense"
+   },
+   "updated_at": "2026-09-23T11:13:27+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S9_name_bag_only": {
+   "garment_id": "ctb_s9_name_bag_only",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "casual_name": "bag"
+   },
+   "updated_at": "2026-09-23T11:13:29+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S10_cat_bottom": {
+   "garment_id": "ctb_s10_cat_bottom",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "bottom"
+   },
+   "updated_at": "2026-09-23T11:13:31+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S11_cat_footwear": {
+   "garment_id": "ctb_s11_cat_footwear",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "footwear"
+   },
+   "updated_at": "2026-09-23T11:13:33+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S12_cat_shirt_word": {
+   "garment_id": "ctb_s12_cat_shirt_word",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "shirt"
+   },
+   "updated_at": "2026-09-23T11:13:34+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S13_cat_accessories_pl": {
+   "garment_id": "ctb_s13_cat_accessories_pl",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "accessories"
+   },
+   "updated_at": "2026-09-23T11:13:35+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "S14_cat_empty": {
+   "garment_id": "ctb_s14_cat_empty",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "6f2f263f4b0dcda2a08bed8456aac38eb7c42a5bc6d8763e09a0dd3576d20089",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": ""
+   },
+   "updated_at": "2026-09-23T11:13:37+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "B0_correct": {
+   "garment_id": "ctb_b0_correct",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "864af652df65cc99fb3a9870db5f5a1fdcd3a94b298e2f36c92e85d411cbf1ed",
+   "width": 1254,
+   "height": 1254,
+   "attributes": {
+    "category": "accessory",
+    "colour": [
+     "brown"
+    ],
+    "fit": "not_applicable",
+    "layering_role": "accessory",
+    "material": "rattan",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "pattern": "textured",
+    "season": [
+     "summer",
+     "spring",
+     "fall"
+    ],
+    "subcategory": "bag",
+    "warmth": 0.1
+   },
+   "updated_at": "2026-09-23T11:13:38+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "B1_named_shirt": {
+   "garment_id": "ctb_b1_named_shirt",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "864af652df65cc99fb3a9870db5f5a1fdcd3a94b298e2f36c92e85d411cbf1ed",
+   "width": 1254,
+   "height": 1254,
+   "attributes": {
+    "category": "top",
+    "colour": [
+     "brown"
+    ],
+    "fit": "not_applicable",
+    "layering_role": "accessory",
+    "material": "rattan",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "pattern": "textured",
+    "season": [
+     "summer",
+     "spring",
+     "fall"
+    ],
+    "subcategory": "button_down_shirt",
+    "warmth": 0.1
+   },
+   "updated_at": "2026-09-23T11:13:40+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "B2_no_attrs": {
+   "garment_id": "ctb_b2_no_attrs",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "864af652df65cc99fb3a9870db5f5a1fdcd3a94b298e2f36c92e85d411cbf1ed",
+   "width": 1254,
+   "height": 1254,
+   "attributes": {},
+   "updated_at": "2026-09-23T11:13:41+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "J_jeans": {
+   "garment_id": "ctb_j_jeans",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "88cc528044a4523a276ce3bbcc174e910e3675b3ce7d8b8695608b9b2f0a2e1e",
+   "width": 1022,
+   "height": 1539,
+   "attributes": {
+    "category": "pants",
+    "colour": [
+     "dark blue"
+    ],
+    "fit": "regular",
+    "layering_role": "base",
+    "material": "denim",
+    "occasion": [
+     "casual",
+     "smart_casual"
+    ],
+    "pattern": "solid",
+    "season": [
+     "all_season"
+    ],
+    "subcategory": "jeans",
+    "warmth": 0.25
+   },
+   "updated_at": "2026-09-23T11:13:43+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "F_boots": {
+   "garment_id": "ctb_f_boots",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "ef3208de5c2b78be06665bd6e06ff8a0d37e758ee392946a65f89e8b8ad0b449",
+   "width": 1045,
+   "height": 1506,
+   "attributes": {
+    "category": "shoes",
+    "colour": [
+     "pink"
+    ],
+    "fit": "not_applicable",
+    "layering_role": "footwear",
+    "material": "leather",
+    "occasion": [
+     "party"
+    ],
+    "pattern": "solid",
+    "season": [
+     "fall",
+     "winter"
+    ],
+    "subcategory": "boots",
+    "warmth": 0.25
+   },
+   "updated_at": "2026-09-23T11:13:44+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "D_dress": {
+   "garment_id": "ctb_d_dress",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "2dfc299019a14a2ab862f0867951bd37a0c0e1fac8030b3c2b23463e2fb1566a",
+   "width": 1024,
+   "height": 1536,
+   "attributes": {
+    "category": "dress",
+    "colour": [
+     "orange"
+    ],
+    "fit": "loose",
+    "layering_role": "standalone",
+    "material": "not_applicable",
+    "occasion": [
+     "casual",
+     "party",
+     "evening"
+    ],
+    "pattern": "solid",
+    "season": [
+     "summer",
+     "spring"
+    ],
+    "subcategory": "dress",
+    "warmth": 0.2
+   },
+   "updated_at": "2026-09-23T11:13:46+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  },
+  "O_blazer": {
+   "garment_id": "ctb_o_blazer",
+   "owner_ref": "ctbench_mislabel",
+   "image_sha256": "a74542462437d56a0959296926f7af4b9f75c0aacb7e896721774e3d1a6977c3",
+   "width": 1122,
+   "height": 1402,
+   "attributes": {
+    "category": "jacket",
+    "colour": [
+     "navy blue"
+    ],
+    "fit": "tailored",
+    "layering_role": "outer",
+    "material": "polyester",
+    "occasion": [
+     "business_casual",
+     "formal"
+    ],
+    "pattern": "solid",
+    "season": [
+     "all_season"
+    ],
+    "subcategory": "blazer",
+    "warmth": 0.25
+   },
+   "updated_at": "2026-09-23T11:13:47+00:00",
+   "vectors": [
+    [
+     "pro-lite-768",
+     768,
+     "moda-pro-lite@1"
+    ]
+   ]
+  }
+ },
+ "A_B_single_variant_probe": {
+  "note": "single-variant probe with jeans+boots only, so only top/dress slots are visible here; see C2 and the vocabulary table for the slot a bag-labelled shirt takes when a real top is present ('bag').",
+  "slots": {
+   "S0_correct": "top",
+   "S1_named_bag": null,
+   "S2_cat_accessory_only": null,
+   "S3_sub_bag_only": null,
+   "S4_no_attrs": null,
+   "S5_top_but_sub_bag": "top",
+   "S6_cat_bag": null,
+   "S7_CAT_UPPER": null,
+   "S8_cat_nonsense": null,
+   "S9_name_bag_only": null,
+   "S10_cat_bottom": null,
+   "S11_cat_footwear": null,
+   "S12_cat_shirt_word": "top",
+   "S13_cat_accessories_pl": null,
+   "S14_cat_empty": null,
+   "B0_correct": null,
+   "B1_named_shirt": "top",
+   "B2_no_attrs": null
+  }
+ },
+ "C_user_case_in_pool": {
+  "C1": {
+   "outfits": [],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": [
+    "no wearable combination found in the candidate set"
+   ]
+  },
+  "C2": {
+   "outfits": [
+    {
+     "garment_ids": [
+      "S0_correct",
+      "J_jeans",
+      "F_boots",
+      "S1_named_bag"
+     ],
+     "score": 0.6376,
+     "slots": {
+      "top": "S0_correct",
+      "bottom": "J_jeans",
+      "footwear": "F_boots",
+      "bag": "S1_named_bag"
+     },
+     "factors": {
+      "compatibility": 0.8508,
+      "occasion_fit": 0.5,
+      "weather_fit": 0.5,
+      "colour_harmony": 1.0,
+      "preference_fit": 0.5,
+      "novelty": 0.6
+     },
+     "warnings": []
+    }
+   ],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": []
+  },
+  "C3": {
+   "outfits": [
+    {
+     "garment_ids": [
+      "D_dress",
+      "O_blazer",
+      "F_boots"
+     ],
+     "score": 0.6315,
+     "slots": {
+      "dress": "D_dress",
+      "outer": "O_blazer",
+      "footwear": "F_boots"
+     },
+     "factors": {
+      "compatibility": 0.81,
+      "occasion_fit": 0.5,
+      "weather_fit": 0.5,
+      "colour_harmony": 1.0,
+      "preference_fit": 0.5,
+      "novelty": 0.6
+     },
+     "warnings": []
+    }
+   ],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": []
+  }
+ },
+ "D_required_slots": {
+  "D1": {
+   "outfits": [],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": [
+    "no candidates for required slot(s): top"
+   ]
+  },
+  "D2": {
+   "outfits": [],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": [
+    "no candidates for required slot(s): top"
+   ]
+  },
+  "D3": {
+   "outfits": [],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": [
+    "no candidates for required slot(s): accessory"
+   ]
+  }
+ },
+ "E_query_steering": {
+  "E1": {
+   "outfits": [],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": {
+    "engaged": true,
+    "axes": [
+     {
+      "axis": "romantic",
+      "family": "mood",
+      "pole": "romantic",
+      "opposite": "severe",
+      "z": 5.036,
+      "weight": 0.54
+     },
+     {
+      "axis": "playful",
+      "family": "mood",
+      "pole": "playful",
+      "opposite": "serious",
+      "z": 2.163,
+      "weight": 0.232
+     },
+     {
+      "axis": "formality",
+      "family": "occasion",
+      "pole": "casual",
+      "opposite": "formal",
+      "z": -2.133,
+      "weight": 0.229
+     }
+    ],
+    "top_abs_z": 5.036,
+    "axis_weight": 0.75,
+    "validated_on": "runway_corpus"
+   },
+   "warnings": [
+    "no wearable combination found in the candidate set"
+   ]
+  },
+  "E2": {
+   "outfits": [],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": {
+    "engaged": true,
+    "axes": [
+     {
+      "axis": "romantic",
+      "family": "mood",
+      "pole": "romantic",
+      "opposite": "severe",
+      "z": 5.036,
+      "weight": 0.54
+     },
+     {
+      "axis": "playful",
+      "family": "mood",
+      "pole": "playful",
+      "opposite": "serious",
+      "z": 2.163,
+      "weight": 0.232
+     },
+     {
+      "axis": "formality",
+      "family": "occasion",
+      "pole": "casual",
+      "opposite": "formal",
+      "z": -2.133,
+      "weight": 0.229
+     }
+    ],
+    "top_abs_z": 5.036,
+    "axis_weight": 0.75,
+    "validated_on": "runway_corpus"
+   },
+   "warnings": [
+    "no wearable combination found in the candidate set"
+   ]
+  }
+ },
+ "F_factor_stability": {
+  "F1": {
+   "outfits": [
+    {
+     "garment_ids": [
+      "S0_correct",
+      "J_jeans"
+     ],
+     "score": 0.6376,
+     "slots": {
+      "top": "S0_correct",
+      "bottom": "J_jeans"
+     },
+     "factors": {
+      "compatibility": 0.8507,
+      "occasion_fit": 0.5,
+      "weather_fit": 0.5,
+      "colour_harmony": 1.0,
+      "preference_fit": 0.5,
+      "novelty": 0.6
+     },
+     "warnings": []
+    }
+   ],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": []
+  },
+  "F2": {
+   "outfits": [],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": [
+    "no wearable combination found in the candidate set"
+   ]
+  },
+  "F3": {
+   "outfits": [
+    {
+     "garment_ids": [
+      "S0_correct",
+      "S10_cat_bottom",
+      "F_boots"
+     ],
+     "score": 0.6389,
+     "slots": {
+      "top": "S0_correct",
+      "bottom": "S10_cat_bottom",
+      "footwear": "F_boots"
+     },
+     "factors": {
+      "compatibility": 0.8591,
+      "occasion_fit": 0.5,
+      "weather_fit": 0.5,
+      "colour_harmony": 1.0,
+      "preference_fit": 0.5,
+      "novelty": 0.6
+     },
+     "warnings": []
+    }
+   ],
+   "compatibility_source": "embedding_proxy",
+   "model_version": "moda-pro-lite@1",
+   "query_interpretation": null,
+   "warnings": []
+  },
+  "factors_S0_correct": {
+   "garment_ids": [
+    "ctb_s0_correct",
+    "ctb_j_jeans",
+    "ctb_f_boots"
+   ],
+   "score": 0.6333,
+   "slots": {
+    "top": "ctb_s0_correct",
+    "bottom": "ctb_j_jeans",
+    "footwear": "ctb_f_boots"
+   },
+   "factors": {
+    "compatibility": 0.8218,
+    "occasion_fit": 0.5,
+    "weather_fit": 0.5,
+    "colour_harmony": 1.0,
+    "preference_fit": 0.5,
+    "novelty": 0.6
+   },
+   "warnings": []
+  },
+  "factors_T_scrambled_text": {
+   "garment_ids": [
+    "ctbt_scrambled",
+    "ctb_j_jeans",
+    "ctb_f_boots"
+   ],
+   "score": 0.6033,
+   "slots": {
+    "top": "ctbt_scrambled",
+    "bottom": "ctb_j_jeans",
+    "footwear": "ctb_f_boots"
+   },
+   "factors": {
+    "compatibility": 0.8218,
+    "occasion_fit": 0.5,
+    "weather_fit": 0.5,
+    "colour_harmony": 0.8,
+    "preference_fit": 0.5,
+    "novelty": 0.6
+   },
+   "warnings": []
+  },
+  "factors_S12_cat_shirt_word": {
+   "garment_ids": [
+    "ctb_s12_cat_shirt_word",
+    "ctb_j_jeans",
+    "ctb_f_boots"
+   ],
+   "score": 0.6333,
+   "slots": {
+    "top": "ctb_s12_cat_shirt_word",
+    "bottom": "ctb_j_jeans",
+    "footwear": "ctb_f_boots"
+   },
+   "factors": {
+    "compatibility": 0.8218,
+    "occasion_fit": 0.5,
+    "weather_fit": 0.5,
+    "colour_harmony": 1.0,
+    "preference_fit": 0.5,
+    "novelty": 0.6
+   },
+   "warnings": []
+  }
+ },
+ "V_category_word_to_slot": {
+  "top": "top",
+  "shirt": "top",
+  "blouse": "top",
+  "tshirt": "top",
+  "t-shirt": "top",
+  "sweater": "top",
+  "cardigan": "outer",
+  "tank_top": "top",
+  "bottom": "bottom",
+  "pants": "bottom",
+  "trousers": "bottom",
+  "jeans": "bottom",
+  "skirt": "bottom",
+  "shorts": "bottom",
+  "leggings": "bottom",
+  "dress": "dress",
+  "one_piece": "other",
+  "jumpsuit": "dress",
+  "romper": "other",
+  "outerwear": "outer",
+  "outer": "outer",
+  "jacket": "outer",
+  "coat": "outer",
+  "blazer": "outer",
+  "footwear": "footwear",
+  "shoes": "footwear",
+  "boots": "footwear",
+  "sneakers": "footwear",
+  "heels": "footwear",
+  "sandals": "footwear",
+  "accessory": "other",
+  "accessories": "other",
+  "bag": "bag",
+  "handbag": "bag",
+  "hat": "hat",
+  "cap": "hat",
+  "scarf": "accessory",
+  "belt": "belt",
+  "sunglasses": "eyewear",
+  "jewellery": "jewellery",
+  "watch": "watch",
+  "TOP": "top",
+  "Top": "top",
+  "BOTTOM": "bottom",
+  "ACCESSORY": "other",
+  "BAG": "bag",
+  "traditional": "other",
+  "kurta": "top",
+  "saree": "other",
+  "dupatta": "other",
+  "swimwear": "other",
+  "underwear": "other"
+ },
+ "X_other_fields_to_slot": {
+  "sub_bag_only": "bag",
+  "sub_handbag_only": "bag",
+  "cat_acc_sub_hat": "hat",
+  "cat_acc_sub_scarf": "accessory",
+  "cat_acc_sub_belt": "belt",
+  "cat_acc_sub_sunglasses": "eyewear",
+  "cat_acc_sub_nonsense": "other",
+  "layering_role_acc_only": "other",
+  "garment_class_BAG": "bag",
+  "name_handbag": "other",
+  "cat_list": null,
+  "cat_int": null
+ },
+ "Q_precedence": {
+  "Q_cat_acc_sub_bag_gc_SHIRT": "top",
+  "Q_sub_bag_gc_SHIRT": "top",
+  "Q_cat_top_gc_BAG": "top",
+  "Q_cat_other": "other",
+  "Q_cat_accessory_sub_bag_upper_gc": "bag"
+ },
+ "P_roster_pairs": [
+  {
+   "category": "shirt",
+   "subcategory": "tshirt",
+   "garments": 82,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "pants",
+   "subcategory": "jeans",
+   "garments": 67,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shirt",
+   "subcategory": "button_down_shirt",
+   "garments": 63,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shirt",
+   "subcategory": "tank_top",
+   "garments": 62,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "pants",
+   "subcategory": "shorts",
+   "garments": 60,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "sweater",
+   "subcategory": "sweater",
+   "garments": 51,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "blazer",
+   "garments": 49,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessory",
+   "subcategory": "sunglasses",
+   "garments": 49,
+   "slot": "eyewear",
+   "basis": "measured pair"
+  },
+  {
+   "category": "top",
+   "subcategory": "tshirt",
+   "garments": 48,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "headwear",
+   "subcategory": "hat",
+   "garments": 46,
+   "slot": "hat",
+   "basis": "measured pair"
+  },
+  {
+   "category": "pants",
+   "subcategory": "leggings",
+   "garments": 44,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessory",
+   "subcategory": "scarf",
+   "garments": 42,
+   "slot": "accessory",
+   "basis": "measured pair"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "leather_jacket",
+   "garments": 41,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "bomber_jacket",
+   "garments": 40,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "coat",
+   "garments": 39,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "sweater",
+   "subcategory": "cardigan",
+   "garments": 38,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "coat",
+   "garments": 34,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shoes",
+   "subcategory": "boots",
+   "garments": 33,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "button_down_shirt",
+   "garments": 31,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "suit_jacket",
+   "garments": 27,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "headwear",
+   "subcategory": "cap",
+   "garments": 26,
+   "slot": "hat",
+   "basis": "measured pair"
+  },
+  {
+   "category": "shirt",
+   "subcategory": "flannel_shirt",
+   "garments": 26,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessory",
+   "subcategory": "bag",
+   "garments": 26,
+   "slot": "bag",
+   "basis": "measured pair"
+  },
+  {
+   "category": "pants",
+   "subcategory": "trousers",
+   "garments": 23,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shirt",
+   "subcategory": "crop_top",
+   "garments": 22,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessory",
+   "subcategory": "belt",
+   "garments": 21,
+   "slot": "belt",
+   "basis": "measured pair"
+  },
+  {
+   "category": "shirt",
+   "subcategory": "blouse",
+   "garments": 20,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "dress",
+   "subcategory": "maxi_dress",
+   "garments": 20,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "blouse",
+   "garments": 18,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessory",
+   "subcategory": "hat",
+   "garments": 18,
+   "slot": "hat",
+   "basis": "measured pair"
+  },
+  {
+   "category": "shoes",
+   "subcategory": "heels",
+   "garments": 18,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "denim_jacket",
+   "garments": 18,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shoes",
+   "subcategory": "sandals",
+   "garments": 17,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessories",
+   "subcategory": "bag",
+   "garments": 17,
+   "slot": "bag",
+   "basis": "measured pair"
+  },
+  {
+   "category": "dress",
+   "subcategory": "dress",
+   "garments": 16,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "sweater",
+   "subcategory": "sweatshirt",
+   "garments": 15,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "parka",
+   "garments": 14,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "sweater",
+   "garments": 12,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "dress",
+   "subcategory": "sundress",
+   "garments": 12,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "overcoat",
+   "garments": 11,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "blazer",
+   "garments": 11,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "vest",
+   "garments": 11,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "cardigan",
+   "garments": 10,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "pants",
+   "subcategory": "dress_pants",
+   "garments": 10,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "sweater",
+   "subcategory": "hoodie",
+   "garments": 10,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "windbreaker",
+   "garments": 9,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottom",
+   "subcategory": "mini_skirt",
+   "garments": 9,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottomwear",
+   "subcategory": "jeans",
+   "garments": 9,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "bottomwear",
+   "subcategory": "trousers",
+   "garments": 9,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "footwear",
+   "subcategory": "boots",
+   "garments": 8,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "tank_top",
+   "garments": 8,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottom",
+   "subcategory": "shorts",
+   "garments": 8,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shoes",
+   "subcategory": "sneakers",
+   "garments": 8,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "trench_coat",
+   "garments": 8,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "pants",
+   "subcategory": "cargo_pants",
+   "garments": 8,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottomwear",
+   "subcategory": "skirt",
+   "garments": 7,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "vest",
+   "garments": 7,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "crop_top",
+   "garments": 7,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessory",
+   "subcategory": "gloves",
+   "garments": 7,
+   "slot": "accessory",
+   "basis": "measured pair"
+  },
+  {
+   "category": "bottomwear",
+   "subcategory": "shorts",
+   "garments": 7,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "one_piece",
+   "subcategory": "romper",
+   "garments": 7,
+   "slot": "other",
+   "basis": "measured pair"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "bomber_jacket",
+   "garments": 7,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "vest",
+   "subcategory": "vest",
+   "garments": 7,
+   "slot": "top",
+   "basis": "measured pair"
+  },
+  {
+   "category": "bottomwear",
+   "subcategory": "maxi_skirt",
+   "garments": 6,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "pants",
+   "subcategory": "overalls",
+   "garments": 6,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "trench_coat",
+   "garments": 6,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "leather_jacket",
+   "garments": 6,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bag",
+   "subcategory": "bag",
+   "garments": 6,
+   "slot": "bag",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "dress",
+   "subcategory": "lehenga",
+   "garments": 5,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "cardigan",
+   "garments": 5,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "dress",
+   "subcategory": "romper",
+   "garments": 5,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessory",
+   "subcategory": "cap",
+   "garments": 5,
+   "slot": "hat",
+   "basis": "measured pair"
+  },
+  {
+   "category": "jumpsuit",
+   "subcategory": "jumpsuit",
+   "garments": 4,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shirt",
+   "subcategory": "oxford_shirt",
+   "garments": 4,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottom",
+   "subcategory": "maxi_skirt",
+   "garments": 4,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "skirt",
+   "subcategory": "mini_skirt",
+   "garments": 4,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shoes",
+   "subcategory": "oxfords",
+   "garments": 4,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "pants",
+   "subcategory": "dhoti",
+   "garments": 4,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "cardigan",
+   "garments": 4,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "pants",
+   "subcategory": "palazzo_pants",
+   "garments": 4,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "sunglasses",
+   "subcategory": "sunglasses",
+   "garments": 4,
+   "slot": "eyewear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottom",
+   "subcategory": "trousers",
+   "garments": 4,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shirt",
+   "subcategory": "polo_shirt",
+   "garments": 4,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "dress",
+   "subcategory": "saree",
+   "garments": 3,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottomwear",
+   "subcategory": "mini_skirt",
+   "garments": 3,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "hat",
+   "subcategory": "hat",
+   "garments": 3,
+   "slot": "hat",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "scarf",
+   "subcategory": "dupatta",
+   "garments": 3,
+   "slot": "accessory",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "accessory",
+   "subcategory": "dupatta",
+   "garments": 3,
+   "slot": "other",
+   "basis": "measured pair"
+  },
+  {
+   "category": "shoes",
+   "subcategory": "flats",
+   "garments": 3,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "scarf",
+   "subcategory": "scarf",
+   "garments": 3,
+   "slot": "accessory",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "footwear",
+   "subcategory": "sandals",
+   "garments": 3,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "denim_jacket",
+   "garments": 3,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "garment",
+   "subcategory": "jeans",
+   "garments": 3,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "top",
+   "subcategory": "blazer",
+   "garments": 3,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shoes",
+   "subcategory": "loafers",
+   "garments": 3,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottom",
+   "subcategory": "palazzo_pants",
+   "garments": 3,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "pants",
+   "subcategory": "sweatpants",
+   "garments": 3,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "vest",
+   "garments": 3,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "one_piece",
+   "subcategory": "overalls",
+   "garments": 3,
+   "slot": "other",
+   "basis": "measured pair"
+  },
+  {
+   "category": "top",
+   "subcategory": "polo_shirt",
+   "garments": 3,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "suit",
+   "subcategory": "blazer",
+   "garments": 3,
+   "slot": "outer",
+   "basis": "measured pair"
+  },
+  {
+   "category": "footwear",
+   "subcategory": "heels",
+   "garments": 2,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "flannel_shirt",
+   "garments": 2,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "one_piece",
+   "subcategory": "jumpsuit",
+   "garments": 2,
+   "slot": "dress",
+   "basis": "measured pair"
+  },
+  {
+   "category": "bottom",
+   "subcategory": "leggings",
+   "garments": 2,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "shirt",
+   "subcategory": "vest",
+   "garments": 2,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "hosiery",
+   "subcategory": "leggings",
+   "garments": 2,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "jacket",
+   "subcategory": "puffer_jacket",
+   "garments": 2,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "footwear",
+   "subcategory": "flats",
+   "garments": 2,
+   "slot": "footwear",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "hoodie",
+   "garments": 2,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottomwear",
+   "subcategory": "leggings",
+   "garments": 2,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "dress",
+   "subcategory": "overalls",
+   "garments": 2,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottomwear",
+   "subcategory": "midi_skirt",
+   "garments": 2,
+   "slot": "bottom",
+   "basis": "measured pair"
+  },
+  {
+   "category": "cardigan",
+   "subcategory": "cardigan",
+   "garments": 2,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "sweater",
+   "subcategory": "crop_top",
+   "garments": 2,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "top",
+   "subcategory": "sweatshirt",
+   "garments": 2,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "outerwear",
+   "subcategory": "windbreaker",
+   "garments": 2,
+   "slot": "outer",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottom",
+   "subcategory": "sweatpants",
+   "garments": 2,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "pants",
+   "subcategory": "chinos",
+   "garments": 2,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "sweater",
+   "subcategory": "dupatta",
+   "garments": 1,
+   "slot": "top",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "bottom",
+   "subcategory": "skirt",
+   "garments": 1,
+   "slot": "bottom",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "two_piece_set",
+   "subcategory": "crop_top",
+   "garments": 1,
+   "slot": "top",
+   "basis": "measured pair"
+  },
+  {
+   "category": "one_piece",
+   "subcategory": "anarkali",
+   "garments": 1,
+   "slot": "other",
+   "basis": "measured pair"
+  },
+  {
+   "category": "dress",
+   "subcategory": "kurta",
+   "garments": 1,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "one-piece",
+   "subcategory": "jumpsuit",
+   "garments": 1,
+   "slot": "dress",
+   "basis": "measured pair"
+  },
+  {
+   "category": "dress",
+   "subcategory": "dupatta",
+   "garments": 1,
+   "slot": "dress",
+   "basis": "category word measured (category outranks subcategory)"
+  },
+  {
+   "category": "suit_jacket",
+   "subcategory": "suit_jacket",
+   "garments": 1,
+   "slot": "outer",
+   "basis": "measured pair"
+  }
+ ],
+ "P_summary": {
+  "pairs": 127,
+  "garments": 1700,
+  "pairs_to_other": 4,
+  "garments_to_other": 14,
+  "pairs_not_measured": 0,
+  "garments_not_measured": 0
+ },
+ "ingest_validation": {
+  "category_list": "attribute_invalid: category must be a string, got list",
+  "category_int": "attribute_invalid: category must be a string, got int"
+ }
+}
