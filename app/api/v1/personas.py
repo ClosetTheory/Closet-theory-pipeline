@@ -408,7 +408,9 @@ async def upsert_persona_outfit_review(
     # Stars are also behaviour: a 1-2 star review is a dislike and a 4-5 a like in the ledger
     # Stage 3 learns from, so the character's next styling run reflects the panel's verdicts.
     ledger_vote, ledger_weight = vote_from_rating(request.rating)
-    await record_outfit_vote(session, outfit, current_user.id, "persona_review", ledger_vote, ledger_weight)
+    await record_outfit_vote(
+        session, outfit, current_user.id, "persona_review", ledger_vote, ledger_weight, comment=request.comment, tags=request.tags
+    )
     await session.commit()
     await session.refresh(review)
     return _review_to_result(review, current_user.display_name or current_user.email)

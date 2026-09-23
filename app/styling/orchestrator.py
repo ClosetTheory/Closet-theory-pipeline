@@ -44,7 +44,7 @@ from app.styling.filtering import filter_candidates, get_anchor_garments
 from app.styling.combinator import anchors_cover_body
 from app.styling.hopit_adapter import hopit_response_to_ranking_trace
 from app.styling.imaging import generate_and_run_gates, load_persona_portrait
-from app.styling.behavior import load_behavior_model
+from app.styling.behavior import load_behavior_model, load_taste_notes
 from app.styling.ranking import apply_behavior_rerank, rank_combinations
 from app.styling.retrieval import resolve_role, retrieve_by_role
 from app.styling.semantic_validation import validate_outfits
@@ -280,13 +280,17 @@ class StylingOrchestrator:
             user_preferences["boldness_preference"] = request.boldness_preference
 
         member_context_summary = await derive_member_context(self.session, tenant_id, member_id)
-        behavioral_signals: Dict[str, Any] = {"member_context_summary": member_context_summary}
+        # What the member (or their stylist panel) has *said* about past outfits — recent
+        # comments verbatim plus recurring lessons — handed to the prompts as data so Stage 8 can
+        # fail an outfit that plainly repeats a stated dislike. See app.styling.behavior.
+        taste_notes = await load_taste_notes(self.session, tenant_id, member_id)
+        behavioral_signals: Dict[str, Any] = {"member_context_summary": member_context_summary, "taste_notes": taste_notes}
 
         context = StylingContext(
             intent=intent, user_preferences=user_preferences, behavioral_signals=behavioral_signals,
             used_hopit=request.use_hopit,
         )
-        has_real_signal = bool(style_profile) or "No styling history yet" not in member_context_summary
+        has_real_signal = bool(style_profile) or bool(taste_notes) or "No styling history yet" not in member_context_summary
         await self._record(
             "STAGE_02_CONTEXT",
             "Contextual Analysis",

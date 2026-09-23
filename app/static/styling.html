@@ -1039,6 +1039,22 @@
     }
 
     const outfitGarmentsById = {}; // outfit_id -> garment ids, for reacting to a 👎 across the shortlist
+    const lastVoteByOutfit = {};   // outfit_id -> "up" | "down", so a reason re-posts the same vote
+
+    // Mirrors app.rules.feedback.REASON_TAGS. Each chip says how much of the vote is about the
+    // pieces vs. their combination vs. the request — free, deterministic attribution.
+    const REASON_CHIPS = [
+      ["colour_clash", "colour clash", "down"], ["proportions", "proportions off", "down"],
+      ["wrong_occasion", "wrong for the occasion", "down"], ["too_safe", "too safe", "down"],
+      ["too_bold", "too bold", "down"], ["wouldnt_wear", "wouldn't wear these", "down"],
+      ["great_pairing", "great pairing", "up"], ["love_the_pieces", "love these pieces", "up"],
+      ["perfect_fit", "perfect for them", "up"],
+    ];
+    function reasonChipsHtml(outfitId) {
+      return REASON_CHIPS.map(([key, label, pol]) => `
+        <button type="button" data-tag="${key}" data-pol="${pol}" onclick="this.dataset.on = this.dataset.on === '1' ? '' : '1'; this.classList.toggle('bg-ct-primary'); this.classList.toggle('text-white');"
+                class="why-chip text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 hover:text-white transition">${label}</button>`).join("");
+    }
 
     function outfitCard(outfit) {
       const scores = outfit.scores || {};
@@ -1079,7 +1095,44 @@
             </div>
             <span class="vote-feedback text-[10px] text-slate-500"></span>
           </div>
+          <div id="why-${outfit.outfit_id}" class="hidden space-y-2 pt-2 border-t border-slate-800">
+            <div class="text-[10px] text-slate-500">Why? Naming the piece or the pairing teaches the pipeline far more than the thumb alone.</div>
+            <div class="flex flex-wrap gap-1.5">${reasonChipsHtml(outfit.outfit_id)}</div>
+            <div class="flex gap-2">
+              <input id="why-text-${outfit.outfit_id}" type="text" placeholder="e.g. the sneakers kill it · shirt and trousers clash · no florals"
+                     class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary/40"
+                     onkeydown="if (event.key === 'Enter') sendWhy('${outfit.outfit_id}')">
+              <button type="button" onclick="sendWhy('${outfit.outfit_id}')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-ct-primary hover:text-white text-slate-200 font-bold transition">Send</button>
+            </div>
+            <div id="why-status-${outfit.outfit_id}" class="text-[10px] text-slate-500"></div>
+          </div>
         </div>`;
+    }
+
+    // Re-posts the same vote with the reason: the endpoint upserts the ledger row, attributes the
+    // comment to garments/pairings/lessons, and tells us how it understood it.
+    async function sendWhy(outfitId) {
+      const vote = lastVoteByOutfit[outfitId];
+      const status = document.getElementById("why-status-" + outfitId);
+      if (!vote) { status.textContent = "Vote first, then say why."; return; }
+      const panel = document.getElementById("why-" + outfitId);
+      const tags = Array.from(panel.querySelectorAll(".why-chip[data-on='1']")).map(b => b.dataset.tag);
+      const comment = document.getElementById("why-text-" + outfitId).value.trim();
+      if (!tags.length && !comment) { status.textContent = "Pick a reason or type one."; return; }
+      status.textContent = "Reading…";
+      try {
+        const res = await ctFetch(`${API_BASE}/styling/outfits/${encodeURIComponent(outfitId)}/vote`, {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({vote, comment: comment || null, tags}),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        status.textContent = data.feedback_summary ? `understood: ${data.feedback_summary}` : "noted — nothing specific recognised, counted as a plain vote";
+        status.className = "text-[10px] " + (data.feedback_summary ? "text-emerald-400" : "text-slate-500");
+      } catch (e) {
+        status.textContent = "could not send: " + e.message;
+        status.className = "text-[10px] text-red-400";
+      }
     }
 
     async function loadOOTD(suffix, forceRegenerate) {
@@ -1286,6 +1339,12 @@
         const data = await res.json();
         const n = data.ledger_votes || data.vote_count;
         feedbackEl.textContent = `noted · ${n} vote${n === 1 ? "" : "s"} learned`;
+        lastVoteByOutfit[outfitId] = vote;
+        const why = document.getElementById("why-" + outfitId);
+        if (why) {
+          why.classList.remove("hidden");
+          why.querySelectorAll(".why-chip").forEach(chip => { chip.hidden = chip.dataset.pol !== vote; });
+        }
         feedbackEl.title = vote === "down"
           ? "These garments and this pairing will rank lower on the next run."
           : "These garments will rank higher on the next run.";

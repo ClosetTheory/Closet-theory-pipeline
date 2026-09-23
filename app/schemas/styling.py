@@ -274,6 +274,11 @@ class StylingRunProgressResponse(BaseModel):
 
 class OutfitVoteRequest(BaseModel):
     vote: Literal["up", "down"]
+    # Optional reason: chips from app.rules.feedback.REASON_TAGS and/or free text. Turned into
+    # per-garment attribution in the behaviour ledger; re-posting the same vote with a reason
+    # updates the earlier row rather than adding a second vote.
+    comment: Optional[str] = Field(default=None, max_length=2000)
+    tags: List[str] = Field(default_factory=list)
 
 
 class OutfitVoteResponse(BaseModel):
@@ -288,6 +293,8 @@ class OutfitVoteResponse(BaseModel):
     garment_ids: List[str] = Field(default_factory=list)
     garment_behavior_scores: Dict[str, float] = Field(default_factory=dict)
     ledger_votes: int = 0
+    # How the reason (chips + comment) was understood, e.g. "blamed white sneakers · no floral".
+    feedback_summary: Optional[str] = None
 
 
 class AttributeAffinityValue(BaseModel):

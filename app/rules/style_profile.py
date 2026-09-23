@@ -103,6 +103,30 @@ def update_attribute_affinities(
     return updated
 
 
+LESSON_LEARNING_RATE = 0.5   # a stated lesson ("no florals") is worth more than an inferred one
+LESSON_COUNT_CREDIT = 2      # ...and counts as two votes of confidence
+
+
+def apply_attribute_lessons(
+    previous: Dict[str, Dict[str, Dict[str, float]]],
+    lessons: List[Dict[str, str]],
+) -> Dict[str, Dict[str, Dict[str, float]]]:
+    """Nudges exactly the attribute values a comment named ("no florals" -> pattern=floral toward
+    -1), hard, instead of the blanket nudge a bare vote gives every attribute of every garment.
+    Unknown attributes are ignored. Returns a new dict, same shape as update_attribute_affinities."""
+    updated = {field: {v: dict(stats) for v, stats in values.items()} for field, values in previous.items()}
+    for lesson in lessons:
+        field = str(lesson.get("attribute", "")).lower()
+        value = str(lesson.get("value", "")).lower()
+        if field not in TRACKED_CATEGORICAL_ATTRIBUTES or not value:
+            continue
+        target = -1.0 if lesson.get("polarity") == "down" else 1.0
+        stats = updated.setdefault(field, {}).get(value, {"score": 0.0, "count": 0})
+        new_score = stats["score"] + LESSON_LEARNING_RATE * (target - stats["score"])
+        updated[field][value] = {"score": max(-1.0, min(1.0, new_score)), "count": stats["count"] + LESSON_COUNT_CREDIT}
+    return updated
+
+
 def confidence_for_count(count: int) -> float:
     """How much a value's raw score should be trusted given how many votes back it — public so
     API/display layers (e.g. the profile page) can show it without duplicating the math."""

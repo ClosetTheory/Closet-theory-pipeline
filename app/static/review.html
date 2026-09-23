@@ -214,6 +214,21 @@
 
     const pending = {};
 
+    // Mirrors app.rules.feedback.REASON_TAGS — deterministic attribution the ledger uses alongside
+    // the free-text comment (which an extractor reads for named garments/pairings/lessons).
+    const REASON_CHIPS = [
+      ["colour_clash", "colour clash"], ["proportions", "proportions off"], ["wrong_occasion", "wrong for the occasion"],
+      ["too_safe", "too safe"], ["too_bold", "too bold"], ["wouldnt_wear", "wouldn't wear these"],
+      ["great_pairing", "great pairing"], ["love_the_pieces", "love these pieces"], ["perfect_fit", "perfect for them"],
+    ];
+    function reasonChipsHtml(outfitId, selected) {
+      const on = new Set(selected || []);
+      return REASON_CHIPS.map(([key, label]) => `
+        <button type="button" data-tag="${key}" data-on="${on.has(key) ? "1" : ""}"
+                onclick="this.dataset.on = this.dataset.on === '1' ? '' : '1'; this.classList.toggle('bg-ct-primary'); this.classList.toggle('text-white');"
+                class="reason-chip text-[10px] px-2 py-0.5 rounded-full ${on.has(key) ? "bg-ct-primary text-white" : "bg-slate-800 text-slate-300"} hover:text-white transition">${label}</button>`).join("");
+    }
+
     function setStar(el) {
       const outfitId = el.dataset.outfit, field = el.dataset.field, value = Number(el.dataset.value);
       pending[outfitId] = pending[outfitId] || {rating: 0, dimension_ratings: {}};
@@ -270,7 +285,12 @@
               I would actually put a client in this
             </label>
 
-            <textarea id="cm-${esc(o.outfit_id)}" rows="2" placeholder="What works, what doesn't, and why"
+            <div>
+              <p class="text-[11px] text-slate-500 mb-1">Why? Chips and a comment naming the piece or the pairing teach the pipeline far more than the score alone.</p>
+              <div id="tags-${esc(o.outfit_id)}" class="flex flex-wrap gap-1.5">${reasonChipsHtml(o.outfit_id, mine ? mine.tags : [])}</div>
+            </div>
+
+            <textarea id="cm-${esc(o.outfit_id)}" rows="2" placeholder="What works, what doesn't, and why — e.g. the loafers are wrong with this skirt; no florals for her"
                       class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ct-primary">${esc(mine ? (mine.comment || "") : "")}</textarea>
 
             <div class="flex items-center gap-3">
@@ -304,6 +324,7 @@
             dimension_ratings: state.dimension_ratings,
             comment: document.getElementById("cm-" + outfitId).value || null,
             would_wear: document.getElementById("ww-" + outfitId).checked,
+            tags: Array.from(document.querySelectorAll(`#tags-${outfitId} .reason-chip[data-on='1']`)).map(b => b.dataset.tag),
             vote: state.rating >= 4 ? "like" : (state.rating <= 2 ? "dislike" : null),
           }),
         });

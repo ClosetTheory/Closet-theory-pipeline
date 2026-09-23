@@ -54,12 +54,20 @@ HARD_REJECT_SCORE = -0.6
 
 @dataclass(frozen=True)
 class BehaviorVote:
-    """One ledger row, detached from SQLAlchemy so the scorer is pure and unit-testable."""
+    """One ledger row, detached from SQLAlchemy so the scorer is pure and unit-testable.
+
+    The optional weights come from the vote's *reason* (app.rules.feedback): a comment that
+    blames the shoes gives the shoes weight 1.0 and the rest a small residual; a named pairing
+    gets its pair weight doubled; a garment praised inside a dislike lands in
+    `counter_garment_ids` and is counted with the opposite polarity. All absent = even split."""
 
     garment_ids: Tuple[str, ...]
     vote: str            # "up" | "down"
     weight: float
     created_at: datetime
+    garment_weights: Optional[Dict[str, float]] = None   # garment_id -> multiplier
+    pair_weights: Optional[Dict[str, float]] = None      # "a|b" (sorted) -> multiplier
+    counter_garment_ids: Tuple[str, ...] = ()
 
 
 def _decay(created_at: datetime, now: datetime) -> float:
@@ -183,6 +191,24 @@ def build_behavior_model(votes: Iterable[BehaviorVote], now: Optional[datetime] 
     garment_like_count: Dict[str, int] = {}
     garment_dislike_count: Dict[str, int] = {}
 
+    def add_garment(g: str, positive: bool, amount: float, others: Set[str]) -> None:
+        if positive:
+            likes[g] = likes.get(g, 0.0) + amount
+            liked_partners.setdefault(g, set()).update(others)
+            garment_like_count[g] = garment_like_count.get(g, 0) + 1
+        else:
+            dislikes[g] = dislikes.get(g, 0.0) + amount
+            disliked_partners.setdefault(g, set()).update(others)
+            garment_dislike_count[g] = garment_dislike_count.get(g, 0) + 1
+
+    def add_pair(key: FrozenSet[str], positive: bool, amount: float) -> None:
+        if positive:
+            pair_likes[key] = pair_likes.get(key, 0.0) + amount
+            pair_like_count[key] = pair_like_count.get(key, 0) + 1
+        else:
+            pair_dislikes[key] = pair_dislikes.get(key, 0.0) + amount
+            pair_dislike_count[key] = pair_dislike_count.get(key, 0) + 1
+
     considered = 0
     for vote in votes:
         ids = sorted(set(vote.garment_ids))
@@ -191,24 +217,29 @@ def build_behavior_model(votes: Iterable[BehaviorVote], now: Optional[datetime] 
         considered += 1
         w = vote.weight * _decay(vote.created_at, now)
         up = vote.vote == "up"
+        gw = vote.garment_weights or {}
+        pw = vote.pair_weights or {}
+        counter = set(vote.counter_garment_ids or ())
+        # Partners are the garments that genuinely share this vote's polarity — a praised piece
+        # inside a disliked outfit is not a "disliked partner" of the others.
+        active = {g for g in ids if g not in counter and gw.get(g, 1.0) > 0}
         for g in ids:
-            others = {o for o in ids if o != g}
-            if up:
-                likes[g] = likes.get(g, 0.0) + w
-                liked_partners.setdefault(g, set()).update(others)
-                garment_like_count[g] = garment_like_count.get(g, 0) + 1
-            else:
-                dislikes[g] = dislikes.get(g, 0.0) + w
-                disliked_partners.setdefault(g, set()).update(others)
-                garment_dislike_count[g] = garment_dislike_count.get(g, 0) + 1
+            others = active - {g}
+            if g in counter:
+                add_garment(g, not up, w, others)   # opposite polarity, full weight
+                continue
+            wg = w * gw.get(g, 1.0)
+            if wg > 0:
+                add_garment(g, up, wg, others)
         for a, b in combinations(ids, 2):
-            key = frozenset((a, b))
-            if up:
-                pair_likes[key] = pair_likes.get(key, 0.0) + w
-                pair_like_count[key] = pair_like_count.get(key, 0) + 1
-            else:
-                pair_dislikes[key] = pair_dislikes.get(key, 0.0) + w
-                pair_dislike_count[key] = pair_dislike_count.get(key, 0) + 1
+            if a in counter or b in counter:
+                continue
+            factor = pw.get(f"{a}|{b}")
+            if factor is None:
+                factor = (gw.get(a, 1.0) + gw.get(b, 1.0)) / 2.0
+            wp = w * factor
+            if wp > 0:
+                add_pair(frozenset((a, b)), up, wp)
 
     garment_signed: Dict[str, float] = {}
     garment_detail: Dict[str, Dict[str, Any]] = {}

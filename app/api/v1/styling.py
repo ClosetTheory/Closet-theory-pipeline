@@ -321,7 +321,9 @@ async def vote_outfit(
 
     # The durable record Stage 3 (Wardrobe Behaviour) learns garment and pairing scores from —
     # the StyleProfile nudges above keep no memory of *which* outfit was voted on.
-    await record_outfit_vote(session, outfit, scope.actor.id, "styling_page", request.vote, 1.0)
+    ledger_row = await record_outfit_vote(
+        session, outfit, scope.actor.id, "styling_page", request.vote, 1.0, comment=request.comment, tags=request.tags
+    )
     await session.commit()
     await session.refresh(profile)
 
@@ -335,6 +337,7 @@ async def vote_outfit(
         garment_ids=garment_ids,
         garment_behavior_scores={gid: round(behavior.garment_score(gid), 3) for gid in garment_ids},
         ledger_votes=behavior.votes_considered,
+        feedback_summary=ledger_row.feedback_summary if ledger_row is not None else None,
     )
 
 
@@ -542,7 +545,9 @@ async def score_own_outfit(
     review.would_wear = request.would_wear
     review.tags = request.tags
     ledger_vote, ledger_weight = vote_from_rating(request.rating)
-    await record_outfit_vote(session, outfit, scope.actor.id, "own_review", ledger_vote, ledger_weight)
+    await record_outfit_vote(
+        session, outfit, scope.actor.id, "own_review", ledger_vote, ledger_weight, comment=request.comment, tags=request.tags
+    )
     await session.commit()
     await session.refresh(review)
     return _own_review_to_result(review, scope.actor.display_name or scope.actor.email)

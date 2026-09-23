@@ -16,8 +16,8 @@ must keep meaning what it meant when it was cast.
 """
 
 from datetime import datetime
-from typing import List, Optional
-from sqlalchemy import DateTime, Float, ForeignKey, JSON, String, UniqueConstraint
+from typing import Any, Dict, List, Optional
+from sqlalchemy import DateTime, Float, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, generate_uuid, utc_now
 
@@ -45,6 +45,19 @@ class OutfitVote(Base):
     # 1.0 for a thumbs click; a star review contributes |rating - 3| / 2 (0.5 or 1.0).
     weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     garment_ids: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
+
+    # --- the reason, when one was given (see app.rules.feedback) ---
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tags: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)  # reason chips
+    # The extractor's structured reading of the comment, with the model that produced it, so a
+    # re-extraction later can tell which rows came from the heuristic vs. a real model.
+    feedback: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    # What the scorer actually consumes: garment_id -> weight on this vote's polarity, "a|b" -> pair
+    # weight, and garments that get the OPPOSITE polarity (praise inside a 👎). Empty = even split.
+    garment_weights: Mapped[Dict[str, float]] = mapped_column(JSON, default=dict, nullable=False)
+    pair_weights: Mapped[Dict[str, float]] = mapped_column(JSON, default=dict, nullable=False)
+    counter_garment_ids: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
+    feedback_summary: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

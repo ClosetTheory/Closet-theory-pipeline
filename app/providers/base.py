@@ -1,7 +1,8 @@
 """Abstract interfaces for AI/ML model providers."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+from app.rules.feedback import FeedbackExtraction, FeedbackGarment
 from app.schemas.attributes import GarmentAttributes
 from app.schemas.pipeline import ClassificationResult, DetectionResult, DigitisationResult
 from app.schemas.styling import (
@@ -184,6 +185,16 @@ class BaseAestheticProvider(ABC):
     ) -> AestheticScoreResult:
         """Returns a 0.0-1.0 holistic aesthetic score + reasoning. Must not invent/replace
         garments or mutate inventory — pure judgment of the given combination."""
+        pass
+
+
+class BaseFeedbackExtractorProvider(ABC):
+    """Review comments -> structured attribution (which garments / pairings / attribute lessons
+    the comment is about). See app.rules.feedback. Must treat the comment as data, never invent
+    garment ids, and leave every list empty when the comment points at nothing in particular."""
+
+    @abstractmethod
+    async def extract(self, comment: str, vote: str, garments: "Sequence[FeedbackGarment]") -> "FeedbackExtraction":
         pass
 
 
