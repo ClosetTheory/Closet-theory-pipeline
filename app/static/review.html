@@ -34,6 +34,14 @@
     .star { cursor: pointer; font-size: 22px; line-height: 1; color: #c7c7be; transition: color .1s; }
     .star.on { color: #e60023; }
     .star:hover { color: #e60023; }
+    /* Reason chips carry their state on data-on, and this rule paints it. It deliberately does
+       not rely on toggling Tailwind utilities: the CDN build emits bg-slate-800 and bg-ct-primary
+       in palette order, so with both present on the element the grey one won and a click looked
+       like nothing happened. */
+    .reason-chip { background: #e5e5e0; color: #3f3f3a; border: 1px solid transparent; }
+    .reason-chip:hover { border-color: #e60023; color: #000; }
+    .reason-chip[data-on="1"] { background: #e60023; color: #fff; border-color: #e60023; }
+    .reason-chip[data-on="1"]:hover { background: #cc001f; color: #fff; }
     /* Admin split view: two independently-scrolling columns, same pattern as /styling. */
     .split-columns { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; }
     .split-pane { max-height: calc(100vh - 220px); overflow-y: auto; padding: 0 1rem; }
@@ -224,9 +232,15 @@
     function reasonChipsHtml(outfitId, selected) {
       const on = new Set(selected || []);
       return REASON_CHIPS.map(([key, label]) => `
-        <button type="button" data-tag="${key}" data-on="${on.has(key) ? "1" : ""}"
-                onclick="this.dataset.on = this.dataset.on === '1' ? '' : '1'; this.classList.toggle('bg-ct-primary'); this.classList.toggle('text-white');"
-                class="reason-chip text-[10px] px-2 py-0.5 rounded-full ${on.has(key) ? "bg-ct-primary text-white" : "bg-slate-800 text-slate-300"} hover:text-white transition">${label}</button>`).join("");
+        <button type="button" data-tag="${key}" data-on="${on.has(key) ? "1" : ""}" aria-pressed="${on.has(key) ? "true" : "false"}"
+                onclick="toggleChip(this)"
+                class="reason-chip text-[10px] px-2 py-0.5 rounded-full transition">${label}</button>`).join("");
+    }
+
+    function toggleChip(el) {
+      const on = el.dataset.on !== "1";
+      el.dataset.on = on ? "1" : "";
+      el.setAttribute("aria-pressed", on ? "true" : "false");
     }
 
     function setStar(el) {
