@@ -35,15 +35,49 @@
     table { border-collapse: collapse; }
     th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid #e5e5e0; font-size: 13px; }
     th { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #84847a; font-weight: 600; }
-    .heatmap { border-collapse: separate; border-spacing: 0; }
-    .heatmap th, .heatmap td { white-space: nowrap; }
-    .heatmap th:first-child, .heatmap td:first-child { position: sticky; left: 0; background: #fbfbf9; z-index: 1; }
-    .heatmap th.rot { writing-mode: vertical-rl; transform: rotate(180deg); text-transform: none; letter-spacing: 0; font-size: 11px; padding: 0.5rem 0.35rem; max-height: 130px; }
-    .heatmap td.cell { text-align: center; font-variant-numeric: tabular-nums; font-size: 12px; min-width: 52px; padding: 0.35rem 0.3rem; border-radius: 6px; }
-    .heatmap td.cell small { display: block; font-size: 10px; opacity: .75; }
-    .heatmap td.cell.assigned { box-shadow: inset 0 0 0 2px #000; }
-    .bar { height: 6px; border-radius: 999px; background: #e5e5e0; overflow: hidden; min-width: 90px; }
-    .bar > i { display: block; height: 100%; background: #e60023; }
+    /* Stylist metrics. One accent (brand red) for the selected stylist, grey for context,
+       ink hairlines for targets. Values are always written next to the mark, so colour never
+       carries a number on its own. Plain CSS, not toggled utilities. */
+    .vz-card { background: rgba(255,255,255,.7); border: 1px solid #e5e5e0; border-radius: 1rem; padding: 1.1rem 1.2rem; }
+    .vz-head { margin-bottom: .8rem; }
+    .vz-title { font-size: 13px; font-weight: 700; color: #000; }
+    .vz-sub { font-size: 11px; color: #84847a; margin-top: 2px; }
+    .vz-key { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; color: #63635b; }
+    .vz-key i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .vz-key b { width: 2px; height: 12px; background: #000; display: inline-block; }
+    .vz-rows { display: flex; flex-direction: column; gap: 6px; max-height: 440px; overflow-y: auto; padding-right: 2px; }
+    .vz-row { display: grid; grid-template-columns: minmax(110px, 34%) 1fr 64px; align-items: center; gap: 10px; min-height: 26px; }
+    .vz-row:hover .vz-fill { filter: brightness(.92); }
+    .vz-label { font-size: 12px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .vz-label small { display: block; font-size: 10px; color: #84847a; }
+    .vz-track { position: relative; height: 14px; background: #f0f0ec; border-radius: 4px; }
+    .vz-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #e60023; border-radius: 0 4px 4px 0; transition: width .25s ease; }
+    .vz-fill.grey { background: #c7c7be; }
+    .vz-fill.stack2 { border-radius: 0 4px 4px 0; }
+    .vz-target { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #000; transform: translateX(-1px); }
+    .vz-marker { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #000; transform: translateX(-1px); }
+    .vz-value { font-size: 12px; color: #000; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+    .vz-value small { color: #84847a; }
+    .vz-empty { font-size: 12px; color: #84847a; padding: .5rem 0; }
+    .vz-svg { width: 100%; height: auto; display: block; }
+    .vz-svg text { font-family: Inter, system-ui, sans-serif; }
+    .vz-svg rect.bar:hover { filter: brightness(.9); }
+    .kpi { background: rgba(255,255,255,.7); border: 1px solid #e5e5e0; border-radius: 1rem; padding: .9rem 1rem; }
+    .kpi .v { font-size: 26px; font-weight: 800; color: #000; line-height: 1.1; }
+    .kpi .l { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #84847a; margin-top: 4px; }
+    .kpi .s { font-size: 11px; color: #63635b; margin-top: 2px; }
+    .kpi .meter { height: 6px; border-radius: 999px; background: #f0f0ec; margin-top: 8px; overflow: hidden; }
+    .kpi .meter i { display: block; height: 100%; background: #e60023; }
+    .kpi .meter i.good { background: #0ca30c; }
+    .pick { display: flex; flex-direction: column; gap: 6px; min-width: 190px; text-align: left;
+            border: 1px solid #e5e5e0; background: rgba(255,255,255,.7); border-radius: 14px; padding: .7rem .9rem; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+    .pick:hover { border-color: #c7c7be; }
+    .pick[aria-pressed="true"] { border-color: #e60023; box-shadow: 0 0 0 2px #e60023 inset; }
+    .pick .n { font-size: 13px; font-weight: 700; color: #000; }
+    .pick .m { font-size: 11px; color: #63635b; display: flex; justify-content: space-between; }
+    .pick .meter { height: 5px; border-radius: 999px; background: #f0f0ec; overflow: hidden; }
+    .pick .meter i { display: block; height: 100%; background: #e60023; }
+    .pick .meter i.good { background: #0ca30c; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
@@ -151,41 +185,77 @@
 
       <div id="stats" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
 
-      <section class="space-y-4" id="metrics-section">
+      <section class="space-y-6" id="metrics-section">
         <div class="flex items-end justify-between flex-wrap gap-3">
           <div>
             <h3 class="text-lg font-bold text-ct-ink tracking-tight">Stylist metrics</h3>
             <p class="text-sm text-slate-500 max-w-3xl">
-              Per stylist, per character. Target is <strong id="metrics-target" class="text-ct-ink">20</strong>
-              reviews per character per week; a stylist's target is 20 &times; the characters assigned to them.
-              Admins only &mdash; stylists do not see these numbers.
+              Pick a stylist. Target is <strong id="metrics-target" class="text-ct-ink">20</strong> reviews per
+              character per week, so a stylist's weekly target is 20 &times; the characters assigned to them.
+              Admins only.
             </p>
           </div>
           <span id="metrics-asof" class="text-[11px] text-slate-500"></span>
         </div>
 
-        <div id="stylist-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+        <div id="stylist-picker" class="flex flex-wrap gap-3" role="tablist" aria-label="Stylists"></div>
 
-        <div>
-          <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">This week, stylist &times; character &mdash; reviewed / outfits, shaded by progress to 20</p>
-          <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-x-auto">
-            <table class="heatmap" id="heatmap"><thead></thead><tbody></tbody></table>
+        <div id="stylist-panel" class="space-y-6 hidden">
+          <div id="stylist-kpis" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4"></div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <div class="vz-card">
+              <div class="vz-head">
+                <p class="vz-title">Reviews this week, by character</p>
+                <p class="vz-sub">Assigned characters, most reviewed first. The rule is the weekly target of <span data-target></span>.</p>
+              </div>
+              <div id="chart-weekly" class="vz-rows"></div>
+            </div>
+            <div class="vz-card">
+              <div class="vz-head">
+                <p class="vz-title">Coverage, by character</p>
+                <p class="vz-sub">Outfits this stylist has reviewed <span class="vz-key"><i style="background:#e60023"></i>reviewed</span> <span class="vz-key"><i style="background:#c7c7be"></i>still to review</span></p>
+              </div>
+              <div id="chart-coverage" class="vz-rows"></div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div class="vz-card">
+              <div class="vz-head"><p class="vz-title">Overall scores given</p><p class="vz-sub">How many reviews landed on each star</p></div>
+              <div id="chart-histogram"></div>
+            </div>
+            <div class="vz-card">
+              <div class="vz-head"><p class="vz-title">Rubric averages, out of 5</p><p class="vz-sub">This stylist <span class="vz-key"><i style="background:#e60023"></i></span> against the whole panel <span class="vz-key"><b></b>panel</span></p></div>
+              <div id="chart-dimensions" class="vz-rows"></div>
+            </div>
+            <div class="vz-card">
+              <div class="vz-head"><p class="vz-title">Review depth</p><p class="vz-sub">Share of this stylist's reviews that carry each signal</p></div>
+              <div id="chart-depth" class="vz-rows"></div>
+            </div>
+          </div>
+
+          <div class="vz-card">
+            <div class="vz-head"><p class="vz-title">Reviews per day</p><p class="vz-sub" id="chart-daily-sub"></p></div>
+            <div id="chart-daily"></div>
+          </div>
+
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Every character this stylist is assigned to or has touched</p>
+            <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-x-auto">
+              <table class="w-full min-w-[1000px]">
+                <thead><tr>
+                  <th>Character</th><th>Assigned</th><th>Outfits</th><th>Reviewed</th><th>Backlog</th>
+                  <th>This week</th><th>Avg</th><th>Colour &middot; Fit &middot; Occasion &middot; Person</th>
+                  <th>Depth</th><th>Garments</th><th>Runs</th><th>Last review</th>
+                </tr></thead>
+                <tbody id="stylist-character-body"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div>
-          <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Characters, least reviewed this week first</p>
-          <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-x-auto">
-            <table class="w-full min-w-[1000px]">
-              <thead><tr>
-                <th>Character</th><th>Assigned to</th><th>Outfits</th><th>Reviewed</th><th>Backlog</th>
-                <th>This week</th><th>Avg</th><th>Colour &middot; Fit &middot; Occasion &middot; Person</th>
-                <th>Depth</th><th>Wardrobe built</th><th>Hrs to 1st review</th><th>Last review</th>
-              </tr></thead>
-              <tbody id="character-metrics-body"></tbody>
-            </table>
-          </div>
-        </div>
+        <p id="metrics-empty" class="hidden text-sm text-slate-500">No stylist has been assigned a character or left a review yet.</p>
       </section>
 
       <section class="space-y-4">
@@ -400,8 +470,13 @@
       } catch (e) { toast(`Could not change role: ${e.message}`, false); }
     }
 
-    // --- Stylist metrics ------------------------------------------------------------------
-    const DIM_LABELS = {colour_harmony: "Colour", fit_and_silhouette: "Fit", occasion_fit: "Occasion", persona_fit: "Person"};
+    // --- Stylist metrics --------------------------------------------------------------------
+    // Stylist-first: pick one, see everything about them. Characters grow (22 today, more
+    // later) so every per-character view is a scrolling list of horizontal bars, which scale
+    // with N; stylists stay few, so they are a row of pick cards that double as the
+    // side-by-side comparison. Charts are one accent hue on grey (emphasis form): the
+    // selected stylist is the only thing allowed to be loud.
+    const DIM_LABELS = {colour_harmony: "Colour", fit_and_silhouette: "Fit & silhouette", occasion_fit: "Occasion", persona_fit: "Right for this person"};
     const fmt = (v, d = 1) => (v == null ? "—" : Number(v).toFixed(d));
     const pctText = (v) => (v == null ? "—" : `${Math.round(v)}%`);
     const ago = (iso) => {
@@ -411,110 +486,199 @@
       if (h < 48) return `${Math.round(h)}h ago`;
       return `${Math.round(h / 24)}d ago`;
     };
-    // 0 -> pale grey, halfway -> amber, at or above target -> green. Fixed stops rather than a
-    // gradient so two cells that read the same are the same colour.
-    function heat(pct) {
-      if (pct == null || pct <= 0) return {bg: "#f0f0ec", fg: "#84847a"};
-      if (pct < 50) return {bg: "#fde7c2", fg: "#7a4a00"};
-      if (pct < 100) return {bg: "#fbd08a", fg: "#5c3700"};
-      return {bg: "#c9ecd2", fg: "#0f5a2a"};
-    }
-    function bar(pct) {
-      const w = Math.max(0, Math.min(100, pct || 0));
-      return `<div class="bar"><i style="width:${w}%"></i></div>`;
-    }
-    function dims(d) {
-      return (d ? Object.keys(DIM_LABELS) : []).map(k => `<span title="${DIM_LABELS[k]}">${fmt(d[k])}</span>`).join(" · ");
-    }
+    let METRICS = null;
+    let SELECTED_STYLIST = null;
 
-    function stylistCard(s) {
-      const target = s.weekly_target || 0;
-      return `<div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-3">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <p class="text-base font-bold text-ct-ink">${esc(s.stylist_name)}</p>
-            <p class="text-[11px] text-slate-500">${esc(s.email || "")}</p>
-          </div>
-          <span class="text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-800 text-slate-300">${s.characters_assigned} character${s.characters_assigned === 1 ? "" : "s"}</span>
+    // A horizontal bar row: label | track | value. `value` fills in the accent; `rest` (optional)
+    // stacks a grey segment after it; `target` draws an ink rule; `marker` an ink tick.
+    function barRow(o) {
+      const max = o.max > 0 ? o.max : 1;
+      const w = Math.max(0, Math.min(100, (o.value / max) * 100));
+      const w2 = o.rest ? Math.max(0, Math.min(100 - w, (o.rest / max) * 100)) : 0;
+      const tgt = o.target != null ? Math.max(0, Math.min(100, (o.target / max) * 100)) : null;
+      const mk = o.marker != null ? Math.max(0, Math.min(100, (o.marker / max) * 100)) : null;
+      return `<div class="vz-row" title="${esc(o.tip || "")}">
+        <div class="vz-label">${esc(o.label)}${o.sub ? `<small>${esc(o.sub)}</small>` : ""}</div>
+        <div class="vz-track">
+          <i class="vz-fill${o.grey ? " grey" : ""}" style="width:${w}%"></i>
+          ${w2 ? `<i class="vz-fill grey stack2" style="left:calc(${w}% + 2px);width:calc(${w2}% - 2px)"></i>` : ""}
+          ${tgt != null ? `<b class="vz-target" style="left:${tgt}%"></b>` : ""}
+          ${mk != null ? `<b class="vz-marker" style="left:${mk}%"></b>` : ""}
         </div>
-        <div>
-          <div class="flex items-baseline justify-between text-xs">
-            <span class="font-semibold text-ct-ink">This week</span>
-            <span class="tabular-nums">${s.reviews_window} / ${target} reviews</span>
-          </div>
-          ${bar(s.weekly_progress_pct)}
-        </div>
-        <div class="grid grid-cols-3 gap-2 text-center">
-          <div><p class="text-lg font-extrabold text-ct-ink tabular-nums">${pctText(s.coverage_pct)}</p><p class="text-[10px] uppercase tracking-wider text-slate-500">Coverage</p></div>
-          <div><p class="text-lg font-extrabold text-ct-ink tabular-nums">${s.backlog}</p><p class="text-[10px] uppercase tracking-wider text-slate-500">Backlog</p></div>
-          <div><p class="text-lg font-extrabold text-ct-ink tabular-nums">${fmt(s.avg_rating, 2)}</p><p class="text-[10px] uppercase tracking-wider text-slate-500">Avg / 5</p></div>
-        </div>
-        <dl class="text-[11px] text-slate-500 grid grid-cols-2 gap-x-3 gap-y-1">
-          <dt>Reviews total</dt><dd class="text-ct-ink tabular-nums text-right">${s.reviews_total}</dd>
-          <dt>Characters reviewed</dt><dd class="text-ct-ink tabular-nums text-right">${s.characters_reviewed} of ${s.characters_assigned}</dd>
-          <dt>With comment</dt><dd class="text-ct-ink tabular-nums text-right">${pctText(s.with_comment_pct)}</dd>
-          <dt>With reason chips</dt><dd class="text-ct-ink tabular-nums text-right">${pctText(s.with_chips_pct)}</dd>
-          <dt>Would wear</dt><dd class="text-ct-ink tabular-nums text-right">${pctText(s.would_wear_pct)}</dd>
-          <dt>Like / dislike</dt><dd class="text-ct-ink tabular-nums text-right">${s.likes} / ${s.dislikes}</dd>
-          <dt>Garments uploaded</dt><dd class="text-ct-ink tabular-nums text-right">${s.garments_completed} done of ${s.garments_uploaded}</dd>
-          <dt>Styling runs started</dt><dd class="text-ct-ink tabular-nums text-right">${s.runs_started}</dd>
-          <dt>Dimensions</dt><dd class="text-ct-ink tabular-nums text-right">${dims(s.dimension_averages)}</dd>
-          <dt>Last review</dt><dd class="text-ct-ink text-right">${esc(ago(s.last_review_at))}</dd>
-        </dl>
+        <div class="vz-value">${o.valueText != null ? o.valueText : esc(String(o.value))}</div>
       </div>`;
     }
 
-    function renderHeatmap(m) {
-      const table = document.getElementById("heatmap");
-      const chars = m.characters;
-      const byKey = {};
-      m.cells.forEach(c => { byKey[c.stylist_user_id + "|" + c.persona_id] = c; });
-      table.querySelector("thead").innerHTML = `<tr><th>Stylist</th>${chars.map(c =>
-        `<th class="rot" title="${esc(c.character_name)}">${esc(c.character_name)}</th>`).join("")}</tr>`;
-      table.querySelector("tbody").innerHTML = m.stylists.map(s => `<tr><th>${esc(s.stylist_name)}</th>${chars.map(c => {
-        const cell = byKey[s.stylist_user_id + "|" + c.persona_id];
-        if (!cell) return `<td class="cell" style="color:#c7c7be">·</td>`;
-        const h = heat(cell.weekly_progress_pct);
-        const tip = `${cell.stylist_name} × ${cell.character_name}\n` +
-          `This week: ${cell.reviews_window} / ${cell.weekly_target}\n` +
-          `Reviewed ${cell.outfits_reviewed} of ${cell.outfits_total} outfits (${pctText(cell.coverage_pct)}), backlog ${cell.backlog}\n` +
-          `Avg ${fmt(cell.avg_rating, 2)} / 5 · comments ${pctText(cell.with_comment_pct)} · chips ${pctText(cell.with_chips_pct)}\n` +
-          `Garments uploaded ${cell.garments_uploaded} (${cell.garments_completed} done) · runs ${cell.runs_started}\n` +
-          `Last review ${ago(cell.last_review_at)}${cell.assigned ? "" : " · not assigned"}`;
-        return `<td class="cell ${cell.assigned ? "assigned" : ""}" style="background:${h.bg};color:${h.fg}" title="${esc(tip)}">` +
-          `${cell.outfits_reviewed}/${cell.outfits_total}<small>${cell.reviews_window} wk</small></td>`;
-      }).join("")}</tr>`).join("");
+    // Columns in SVG: bars <= 24px, 4px rounded caps, hairline baseline, value on the cap for
+    // the extreme only, every k-th x label. `accentLast` colours the final column (today).
+    function columns(o) {
+      const n = o.series.length;
+      if (!n) return `<p class="vz-empty">Nothing yet.</p>`;
+      // The viewBox is sized to the container's real pixel width, so a 10-unit label renders
+      // at 10px and a 24-unit bar at 24px whether the card is a third of the page or all of it.
+      const W = Math.max(240, Math.round(o.width || 640)), H = o.height || 150, padL = 26, padR = 8, padT = 18, padB = 26;
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+      const max = Math.max(1, ...o.series.map(d => d.value));
+      const slot = plotW / n, bw = Math.min(24, Math.max(3, slot - 3));
+      const y = v => padT + plotH - (v / max) * plotH;
+      const maxIdx = o.series.reduce((b, d, i) => (d.value > o.series[b].value ? i : b), 0);
+      const every = o.labelEvery || Math.max(1, Math.ceil(n / 8));
+      let out = `<svg class="vz-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria || "")}">`;
+      out += `<line x1="${padL}" x2="${W - padR}" y1="${y(0)}" y2="${y(0)}" stroke="#e5e5e0" stroke-width="1"/>`;
+      out += `<text x="${padL - 6}" y="${padT + 4}" font-size="10" fill="#84847a" text-anchor="end">${max}</text>`;
+      out += `<text x="${padL - 6}" y="${y(0) + 3}" font-size="10" fill="#84847a" text-anchor="end">0</text>`;
+      o.series.forEach((d, i) => {
+        const x = padL + i * slot + (slot - bw) / 2;
+        const top = y(d.value), h = Math.max(0, y(0) - top);
+        const fill = d.accent ? "#e60023" : (o.color || "#e60023");
+        const r = Math.min(4, bw / 2);
+        // rounded at the data end, square at the baseline
+        const path = h > 0
+          ? `M${x},${y(0)} v-${Math.max(0, h - r)} a${r},${r} 0 0 1 ${r},-${r} h${bw - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${Math.max(0, h - r)} z`
+          : "";
+        out += `<g><title>${esc(d.tip || `${d.label}: ${d.value}`)}</title>`;
+        out += `<rect x="${x - 2}" y="${padT}" width="${bw + 4}" height="${plotH}" fill="transparent"/>`;
+        if (path) out += `<path class="bar" d="${path}" fill="${fill}" opacity="${d.muted ? .45 : 1}"/>`;
+        out += `</g>`;
+        if (d.value > 0 && (i === maxIdx || o.labelAll)) out += `<text x="${x + bw / 2}" y="${top - 4}" font-size="10" fill="#000" text-anchor="middle">${d.value}</text>`;
+        if (i % every === 0 || i === n - 1) out += `<text x="${x + bw / 2}" y="${H - 8}" font-size="10" fill="#84847a" text-anchor="middle">${esc(d.label)}</text>`;
+      });
+      return out + `</svg>`;
     }
 
-    function characterRow(c) {
-      const depth = `${pctText(c.with_comment_pct)} comment · ${pctText(c.with_chips_pct)} chips`;
+    function widthOf(id) {
+      const el = document.getElementById(id);
+      return el && el.clientWidth ? el.clientWidth : 640;
+    }
+
+    function kpi(label, value, sub, meterPct, good) {
+      return `<div class="kpi"><p class="v">${value}</p><p class="l">${esc(label)}</p>${sub ? `<p class="s">${sub}</p>` : ""}
+        ${meterPct != null ? `<div class="meter"><i class="${good ? "good" : ""}" style="width:${Math.max(0, Math.min(100, meterPct))}%"></i></div>` : ""}</div>`;
+    }
+
+    function pickCard(s) {
+      const pct = s.weekly_progress_pct || 0;
+      return `<button type="button" class="pick" role="tab" aria-pressed="${s.stylist_user_id === SELECTED_STYLIST}" onclick="selectStylist('${esc(s.stylist_user_id)}')">
+        <span class="n">${esc(s.stylist_name)}</span>
+        <span class="m"><span>${s.characters_assigned} character${s.characters_assigned === 1 ? "" : "s"}</span><span>${s.reviews_window} / ${s.weekly_target || 0} this wk</span></span>
+        <span class="meter"><i class="${pct >= 100 ? "good" : ""}" style="width:${Math.min(100, pct)}%"></i></span>
+      </button>`;
+    }
+
+    function characterRowFor(c) {
+      const d = c.dimension_averages || {};
+      const dims = Object.keys(DIM_LABELS).map(k => `<span title="${DIM_LABELS[k]}">${fmt(d[k])}</span>`).join(" · ");
       return `<tr>
-        <td class="font-semibold text-ct-ink">${esc(c.character_name)}<br><span class="text-[11px] text-slate-500 font-normal">${esc(c.city || "")}</span></td>
-        <td>${c.assigned_to.length ? c.assigned_to.map(esc).join(", ") : '<span class="text-red-600 font-semibold">unassigned</span>'}</td>
-        <td class="tabular-nums">${c.outfits_total}<br><span class="text-[11px] text-slate-500">${c.outfits_window} this wk</span></td>
+        <td class="font-semibold text-ct-ink">${esc(c.character_name)}</td>
+        <td>${c.assigned ? "yes" : '<span class="text-slate-500">no</span>'}</td>
+        <td class="tabular-nums">${c.outfits_total}</td>
         <td class="tabular-nums">${c.outfits_reviewed} <span class="text-[11px] text-slate-500">(${pctText(c.coverage_pct)})</span></td>
         <td class="tabular-nums ${c.backlog > 10 ? "text-red-600 font-semibold" : ""}">${c.backlog}</td>
-        <td><div class="text-[11px] tabular-nums mb-1">${c.reviews_window} / ${c.weekly_target}</div>${bar(c.weekly_progress_pct)}</td>
-        <td class="tabular-nums">${fmt(c.avg_rating, 2)}<br><span class="text-[11px] text-slate-500">engine ${fmt(c.engine_avg_score, 2)}</span></td>
-        <td class="tabular-nums text-[12px]">${dims(c.dimension_averages)}</td>
-        <td class="text-[11px]">${depth}</td>
+        <td class="tabular-nums">${c.reviews_window} / ${c.weekly_target}</td>
+        <td class="tabular-nums">${fmt(c.avg_rating, 2)}</td>
+        <td class="tabular-nums text-[12px]">${dims}</td>
+        <td class="text-[11px]">${pctText(c.with_comment_pct)} comment · ${pctText(c.with_chips_pct)} chips · ${pctText(c.would_wear_pct)} wear</td>
         <td class="tabular-nums">${c.garments_completed} / ${c.garments_uploaded}</td>
-        <td class="tabular-nums">${fmt(c.median_hours_to_first_review, 0)}</td>
+        <td class="tabular-nums">${c.runs_started}</td>
         <td class="text-[11px]">${esc(ago(c.last_review_at))}</td>
       </tr>`;
     }
 
+    // Column charts are sized to their container, so a resize re-draws the selected stylist.
+    let _resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => {
+        if (METRICS && SELECTED_STYLIST) renderStylist(METRICS.stylists.find(s => s.stylist_user_id === SELECTED_STYLIST));
+      }, 150);
+    });
+
+    function selectStylist(id) {
+      SELECTED_STYLIST = id;
+      document.getElementById("stylist-picker").innerHTML = METRICS.stylists.map(pickCard).join("");
+      renderStylist(METRICS.stylists.find(s => s.stylist_user_id === id));
+    }
+
+    function renderStylist(s) {
+      const m = METRICS;
+      const panel = document.getElementById("stylist-panel");
+      if (!s) { panel.classList.add("hidden"); return; }
+      panel.classList.remove("hidden");
+      const target = m.weekly_target_per_character;
+      document.querySelectorAll("[data-target]").forEach(el => el.textContent = target);
+      const cells = m.cells.filter(c => c.stylist_user_id === s.stylist_user_id);
+      const hitTarget = (s.weekly_progress_pct || 0) >= 100;
+
+      document.getElementById("stylist-kpis").innerHTML =
+        kpi("This week", `${s.reviews_window}<span class="text-base text-slate-500 font-semibold"> / ${s.weekly_target || 0}</span>`,
+            `${s.characters_with_reviews_window} of ${s.characters_assigned} characters touched`, s.weekly_progress_pct, hitTarget) +
+        kpi("Coverage", pctText(s.coverage_pct), `${s.outfits_reviewed} of ${s.outfits_available} outfits`, s.coverage_pct) +
+        kpi("Backlog", s.backlog, "outfits waiting for this stylist") +
+        kpi("Average score", fmt(s.avg_rating, 2), `${s.likes} like · ${s.dislikes} dislike`) +
+        kpi("Reviews, all time", s.reviews_total, `last ${esc(ago(s.last_review_at))}`) +
+        kpi("Wardrobe built", `${s.garments_completed}<span class="text-base text-slate-500 font-semibold"> / ${s.garments_uploaded}</span>`, `${s.runs_started} styling run${s.runs_started === 1 ? "" : "s"} started`);
+
+      // Reviews this week by character — assigned first, then touched; sorted by count.
+      const weekly = cells.slice().sort((a, b) => b.reviews_window - a.reviews_window || (b.assigned - a.assigned) || a.character_name.localeCompare(b.character_name));
+      const weeklyMax = Math.max(target, ...weekly.map(c => c.reviews_window));
+      document.getElementById("chart-weekly").innerHTML = weekly.length ? weekly.map(c => barRow({
+        label: c.character_name, sub: c.assigned ? "" : "not assigned",
+        value: c.reviews_window, max: weeklyMax, target: target, grey: !c.assigned,
+        valueText: `${c.reviews_window}<small> / ${target}</small>`,
+        tip: `${c.character_name}: ${c.reviews_window} reviews in the last ${m.window_days} days (target ${target})`,
+      })).join("") : `<p class="vz-empty">No characters assigned.</p>`;
+
+      // Coverage by character — reviewed (accent) stacked with the backlog (grey), value r/t.
+      const cov = cells.slice().sort((a, b) => (b.coverage_pct || 0) - (a.coverage_pct || 0) || b.outfits_total - a.outfits_total);
+      const covMax = Math.max(1, ...cov.map(c => c.outfits_total));
+      document.getElementById("chart-coverage").innerHTML = cov.length ? cov.map(c => barRow({
+        label: c.character_name, value: c.outfits_reviewed, rest: c.backlog, max: covMax,
+        valueText: `${c.outfits_reviewed}<small> / ${c.outfits_total}</small>`,
+        tip: `${c.character_name}: reviewed ${c.outfits_reviewed} of ${c.outfits_total} outfits (${pctText(c.coverage_pct)}), ${c.backlog} to go`,
+      })).join("") : `<p class="vz-empty">No characters assigned.</p>`;
+
+      // Star histogram — one hue, value on the tallest column only.
+      const hist = s.rating_histogram || {};
+      document.getElementById("chart-histogram").innerHTML = s.reviews_total ? columns({
+        series: [1, 2, 3, 4, 5].map(n => ({label: `${n}★`, value: hist[String(n)] || 0, tip: `${hist[String(n)] || 0} review${(hist[String(n)] || 0) === 1 ? "" : "s"} scored ${n} of 5`})),
+        height: 160, width: widthOf("chart-histogram"), labelEvery: 1, labelAll: true, aria: "Overall scores given",
+      }) : `<p class="vz-empty">No reviews yet.</p>`;
+
+      // Rubric averages vs the panel — accent bar, ink tick at the panel mean.
+      const dims = s.dimension_averages || {}, panelDims = (m.totals && m.totals.dimension_averages) || {};
+      document.getElementById("chart-dimensions").innerHTML = Object.keys(DIM_LABELS).map(k => barRow({
+        label: DIM_LABELS[k], value: dims[k] || 0, max: 5, marker: panelDims[k], valueText: fmt(dims[k], 2),
+        tip: `${DIM_LABELS[k]}: this stylist ${fmt(dims[k], 2)}, panel ${fmt(panelDims[k], 2)} (out of 5)`,
+      })).join("");
+
+      // Depth — three shares.
+      document.getElementById("chart-depth").innerHTML = [
+        ["With a comment", s.with_comment_pct], ["With reason chips", s.with_chips_pct], ["Marked would-wear", s.would_wear_pct],
+      ].map(([label, v]) => barRow({label, value: v || 0, max: 100, valueText: pctText(v), tip: `${label}: ${pctText(v)} of ${s.reviews_total} reviews`})).join("");
+
+      // Reviews per day — today in the accent, earlier days muted.
+      const days = s.daily_reviews || [];
+      document.getElementById("chart-daily-sub").textContent = `Last ${days.length} days · ${days.reduce((n, d) => n + d.count, 0)} reviews`;
+      document.getElementById("chart-daily").innerHTML = columns({
+        series: days.map((d, i) => ({label: d.date.slice(5), value: d.count, muted: i < days.length - 1, accent: i === days.length - 1, tip: `${d.date}: ${d.count} review${d.count === 1 ? "" : "s"}`})),
+        height: 150, width: widthOf("chart-daily"), aria: "Reviews per day",
+      });
+
+      const rows = cells.slice().sort((a, b) => (b.assigned - a.assigned) || a.reviews_window - b.reviews_window || b.backlog - a.backlog);
+      document.getElementById("stylist-character-body").innerHTML = rows.map(characterRowFor).join("");
+    }
+
     function renderMetrics(m) {
+      METRICS = m;
       document.getElementById("metrics-target").textContent = m.weekly_target_per_character;
       document.getElementById("metrics-asof").textContent =
         `Window: last ${m.window_days} days · ${m.totals.reviews_window} reviews this window · ${m.totals.outfits_reviewed} of ${m.totals.outfits_total} outfits ever reviewed`;
-      document.getElementById("stylist-cards").innerHTML = m.stylists.length
-        ? m.stylists.map(stylistCard).join("")
-        : `<p class="text-sm text-slate-500">No stylist activity yet.</p>`;
-      renderHeatmap(m);
-      const rows = m.characters.slice().sort((a, b) =>
-        (a.weekly_progress_pct || 0) - (b.weekly_progress_pct || 0) || b.backlog - a.backlog);
-      document.getElementById("character-metrics-body").innerHTML = rows.map(characterRow).join("");
+      const empty = document.getElementById("metrics-empty");
+      if (!m.stylists.length) { empty.classList.remove("hidden"); return; }
+      empty.classList.add("hidden");
+      // Default to the busiest stylist this week so the page opens on something worth seeing.
+      const busiest = m.stylists.slice().sort((a, b) => b.reviews_window - a.reviews_window || b.reviews_total - a.reviews_total)[0];
+      selectStylist(SELECTED_STYLIST && m.stylists.some(s => s.stylist_user_id === SELECTED_STYLIST) ? SELECTED_STYLIST : busiest.stylist_user_id);
     }
 
     async function loadAll() {

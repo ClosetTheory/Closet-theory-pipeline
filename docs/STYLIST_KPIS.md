@@ -24,9 +24,7 @@ currently assigned to them. The window is the trailing 7 days, both adjustable p
 | Hours to first review | Median hours from an outfit being generated to its earliest review, over outfits that have one. | character table |
 | Engine avg | Mean of the engine's own final score across the character's outfits, next to the stylists' average, so disagreement is visible. | character table |
 
-Heatmap shading: grey = no reviews this week, light amber under 50% of target, dark amber
-under 100%, green at or above target. A black inset border marks an active assignment; a
-shaded cell without one means a stylist reviewed a character they are not assigned to.
+Layout: the page is stylist-first. Pick a stylist from the row of cards (each card shows this-week progress, so the row doubles as the comparison). Below it: six KPI tiles; reviews this week by character against a target rule; coverage by character (reviewed stacked with the backlog); the star histogram; rubric averages with a tick at the panel mean; review depth; reviews per day for the last 28 days; and a table of every character the stylist is assigned to or has touched. Per-character views are scrolling bar lists, so they scale as the roster grows.
 
 Revoked assignments do not count toward a stylist's characters or target, but the reviews
 they left while assigned still count as reviews.
