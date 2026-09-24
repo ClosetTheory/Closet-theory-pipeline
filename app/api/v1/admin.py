@@ -5,6 +5,7 @@ Everything here requires the admin role. Roles live in `user_roles` rather than 
 migrations.
 """
 
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -14,8 +15,10 @@ from app.api.dependencies import get_db_session, require_admin
 from app.auth.security import hash_password
 from app.models.base import generate_uuid
 from app.models.garment import Garment
-from app.models.persona import Persona, PersonaAssignment
+from app.models.persona import Persona, PersonaAssignment, PersonaGarmentUpload
 from app.models.persona_review import PersonaOutfitReview
+from app.models.styling_run import StylingRunProgress
+from app.metrics.stylist_kpis import DEFAULT_WEEKLY_TARGET, DEFAULT_WINDOW_DAYS, compute_stylist_kpis
 from app.models.role import KNOWN_ROLES, ROLE_STYLIST, UserRole
 from app.models.styling import Outfit
 from app.models.user import User
@@ -286,3 +289,63 @@ async def persona_summary(
         "average_rating": round(float(avg_rating), 2) if avg_rating is not None else None,
         "would_wear_count": would_wear or 0,
     }
+
+
+@router.get("/metrics/stylists")
+async def stylist_metrics(
+    weekly_target: int = Query(DEFAULT_WEEKLY_TARGET, ge=1, le=500, description="Reviews per character per week"),
+    window_days: int = Query(DEFAULT_WINDOW_DAYS, ge=1, le=90),
+    _admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> Dict[str, Any]:
+    """Per-stylist, per-character KPIs: coverage, weekly progress against the target, review
+    depth, wardrobe building, and per-character review lag. Admin only — stylists do not see
+    their own numbers by decision. Definitions live in app/metrics/stylist_kpis.py and
+    docs/STYLIST_KPIS.md. Loads the panel's rows whole (hundreds, not millions) and aggregates
+    in Python so the arithmetic is unit-tested rather than buried in SQL."""
+    personas = (await session.execute(select(Persona))).scalars().all()
+    tenant_ids = [p.user_id for p in personas]
+    assignments = (await session.execute(select(PersonaAssignment))).scalars().all()
+    reviews = (await session.execute(select(PersonaOutfitReview))).scalars().all()
+    upload_rows = (
+        await session.execute(
+            select(PersonaGarmentUpload.persona_id, PersonaGarmentUpload.uploaded_by_user_id, Garment.status)
+            .join(Garment, Garment.id == PersonaGarmentUpload.garment_id)
+        )
+    ).all()
+    runs = (
+        await session.execute(select(StylingRunProgress).where(StylingRunProgress.persona_id.is_not(None)))
+    ).scalars().all()
+    outfit_rows = (
+        await session.execute(
+            select(Outfit.id, Outfit.tenant_id, Outfit.created_at, Outfit.final_score).where(Outfit.tenant_id.in_(tenant_ids))
+        )
+    ).all() if tenant_ids else []
+
+    user_ids = (
+        {a.stylist_user_id for a in assignments}
+        | {r.reviewer_user_id for r in reviews}
+        | {row.uploaded_by_user_id for row in upload_rows}
+        | {run.initiated_by_user_id for run in runs}
+    )
+    user_rows = (
+        await session.execute(select(User.id, User.display_name, User.email).where(User.id.in_(user_ids)))
+    ).all() if user_ids else []
+
+    return compute_stylist_kpis(
+        now=datetime.now(timezone.utc),
+        personas=[{"id": p.id, "user_id": p.user_id, "display_name": p.display_name, "slug": p.slug, "city": p.city} for p in personas],
+        assignments=[{"persona_id": a.persona_id, "stylist_user_id": a.stylist_user_id, "status": a.status, "created_at": a.created_at} for a in assignments],
+        users=[{"id": u.id, "display_name": u.display_name, "email": u.email} for u in user_rows],
+        outfits=[{"id": o.id, "tenant_id": o.tenant_id, "created_at": o.created_at, "final_score": o.final_score} for o in outfit_rows],
+        reviews=[{
+            "outfit_id": r.outfit_id, "persona_id": r.persona_id, "reviewer_user_id": r.reviewer_user_id,
+            "rating": r.rating, "dimension_ratings": r.dimension_ratings or {}, "comment": r.comment,
+            "would_wear": r.would_wear, "tags": r.tags or [], "vote": r.vote,
+            "created_at": r.created_at, "updated_at": r.updated_at,
+        } for r in reviews],
+        uploads=[{"persona_id": row.persona_id, "uploaded_by_user_id": row.uploaded_by_user_id, "garment_status": row.status} for row in upload_rows],
+        runs=[{"persona_id": run.persona_id, "initiated_by_user_id": run.initiated_by_user_id, "status": run.status, "created_at": run.created_at} for run in runs],
+        weekly_target=weekly_target,
+        window_days=window_days,
+    )

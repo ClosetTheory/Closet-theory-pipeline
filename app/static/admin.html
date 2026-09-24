@@ -35,6 +35,15 @@
     table { border-collapse: collapse; }
     th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid #e5e5e0; font-size: 13px; }
     th { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #84847a; font-weight: 600; }
+    .heatmap { border-collapse: separate; border-spacing: 0; }
+    .heatmap th, .heatmap td { white-space: nowrap; }
+    .heatmap th:first-child, .heatmap td:first-child { position: sticky; left: 0; background: #fbfbf9; z-index: 1; }
+    .heatmap th.rot { writing-mode: vertical-rl; transform: rotate(180deg); text-transform: none; letter-spacing: 0; font-size: 11px; padding: 0.5rem 0.35rem; max-height: 130px; }
+    .heatmap td.cell { text-align: center; font-variant-numeric: tabular-nums; font-size: 12px; min-width: 52px; padding: 0.35rem 0.3rem; border-radius: 6px; }
+    .heatmap td.cell small { display: block; font-size: 10px; opacity: .75; }
+    .heatmap td.cell.assigned { box-shadow: inset 0 0 0 2px #000; }
+    .bar { height: 6px; border-radius: 999px; background: #e5e5e0; overflow: hidden; min-width: 90px; }
+    .bar > i { display: block; height: 100%; background: #e60023; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-ct-primary selection:text-white pb-16">
@@ -141,6 +150,43 @@
       <div id="toast" class="hidden rounded-2xl px-5 py-3 text-sm font-semibold"></div>
 
       <div id="stats" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+
+      <section class="space-y-4" id="metrics-section">
+        <div class="flex items-end justify-between flex-wrap gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-ct-ink tracking-tight">Stylist metrics</h3>
+            <p class="text-sm text-slate-500 max-w-3xl">
+              Per stylist, per character. Target is <strong id="metrics-target" class="text-ct-ink">20</strong>
+              reviews per character per week; a stylist's target is 20 &times; the characters assigned to them.
+              Admins only &mdash; stylists do not see these numbers.
+            </p>
+          </div>
+          <span id="metrics-asof" class="text-[11px] text-slate-500"></span>
+        </div>
+
+        <div id="stylist-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">This week, stylist &times; character &mdash; reviewed / outfits, shaded by progress to 20</p>
+          <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-x-auto">
+            <table class="heatmap" id="heatmap"><thead></thead><tbody></tbody></table>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Characters, least reviewed this week first</p>
+          <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-x-auto">
+            <table class="w-full min-w-[1000px]">
+              <thead><tr>
+                <th>Character</th><th>Assigned to</th><th>Outfits</th><th>Reviewed</th><th>Backlog</th>
+                <th>This week</th><th>Avg</th><th>Colour &middot; Fit &middot; Occasion &middot; Person</th>
+                <th>Depth</th><th>Wardrobe built</th><th>Hrs to 1st review</th><th>Last review</th>
+              </tr></thead>
+              <tbody id="character-metrics-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
       <section class="space-y-4">
         <h3 class="text-lg font-bold text-ct-ink tracking-tight">Assignment</h3>
@@ -354,10 +400,128 @@
       } catch (e) { toast(`Could not change role: ${e.message}`, false); }
     }
 
+    // --- Stylist metrics ------------------------------------------------------------------
+    const DIM_LABELS = {colour_harmony: "Colour", fit_and_silhouette: "Fit", occasion_fit: "Occasion", persona_fit: "Person"};
+    const fmt = (v, d = 1) => (v == null ? "—" : Number(v).toFixed(d));
+    const pctText = (v) => (v == null ? "—" : `${Math.round(v)}%`);
+    const ago = (iso) => {
+      if (!iso) return "never";
+      const h = (Date.now() - new Date(iso).getTime()) / 36e5;
+      if (h < 1) return "just now";
+      if (h < 48) return `${Math.round(h)}h ago`;
+      return `${Math.round(h / 24)}d ago`;
+    };
+    // 0 -> pale grey, halfway -> amber, at or above target -> green. Fixed stops rather than a
+    // gradient so two cells that read the same are the same colour.
+    function heat(pct) {
+      if (pct == null || pct <= 0) return {bg: "#f0f0ec", fg: "#84847a"};
+      if (pct < 50) return {bg: "#fde7c2", fg: "#7a4a00"};
+      if (pct < 100) return {bg: "#fbd08a", fg: "#5c3700"};
+      return {bg: "#c9ecd2", fg: "#0f5a2a"};
+    }
+    function bar(pct) {
+      const w = Math.max(0, Math.min(100, pct || 0));
+      return `<div class="bar"><i style="width:${w}%"></i></div>`;
+    }
+    function dims(d) {
+      return (d ? Object.keys(DIM_LABELS) : []).map(k => `<span title="${DIM_LABELS[k]}">${fmt(d[k])}</span>`).join(" · ");
+    }
+
+    function stylistCard(s) {
+      const target = s.weekly_target || 0;
+      return `<div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-base font-bold text-ct-ink">${esc(s.stylist_name)}</p>
+            <p class="text-[11px] text-slate-500">${esc(s.email || "")}</p>
+          </div>
+          <span class="text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-800 text-slate-300">${s.characters_assigned} character${s.characters_assigned === 1 ? "" : "s"}</span>
+        </div>
+        <div>
+          <div class="flex items-baseline justify-between text-xs">
+            <span class="font-semibold text-ct-ink">This week</span>
+            <span class="tabular-nums">${s.reviews_window} / ${target} reviews</span>
+          </div>
+          ${bar(s.weekly_progress_pct)}
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div><p class="text-lg font-extrabold text-ct-ink tabular-nums">${pctText(s.coverage_pct)}</p><p class="text-[10px] uppercase tracking-wider text-slate-500">Coverage</p></div>
+          <div><p class="text-lg font-extrabold text-ct-ink tabular-nums">${s.backlog}</p><p class="text-[10px] uppercase tracking-wider text-slate-500">Backlog</p></div>
+          <div><p class="text-lg font-extrabold text-ct-ink tabular-nums">${fmt(s.avg_rating, 2)}</p><p class="text-[10px] uppercase tracking-wider text-slate-500">Avg / 5</p></div>
+        </div>
+        <dl class="text-[11px] text-slate-500 grid grid-cols-2 gap-x-3 gap-y-1">
+          <dt>Reviews total</dt><dd class="text-ct-ink tabular-nums text-right">${s.reviews_total}</dd>
+          <dt>Characters reviewed</dt><dd class="text-ct-ink tabular-nums text-right">${s.characters_reviewed} of ${s.characters_assigned}</dd>
+          <dt>With comment</dt><dd class="text-ct-ink tabular-nums text-right">${pctText(s.with_comment_pct)}</dd>
+          <dt>With reason chips</dt><dd class="text-ct-ink tabular-nums text-right">${pctText(s.with_chips_pct)}</dd>
+          <dt>Would wear</dt><dd class="text-ct-ink tabular-nums text-right">${pctText(s.would_wear_pct)}</dd>
+          <dt>Like / dislike</dt><dd class="text-ct-ink tabular-nums text-right">${s.likes} / ${s.dislikes}</dd>
+          <dt>Garments uploaded</dt><dd class="text-ct-ink tabular-nums text-right">${s.garments_completed} done of ${s.garments_uploaded}</dd>
+          <dt>Styling runs started</dt><dd class="text-ct-ink tabular-nums text-right">${s.runs_started}</dd>
+          <dt>Dimensions</dt><dd class="text-ct-ink tabular-nums text-right">${dims(s.dimension_averages)}</dd>
+          <dt>Last review</dt><dd class="text-ct-ink text-right">${esc(ago(s.last_review_at))}</dd>
+        </dl>
+      </div>`;
+    }
+
+    function renderHeatmap(m) {
+      const table = document.getElementById("heatmap");
+      const chars = m.characters;
+      const byKey = {};
+      m.cells.forEach(c => { byKey[c.stylist_user_id + "|" + c.persona_id] = c; });
+      table.querySelector("thead").innerHTML = `<tr><th>Stylist</th>${chars.map(c =>
+        `<th class="rot" title="${esc(c.character_name)}">${esc(c.character_name)}</th>`).join("")}</tr>`;
+      table.querySelector("tbody").innerHTML = m.stylists.map(s => `<tr><th>${esc(s.stylist_name)}</th>${chars.map(c => {
+        const cell = byKey[s.stylist_user_id + "|" + c.persona_id];
+        if (!cell) return `<td class="cell" style="color:#c7c7be">·</td>`;
+        const h = heat(cell.weekly_progress_pct);
+        const tip = `${cell.stylist_name} × ${cell.character_name}\n` +
+          `This week: ${cell.reviews_window} / ${cell.weekly_target}\n` +
+          `Reviewed ${cell.outfits_reviewed} of ${cell.outfits_total} outfits (${pctText(cell.coverage_pct)}), backlog ${cell.backlog}\n` +
+          `Avg ${fmt(cell.avg_rating, 2)} / 5 · comments ${pctText(cell.with_comment_pct)} · chips ${pctText(cell.with_chips_pct)}\n` +
+          `Garments uploaded ${cell.garments_uploaded} (${cell.garments_completed} done) · runs ${cell.runs_started}\n` +
+          `Last review ${ago(cell.last_review_at)}${cell.assigned ? "" : " · not assigned"}`;
+        return `<td class="cell ${cell.assigned ? "assigned" : ""}" style="background:${h.bg};color:${h.fg}" title="${esc(tip)}">` +
+          `${cell.outfits_reviewed}/${cell.outfits_total}<small>${cell.reviews_window} wk</small></td>`;
+      }).join("")}</tr>`).join("");
+    }
+
+    function characterRow(c) {
+      const depth = `${pctText(c.with_comment_pct)} comment · ${pctText(c.with_chips_pct)} chips`;
+      return `<tr>
+        <td class="font-semibold text-ct-ink">${esc(c.character_name)}<br><span class="text-[11px] text-slate-500 font-normal">${esc(c.city || "")}</span></td>
+        <td>${c.assigned_to.length ? c.assigned_to.map(esc).join(", ") : '<span class="text-red-600 font-semibold">unassigned</span>'}</td>
+        <td class="tabular-nums">${c.outfits_total}<br><span class="text-[11px] text-slate-500">${c.outfits_window} this wk</span></td>
+        <td class="tabular-nums">${c.outfits_reviewed} <span class="text-[11px] text-slate-500">(${pctText(c.coverage_pct)})</span></td>
+        <td class="tabular-nums ${c.backlog > 10 ? "text-red-600 font-semibold" : ""}">${c.backlog}</td>
+        <td><div class="text-[11px] tabular-nums mb-1">${c.reviews_window} / ${c.weekly_target}</div>${bar(c.weekly_progress_pct)}</td>
+        <td class="tabular-nums">${fmt(c.avg_rating, 2)}<br><span class="text-[11px] text-slate-500">engine ${fmt(c.engine_avg_score, 2)}</span></td>
+        <td class="tabular-nums text-[12px]">${dims(c.dimension_averages)}</td>
+        <td class="text-[11px]">${depth}</td>
+        <td class="tabular-nums">${c.garments_completed} / ${c.garments_uploaded}</td>
+        <td class="tabular-nums">${fmt(c.median_hours_to_first_review, 0)}</td>
+        <td class="text-[11px]">${esc(ago(c.last_review_at))}</td>
+      </tr>`;
+    }
+
+    function renderMetrics(m) {
+      document.getElementById("metrics-target").textContent = m.weekly_target_per_character;
+      document.getElementById("metrics-asof").textContent =
+        `Window: last ${m.window_days} days · ${m.totals.reviews_window} reviews this window · ${m.totals.outfits_reviewed} of ${m.totals.outfits_total} outfits ever reviewed`;
+      document.getElementById("stylist-cards").innerHTML = m.stylists.length
+        ? m.stylists.map(stylistCard).join("")
+        : `<p class="text-sm text-slate-500">No stylist activity yet.</p>`;
+      renderHeatmap(m);
+      const rows = m.characters.slice().sort((a, b) =>
+        (a.weekly_progress_pct || 0) - (b.weekly_progress_pct || 0) || b.backlog - a.backlog);
+      document.getElementById("character-metrics-body").innerHTML = rows.map(characterRow).join("");
+    }
+
     async function loadAll() {
-      const [roster, matrix, users] = await Promise.all([
-        api("/personas"), api("/admin/assignments"), api("/admin/users"),
+      const [roster, matrix, users, metrics] = await Promise.all([
+        api("/personas"), api("/admin/assignments"), api("/admin/users"), api("/admin/metrics/stylists"),
       ]);
+      renderMetrics(metrics);
       STYLISTS = matrix.stylists || [];
 
       const assigned = (matrix.personas || []).filter(p => (p.stylists || []).length).length;
