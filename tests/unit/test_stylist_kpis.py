@@ -164,3 +164,16 @@ def test_empty_panel_is_all_zeros_not_an_error():
     m = compute_stylist_kpis(now=NOW, personas=[], assignments=[], users=[], outfits=[], reviews=[], uploads=[], runs=[])
     assert m["stylists"] == [] and m["characters"] == [] and m["cells"] == []
     assert m["totals"]["outfits_total"] == 0 and m["totals"]["coverage_pct"] is None
+
+
+def test_daily_series_covers_every_day_oldest_first_with_zeros():
+    m = compute_stylist_kpis(now=NOW, activity_days=10, **_scenario())
+    s2 = _stylist(m, "s2")
+    series = s2["daily_reviews"]
+    assert len(series) == 10 and m["activity_days"] == 10
+    assert series[0]["date"] == "2026-09-15" and series[-1]["date"] == "2026-09-24"
+    by_date = {d["date"]: d["count"] for d in series}
+    assert by_date["2026-09-24"] == 1     # 12h ago
+    assert by_date["2026-09-16"] == 1     # 8 days ago, still inside the 10-day series
+    assert sum(by_date.values()) == 2
+    assert m["totals"]["daily_reviews"][-1]["count"] == 2  # s1's 2h-ago revision + s2's 12h-ago review

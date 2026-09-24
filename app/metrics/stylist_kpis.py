@@ -37,6 +37,7 @@ from app.models.persona_review import REVIEW_DIMENSIONS
 
 DEFAULT_WEEKLY_TARGET = 20
 DEFAULT_WINDOW_DAYS = 7
+DEFAULT_ACTIVITY_DAYS = 28  # length of the reviews-per-day series the admin page charts
 
 
 def _utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -103,9 +104,24 @@ def compute_stylist_kpis(
     runs: List[Dict[str, Any]],
     weekly_target: int = DEFAULT_WEEKLY_TARGET,
     window_days: int = DEFAULT_WINDOW_DAYS,
+    activity_days: int = DEFAULT_ACTIVITY_DAYS,
 ) -> Dict[str, Any]:
     now = _utc(now)
     window_start = now - timedelta(days=window_days)
+
+    def daily_series(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Reviews per UTC calendar day over the trailing `activity_days`, oldest first,
+        every day present (zeros included) so a chart never has to infer gaps."""
+        counts: Dict[str, int] = defaultdict(int)
+        for r in rows:
+            ts = _utc(r.get("updated_at") or r.get("created_at"))
+            if ts:
+                counts[ts.date().isoformat()] += 1
+        today = now.date()
+        return [
+            {"date": (today - timedelta(days=offset)).isoformat(), "count": counts.get((today - timedelta(days=offset)).isoformat(), 0)}
+            for offset in range(activity_days - 1, -1, -1)
+        ]
 
     persona_by_id = {p["id"]: p for p in personas}
     persona_by_tenant = {p["user_id"]: p["id"] for p in personas}
@@ -260,6 +276,7 @@ def compute_stylist_kpis(
             "garments_uploaded": sum(c["garments_uploaded"] for c in my_cells),
             "garments_completed": sum(c["garments_completed"] for c in my_cells),
             "runs_started": sum(c["runs_started"] for c in my_cells),
+            "daily_reviews": daily_series(s_reviews),
             **stats,
         })
 
@@ -275,6 +292,7 @@ def compute_stylist_kpis(
         "coverage_pct": _pct(len(reviewed_any), total_outfits),
         "backlog": total_outfits - len(reviewed_any),
         "weekly_target": weekly_target * len(persona_by_id),
+        "daily_reviews": daily_series(all_reviews),
         **_review_stats(all_reviews, window_start),
     }
 
@@ -283,6 +301,7 @@ def compute_stylist_kpis(
         "window_days": window_days,
         "window_start": window_start.isoformat(),
         "weekly_target_per_character": weekly_target,
+        "activity_days": activity_days,
         "dimension_keys": list(REVIEW_DIMENSIONS),
         "totals": totals,
         "stylists": stylists,

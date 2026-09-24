@@ -18,7 +18,7 @@ from app.models.garment import Garment
 from app.models.persona import Persona, PersonaAssignment, PersonaGarmentUpload
 from app.models.persona_review import PersonaOutfitReview
 from app.models.styling_run import StylingRunProgress
-from app.metrics.stylist_kpis import DEFAULT_WEEKLY_TARGET, DEFAULT_WINDOW_DAYS, compute_stylist_kpis
+from app.metrics.stylist_kpis import DEFAULT_ACTIVITY_DAYS, DEFAULT_WEEKLY_TARGET, DEFAULT_WINDOW_DAYS, compute_stylist_kpis
 from app.models.role import KNOWN_ROLES, ROLE_STYLIST, UserRole
 from app.models.styling import Outfit
 from app.models.user import User
@@ -295,6 +295,7 @@ async def persona_summary(
 async def stylist_metrics(
     weekly_target: int = Query(DEFAULT_WEEKLY_TARGET, ge=1, le=500, description="Reviews per character per week"),
     window_days: int = Query(DEFAULT_WINDOW_DAYS, ge=1, le=90),
+    activity_days: int = Query(DEFAULT_ACTIVITY_DAYS, ge=7, le=180, description="Length of the reviews-per-day series"),
     _admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> Dict[str, Any]:
@@ -348,4 +349,5 @@ async def stylist_metrics(
         runs=[{"persona_id": run.persona_id, "initiated_by_user_id": run.initiated_by_user_id, "status": run.status, "created_at": run.created_at} for run in runs],
         weekly_target=weekly_target,
         window_days=window_days,
+        activity_days=activity_days,
     )
