@@ -1,20 +1,49 @@
 """Image Asset API endpoints."""
 
+import asyncio
 import hashlib
 import io
 import uuid
-from typing import Optional
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from typing import Dict, Optional
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import ActingScope, get_acting_scope, get_current_user, get_db_session, get_storage
 from app.config import settings
 from app.models.image_asset import ImageAsset
 from app.models.user import User
+from app.observability import logger
 from app.schemas.image import ImageUploadResponse
 from app.storage.base import StorageClient
 
 router = APIRouter(prefix="/wardrobe/images", tags=["Images"])
+
+# Image assets are content-addressed (the object key and the ImageAsset row both carry the
+# SHA-256 of the bytes), so a given asset id / object key never changes what it returns. That
+# makes long browser caching safe and is what stops the catalogue re-fetching hundreds of
+# thumbnails on every visit.
+IMMUTABLE_CACHE_HEADERS: Dict[str, str] = {"Cache-Control": "public, max-age=604800, immutable"}
+
+# Bounds for the ?thumb= edge length. Anything above the upper bound is not a thumbnail and
+# would just be a slower copy of the original.
+THUMB_MIN_EDGE = 16
+THUMB_MAX_EDGE = 1024
+
+
+def thumbnail_object_key(sha256: str, edge: int) -> str:
+    """Storage key for the cached thumbnail of a content-addressed asset."""
+    return f"thumbs/{sha256}_{edge}.jpg"
+
+
+def build_thumbnail(data: bytes, edge: int) -> bytes:
+    """Decode, downscale to fit `edge` x `edge`, re-encode as JPEG q80. Pure CPU; call via
+    asyncio.to_thread from request handlers so it never blocks the event loop."""
+    with Image.open(io.BytesIO(data)) as img:
+        img = img.convert("RGB")
+        img.thumbnail((edge, edge), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=80)
+        return buf.getvalue()
 
 # Enforce decompression bomb defense
 Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
@@ -121,12 +150,11 @@ async def get_media_bytes(
     storage: StorageClient = Depends(get_storage),
 ):
     """Streams stored image asset bytes directly for browser visual presentation."""
-    from fastapi import Response
     try:
         data = await storage.get_object(object_key)
-        return Response(content=data, media_type="image/jpeg")
     except Exception:
         raise HTTPException(status_code=404, detail="Media asset not found")
+    return Response(content=data, media_type="image/jpeg", headers=IMMUTABLE_CACHE_HEADERS)
 
 
 @router.get("/{image_id}/bytes")
@@ -141,28 +169,55 @@ async def get_image_asset_bytes(
     `thumb=<max_dimension>` returns a resized, more heavily compressed JPEG instead of the
     original — canonical studio images are stored at their full generated resolution (typically
     1000-1450px, up to ~1.6MB each), which is unnecessarily heavy for a ~300px-wide catalogue
-    grid cell. Resized on the fly rather than precomputed/stored: simplest fix, no migration or
-    Stage 4 changes needed, and this endpoint isn't hit often enough per-image to matter.
+    grid cell.
+
+    The catalogue asks for every garment in one go (`?limit=3000`, each cell `?thumb=320`), so
+    this endpoint is the hottest path on the box by a wide margin. Two things keep it from
+    taking the whole API down with it, which is exactly what happened in production (the
+    trivial `/health` route hanging 20s+ while a catalogue page loaded):
+
+    1. The thumbnail is built once and cached back into object storage under a
+       content-addressed key, so the 1.6MB decode + LANCZOS resize happens one time per
+       asset, not once per page view per visitor.
+    2. The build itself runs in a worker thread (`asyncio.to_thread`), so even a cache miss
+       never blocks the event loop the other requests are waiting on.
     """
-    from fastapi import Response
     asset = await session.get(ImageAsset, image_id)
     if not asset:
         raise HTTPException(status_code=404, detail="ImageAsset not found")
+
+    if thumb and asset.mime_type.startswith("image/"):
+        edge = max(THUMB_MIN_EDGE, min(int(thumb), THUMB_MAX_EDGE))
+        thumb_key = thumbnail_object_key(asset.sha256, edge)
+
+        try:
+            if await storage.exists(thumb_key):
+                cached = await storage.get_object(thumb_key)
+                return Response(content=cached, media_type="image/jpeg", headers=IMMUTABLE_CACHE_HEADERS)
+        except Exception as e:  # a cache-read failure must never break image serving
+            logger.warning(f"Thumbnail cache read failed for {thumb_key}: {e}")
+
+        try:
+            data = await storage.get_object(asset.object_uri)
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Image bytes could not be retrieved: {e}")
+
+        try:
+            thumb_bytes = await asyncio.to_thread(build_thumbnail, data, edge)
+        except Exception as e:
+            # Serve the original rather than a hard failure, same as before.
+            logger.warning(f"Thumbnail build failed for {image_id}: {e}")
+            return Response(content=data, media_type=asset.mime_type, headers=IMMUTABLE_CACHE_HEADERS)
+
+        try:
+            await storage.put_object(thumb_key, thumb_bytes, content_type="image/jpeg")
+        except Exception as e:
+            logger.warning(f"Thumbnail cache write failed for {thumb_key}: {e}")
+        return Response(content=thumb_bytes, media_type="image/jpeg", headers=IMMUTABLE_CACHE_HEADERS)
+
     try:
         data = await storage.get_object(asset.object_uri)
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Image bytes could not be retrieved: {e}")
-
-    if thumb and asset.mime_type.startswith("image/"):
-        try:
-            with Image.open(io.BytesIO(data)) as img:
-                img = img.convert("RGB")
-                img.thumbnail((thumb, thumb), Image.Resampling.LANCZOS)
-                buf = io.BytesIO()
-                img.save(buf, format="JPEG", quality=80)
-                return Response(content=buf.getvalue(), media_type="image/jpeg")
-        except Exception:
-            pass  # fall through and serve the original rather than a hard failure
-
-    return Response(content=data, media_type=asset.mime_type)
+    return Response(content=data, media_type=asset.mime_type, headers=IMMUTABLE_CACHE_HEADERS)
 
