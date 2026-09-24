@@ -29,6 +29,22 @@ IMMUTABLE_CACHE_HEADERS: Dict[str, str] = {"Cache-Control": "public, max-age=604
 THUMB_MIN_EDGE = 16
 THUMB_MAX_EDGE = 1024
 
+# How many thumbnails may be resized at the same time. A cold cache (first catalogue load
+# after a deploy) fires hundreds of misses at once; the default thread pool would run up to
+# min(32, cpus + 4) LANCZOS resizes in parallel, which on the 2-vCPU droplet saturates both
+# cores and the event loop stops getting scheduled — the same starvation the thread hand-off
+# was meant to prevent. Two at a time leaves a core for everything else; the rest queue here,
+# not on the CPU. Created lazily so importing this module never binds to an event loop.
+THUMB_BUILD_CONCURRENCY = 2
+_thumb_build_gate: Optional[asyncio.Semaphore] = None
+
+
+def _thumb_gate() -> asyncio.Semaphore:
+    global _thumb_build_gate
+    if _thumb_build_gate is None:
+        _thumb_build_gate = asyncio.Semaphore(THUMB_BUILD_CONCURRENCY)
+    return _thumb_build_gate
+
 
 def thumbnail_object_key(sha256: str, edge: int) -> str:
     """Storage key for the cached thumbnail of a content-addressed asset."""
@@ -203,7 +219,8 @@ async def get_image_asset_bytes(
             raise HTTPException(status_code=404, detail=f"Image bytes could not be retrieved: {e}")
 
         try:
-            thumb_bytes = await asyncio.to_thread(build_thumbnail, data, edge)
+            async with _thumb_gate():
+                thumb_bytes = await asyncio.to_thread(build_thumbnail, data, edge)
         except Exception as e:
             # Serve the original rather than a hard failure, same as before.
             logger.warning(f"Thumbnail build failed for {image_id}: {e}")
