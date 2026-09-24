@@ -265,7 +265,7 @@
               ${(o.garments || []).map(g =>
                 `<span class="text-[11px] px-2 py-1 rounded-lg bg-slate-800 text-slate-300">${esc((g.attributes && g.attributes.casual_name) || g.subcategory || g.category || "piece")}</span>`).join("")}
             </div>
-            ${o.compatibility_reason ? `<p class="text-xs text-slate-500 line-clamp-3">${esc(o.compatibility_reason)}</p>` : ""}
+            ${o.compatibility_reason ? `<p class="text-xs text-slate-500 whitespace-pre-line">${esc(o.compatibility_reason)}</p>` : ""}
 
             <div>
               <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Overall</p>

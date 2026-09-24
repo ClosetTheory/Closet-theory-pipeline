@@ -5,6 +5,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from app.config import settings
 from app.models.base import Base
+from app.observability import logger
+from app.schema_sync import sync_missing_columns
 
 DEMO_USER_ID = "tenant_1"
 DEMO_USER_EMAIL = "admin@closettheory.co"
@@ -34,6 +36,12 @@ async def init_db():
             except Exception:
                 pass
         await conn.run_sync(Base.metadata.create_all)
+        # create_all never alters a table that already exists, so a model gaining a column
+        # after its table shipped left production 500-ing twice (users on 09-11, outfit_votes
+        # on 09-23). Add whatever is missing, additively only — see app/schema_sync.py.
+        added = await conn.run_sync(sync_missing_columns, Base.metadata)
+        if added:
+            logger.warning(f"Schema sync added {len(added)} missing column(s): {', '.join(added)}")
 
     await _ensure_demo_user()
     await _ensure_admin_roles()
