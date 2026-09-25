@@ -21,7 +21,12 @@ from app.models.base import Base, generate_uuid, utc_now
 # a database migration — same reasoning as every other enum-ish column in this schema.
 ROLE_ADMIN = "admin"
 ROLE_STYLIST = "stylist"
-KNOWN_ROLES = frozenset({ROLE_ADMIN, ROLE_STYLIST})
+# A guest who tours the product on a shared wardrobe (an investor, a prospective partner). Sees
+# the catalogue, ingestion, styling, pipeline-info and profile pages and nothing else; cannot
+# delete garments or leave stylist reviews, because the wardrobe is not theirs. Created by
+# scripts/create_vc_account.py, never through registration.
+ROLE_VC = "vc"
+KNOWN_ROLES = frozenset({ROLE_ADMIN, ROLE_STYLIST, ROLE_VC})
 
 
 class UserRole(Base):

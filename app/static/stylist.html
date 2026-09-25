@@ -55,9 +55,9 @@
         <a href="/pipeline-info" class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Pipeline Info</a>
         <a href="/stylist" data-role-link="stylist" data-nav-characters hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">My Characters</a>
         <a href="/admin" data-role-link="admin" hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Admin</a>
-        <a href="/review" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Review</a>
+        <a href="/review" data-needs-wardrobe data-guest-hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Review</a>
         <a href="/profile" data-needs-wardrobe class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap">Profile</a>
-        <a href="/docs" target="_blank" class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap font-semibold">API Docs ↗</a>
+        <a href="/docs" target="_blank" data-guest-hidden class="ct-nav px-2.5 py-1.5 rounded-lg transition whitespace-nowrap font-semibold">API Docs ↗</a>
         <button onclick="ctLogout()" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-red-400 transition whitespace-nowrap">Log out</button>
       </nav>
     </div>
@@ -97,6 +97,10 @@
         var roles = (await res.json()).roles || [];
         var isAdmin = roles.indexOf("admin") !== -1;
         var isStylistOnly = roles.indexOf("stylist") !== -1 && !isAdmin;
+        var isGuest = roles.indexOf("vc") !== -1;
+        // A guest tours someone else's wardrobe: the review queue and the API docs are not for them.
+        if (isGuest) document.querySelectorAll("[data-guest-hidden]").forEach(function (el) { el.hidden = true; });
+        if (isGuest) { window.location.replace("/"); return; }
 
         document.querySelectorAll("[data-role-link]").forEach(function (el) {
           var needed = el.getAttribute("data-role-link");

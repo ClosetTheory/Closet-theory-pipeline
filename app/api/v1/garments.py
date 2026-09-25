@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.dependencies import ActingScope, get_acting_scope, get_db_session, get_storage
+from app.api.dependencies import ActingScope, forbid_guest, get_acting_scope, get_db_session, get_storage
 from app.config import settings
 from app.models.embedding import GarmentEmbedding
 from app.models.garment import Garment
@@ -238,7 +238,7 @@ async def list_garments(
     ]
 
 
-@router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{garment_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(forbid_guest)])
 async def delete_garment(
     garment_id: str,
     scope: ActingScope = Depends(get_acting_scope),
