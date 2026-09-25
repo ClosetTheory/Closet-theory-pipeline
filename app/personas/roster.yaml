@@ -78,6 +78,16 @@ personas:
       style_signals: {boldness_preference: 0.15}
       gender_presentation: feminine
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work], note: "Office; weekly brand review with the founders"}
+        - {day: tue, tags: [work], note: "Office"}
+        - {day: wed, tags: [work, smart_casual], note: "Agency and influencer meetings out of the office"}
+        - {day: thu, tags: [work], note: "Office"}
+        - {day: fri, tags: [work, party], note: "Office, then drinks with the team in Bandra"}
+        - {day: sat, tags: [casual], note: "Brunch, errands, a friend's place"}
+        - {day: sun, tags: [lounge, casual], note: "Home; occasionally a family lunch"}
     bio: >-
       Walks ten minutes to the office, so for eight months a year the only real question is what
       survives 80% humidity. Owns three sarees she cannot drape unaided and a stack of kurtas she
@@ -140,9 +150,20 @@ personas:
       colour_preferences: {love: [oxblood, bottle green, gold], avoid: [pastels, neon]}
       styling_context: {brandsLiked: [Manyavar, Tasva, Raymond], brandsAvoided: [distressed denim]}
       size_profile: {jacket: 44, bottom_waist: [38], shoe_uk: 10}
+      style_signals: {boldness_preference: 0.3}
       gender_presentation: masculine
     hard_constraints: [turban_colour_coordination, no_headwear, no_sleeveless]
     budget_tier: premium
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work], note: "Factory floor in the morning, buyer meetings after lunch"}
+        - {day: tue, tags: [work], note: "Factory and export office"}
+        - {day: wed, tags: [work, business_casual], note: "Bank and supplier visits in town"}
+        - {day: thu, tags: [work], note: "Factory"}
+        - {day: fri, tags: [work, smart_casual], note: "Half day, then an evening with business friends"}
+        - {day: sat, tags: [wedding, festive], note: "Nov-Feb: a wedding function most Saturdays; otherwise family"}
+        - {day: sun, tags: [festive, casual], note: "Gurdwara in the morning, extended family lunch"}
     bio: >-
       November to February is wedding season and that is his social calendar — eight functions,
       each needing a different look. Hats are not an option, ever.
@@ -200,8 +221,19 @@ personas:
       colour_preferences: {love: [coral, turquoise], avoid: [beige, brown]}
       styling_context: {brandsLiked: [Bewakoof, Snitch, Campus, Puma], brandsAvoided: [formal shoes]}
       size_profile: {top_alpha: S, bottom_waist: [28], shoe_uk: 8}
+      style_signals: {boldness_preference: 0.45}
       gender_presentation: masculine
     budget_tier: value
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [casual], note: "Lectures and labs"}
+        - {day: tue, tags: [casual, activewear], note: "Lectures, then football on the college ground"}
+        - {day: wed, tags: [casual], note: "Lectures"}
+        - {day: thu, tags: [casual, activewear], note: "Lectures, then gym"}
+        - {day: fri, tags: [casual, party], note: "Classes end early; friends' place or a cafe in the evening"}
+        - {day: sat, tags: [party, casual], note: "Going out; nine nights of garba during Navratri"}
+        - {day: sun, tags: [lounge, casual], note: "Hostel, laundry, home visit once a month"}
     bio: >-
       Lives in three t-shirts and a pair of cargos for most of the year, then needs nine distinct
       looks for nine consecutive nights of Navratri garba on a student budget.
@@ -263,9 +295,20 @@ personas:
       colour_preferences: {love: [navy, red, white], avoid: [mustard, terracotta]}
       styling_context: {brandsLiked: [Fabindia, Crocs], brandsAvoided: [dry-clean only]}
       size_profile: {top_alpha: M, bottom_waist: [30], shoe_eu: 38}
+      style_signals: {boldness_preference: -0.2}
       gender_presentation: feminine
     hard_constraints: [no_heels, quick_dry_only, needs_pockets]
     budget_tier: value
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work], note: "Ward rounds; scrubs and a white coat over whatever is worn in"}
+        - {day: tue, tags: [work], note: "Thirty-six-hour call starts; needs to survive a night on a plastic chair"}
+        - {day: wed, tags: [work], note: "Post-call; goes home to sleep"}
+        - {day: thu, tags: [work], note: "OPD day — sees patients' families, so a little more presentable"}
+        - {day: fri, tags: [work], note: "Ward rounds and teaching"}
+        - {day: sat, tags: [work, casual], note: "Half-day rounds, then errands on foot"}
+        - {day: sun, tags: [lounge, casual], note: "Off, unless on call; church some weeks"}
     bio: >-
       Thirty-six-hour shifts mean comfort beats everything. Kasavu for Onam, which inverts the
       usual festive rule — her most celebratory garment is off-white and gold, not saturated
@@ -327,9 +370,20 @@ personas:
       colour_preferences: {love: [slate blue, moss], avoid: [white, pastels]}
       styling_context: {brandsLiked: [Decathlon, Wildcraft], brandsAvoided: [heels]}
       size_profile: {top_alpha: S, bottom_waist: [27], shoe_eu: 37}
+      style_signals: {boldness_preference: 0.1}
       gender_presentation: feminine
     hard_constraints: [no_heels]
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, casual], note: "Homestay: guest check-ins, kitchen, market run"}
+        - {day: tue, tags: [activewear], note: "Guided day trek; layers that shed and boots that grip"}
+        - {day: wed, tags: [work, casual], note: "Homestay"}
+        - {day: thu, tags: [activewear], note: "Guided trek, often two days in season"}
+        - {day: fri, tags: [work, casual], note: "Homestay; guest dinner some evenings"}
+        - {day: sat, tags: [activewear, casual], note: "Trek or monastery visit with guests"}
+        - {day: sun, tags: [casual, festive], note: "Family; monastery on festival Sundays"}
     bio: >-
       Bakhu for Losar and weddings; fleece and waterproof boots for everything else.
     rationale: >-
@@ -390,8 +444,20 @@ personas:
       colour_preferences: {love: [ivory, sage, oyster], avoid: [bright synthetics, black]}
       styling_context: {brandsLiked: [SEWA Lucknow, Ada Chikan, Fabindia], brandsAvoided: [jeans, sneakers]}
       size_profile: {kurta: 42, bottom_waist: [36], shoe_uk: 8}
+      style_signals: {boldness_preference: -0.3}
       gender_presentation: masculine
+    hard_constraints: [no_jeans]
     budget_tier: premium
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, smart_casual], note: "Heritage trust board meeting"}
+        - {day: tue, tags: [casual], note: "Morning walk, reading, a visitor or two at home"}
+        - {day: wed, tags: [work, smart_casual], note: "Trust site visit or a lecture invitation"}
+        - {day: thu, tags: [casual], note: "At home; evening mushaira some weeks"}
+        - {day: fri, tags: [festive, ceremonial], note: "Jummah prayers, then family"}
+        - {day: sat, tags: [smart_casual, evening], note: "Dinner with old colleagues, a book launch"}
+        - {day: sun, tags: [casual, festive], note: "Family lunch; grandchildren"}
     bio: >-
       Wears chikankari kurtas year-round and has never owned a pair of jeans.
     rationale: >-
@@ -454,9 +520,20 @@ personas:
       colour_preferences: {love: [brick, haldi, bottle green], avoid: [black, grey]}
       styling_context: {brandsLiked: [local market, W, Biba], brandsAvoided: [Western dresses]}
       size_profile: {kameez: 44, bottom_waist: [40], shoe_eu: 39}
+      style_signals: {boldness_preference: -0.3}
       gender_presentation: feminine
-    hard_constraints: [no_sleeveless, no_above_knee]
+    hard_constraints: [no_sleeveless, no_above_knee, no_trousers]
     budget_tier: value
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work], note: "Kitchen from 5am; tiffin deliveries go out by 11"}
+        - {day: tue, tags: [work], note: "Kitchen and deliveries"}
+        - {day: wed, tags: [work, casual], note: "Kitchen; sabzi mandi run in the afternoon"}
+        - {day: thu, tags: [work], note: "Kitchen and deliveries"}
+        - {day: fri, tags: [work, festive], note: "Kitchen; catering orders for weekend functions"}
+        - {day: sat, tags: [work, festive], note: "Catering a function most Saturdays; presentable at the venue"}
+        - {day: sun, tags: [festive, casual], note: "Temple in the morning, family at home"}
     bio: >-
       Has never worn trousers in her life. Her wardrobe is twenty cotton salwar suits and eight
       sarees, full stop.
@@ -520,6 +597,16 @@ personas:
       style_signals: {boldness_preference: -0.2}
       gender_presentation: masculine
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, casual], note: "Office"}
+        - {day: tue, tags: [work, casual], note: "Office"}
+        - {day: wed, tags: [work, activewear], note: "Office, badminton after"}
+        - {day: thu, tags: [work, casual], note: "Office"}
+        - {day: fri, tags: [work, casual], note: "Work from home"}
+        - {day: sat, tags: [casual], note: "Coffee, a long walk, groceries"}
+        - {day: sun, tags: [casual], note: "Same as Saturday"}
     bio: >-
       Has owned the same eight garments for four years and sees no problem with that. Work and
       weekend dress identically.
@@ -581,9 +668,20 @@ personas:
       colour_preferences: {love: [maroon, temple gold, bottle green], avoid: [pastels, neon]}
       styling_context: {brandsLiked: [Nalli, Co-optex, Fabindia], brandsAvoided: [synthetic georgette]}
       size_profile: {blouse: 42, shoe_eu: 39}
+      style_signals: {boldness_preference: -0.3}
       gender_presentation: feminine
     hard_constraints: [no_sleeveless, covered_shoulders_temple, no_leather]
     budget_tier: premium
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, formal], note: "Assembly and staff meeting; cotton saree"}
+        - {day: tue, tags: [work, formal], note: "School"}
+        - {day: wed, tags: [work, formal], note: "School; parent meetings"}
+        - {day: thu, tags: [work, formal], note: "School"}
+        - {day: fri, tags: [work, formal], note: "School; board or education-department visit some weeks"}
+        - {day: sat, tags: [work, festive], note: "School functions and prize days; silk for those"}
+        - {day: sun, tags: [festive, casual], note: "Temple, then family"}
     bio: >-
       Wears a saree every working day of the year and has done for thirty years — cotton for
       school, silk for functions.
@@ -646,6 +744,16 @@ personas:
       style_signals: {boldness_preference: 0.7}
       gender_presentation: feminine
     budget_tier: value
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [formal, work], note: "Internship at a law firm; court formals"}
+        - {day: tue, tags: [casual], note: "Classes"}
+        - {day: wed, tags: [formal, work], note: "Moot court practice; internship"}
+        - {day: thu, tags: [casual], note: "Classes; content shoot in the afternoon"}
+        - {day: fri, tags: [party], note: "Going out — the outfit is the content"}
+        - {day: sat, tags: [party, casual], note: "Brunch shoot, then a night out"}
+        - {day: sun, tags: [casual, lounge], note: "Editing, family, recovering"}
     bio: >-
       Two lives — court formals for moot court and internships, and a going-out wardrobe built for
       Instagram on a student budget. Will absolutely wear something impractical if it photographs
@@ -710,6 +818,16 @@ personas:
       style_signals: {boldness_preference: -0.4}
       gender_presentation: masculine
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work], note: "Lectures"}
+        - {day: tue, tags: [work], note: "Lectures and office hours"}
+        - {day: wed, tags: [work, smart_casual], note: "Department seminar; occasionally a dinner after"}
+        - {day: thu, tags: [work], note: "Lectures"}
+        - {day: fri, tags: [work], note: "Research day; library"}
+        - {day: sat, tags: [casual], note: "College Street, an adda, a bookshop"}
+        - {day: sun, tags: [casual, festive], note: "Family; cultural programmes in season"}
     bio: >-
       Khadi panjabi and cotton trousers nine months a year, dhoti for Puja, a shawl for the six
       weeks Kolkata calls winter. Would find the phrase "statement piece" faintly embarrassing.
@@ -771,8 +889,19 @@ personas:
       colour_preferences: {love: [bottle green, oxblood, indigo], avoid: [pastels]}
       styling_context: {brandsLiked: [Raghavendra Rathore, Manyavar], brandsAvoided: [t-shirts at work]}
       size_profile: {jacket: 42, bottom_waist: [34], shoe_uk: 9}
+      style_signals: {boldness_preference: 0.2}
       gender_presentation: masculine
     budget_tier: premium
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, formal], note: "Hotel; owner's weekly review"}
+        - {day: tue, tags: [work, formal], note: "Hotel"}
+        - {day: wed, tags: [work, formal], note: "Hotel; travel-trade guests"}
+        - {day: thu, tags: [work, formal], note: "Hotel"}
+        - {day: fri, tags: [work, evening], note: "Hotel; hosts the weekend arrivals' dinner"}
+        - {day: sat, tags: [work, wedding], note: "Hotel; a destination wedding on the property most weekends in season"}
+        - {day: sun, tags: [smart_casual, casual], note: "Family; a polo or club lunch some weeks"}
     bio: >-
       The bandhgala is literally his work uniform, so his everyday and ceremonial wardrobes are
       the same garment at different levels of ornament.
@@ -839,6 +968,16 @@ personas:
       style_signals: {boldness_preference: 0.6}
       gender_presentation: feminine
     budget_tier: premium
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, smart_casual], note: "Studio and the karigars' workshop"}
+        - {day: tue, tags: [work, smart_casual], note: "Studio; product shoots"}
+        - {day: wed, tags: [work, smart_casual], note: "Studio; buyer calls"}
+        - {day: thu, tags: [work, party], note: "Studio, then a client's cocktail or a store launch"}
+        - {day: fri, tags: [work, wedding], note: "Studio; a sangeet or mehendi most Fridays in season"}
+        - {day: sat, tags: [wedding, festive], note: "A wedding function — she is invited to most of them"}
+        - {day: sun, tags: [casual], note: "Family; the only quiet day"}
     bio: >-
       Jaipur runs on weddings and she is invited to most of them for business reasons, so
       ceremonial dressing is a weekly occasion, not an annual one. Finds beige depressing.
@@ -898,9 +1037,20 @@ personas:
       colour_preferences: {love: [coral, seafoam, ivory], avoid: [black, charcoal]}
       styling_context: {brandsLiked: [Linen Club, Andamen], brandsAvoided: [suits, wool, closed shoes]}
       size_profile: {top_alpha: L, bottom_waist: [36], shoe_uk: 8}
+      style_signals: {boldness_preference: 0.3}
       gender_presentation: masculine
     hard_constraints: [quick_dry_only, no_wool]
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [casual], note: "Restaurant closed; beach, market, family"}
+        - {day: tue, tags: [work, smart_casual], note: "Front of house from noon to close"}
+        - {day: wed, tags: [work, smart_casual], note: "Front of house"}
+        - {day: thu, tags: [work, smart_casual], note: "Front of house"}
+        - {day: fri, tags: [work, party], note: "Front of house; live music night, the room is full"}
+        - {day: sat, tags: [work, party], note: "Front of house; busiest service of the week"}
+        - {day: sun, tags: [work, festive], note: "Mass in the morning, then Sunday lunch service"}
     bio: >-
       Stands in a 34-degree dining room for ten hours, so linen and camp collars are the whole
       answer. Goa's monsoon shuts his terrace for three months.
@@ -961,9 +1111,20 @@ personas:
       colour_preferences: {love: [black, sapphire, teal], avoid: [pastels, florals]}
       styling_context: {brandsLiked: [Bhaane, Huemn, Uniqlo U], brandsAvoided: ["anything merchandised as womenswear"]}
       size_profile: {top_alpha: M, bottom_waist: [29], shoe_eu: 40}
+      style_signals: {boldness_preference: 0.5}
       gender_presentation: androgynous
     hard_constraints: [no_gendered_ethnic]
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, casual], note: "Office; design crit"}
+        - {day: tue, tags: [work, casual], note: "Office"}
+        - {day: wed, tags: [work, casual], note: "Work from home"}
+        - {day: thu, tags: [work, smart_casual], note: "Office, then a design meetup or talk"}
+        - {day: fri, tags: [work, casual], note: "Office; team lunch"}
+        - {day: sat, tags: [party, casual], note: "A gig, a friend's exhibition, Koramangala"}
+        - {day: sun, tags: [casual, lounge], note: "Home; sketching, laundry"}
     bio: >-
       Wears genderless ethnic only — unisex kurtas, dhoti pants, Nehru jackets — and refuses saree
       and sherwani alike.
@@ -1026,9 +1187,20 @@ personas:
       colour_preferences: {love: [powder blue, sage], avoid: [neon, black]}
       styling_context: {brandsLiked: [Fabindia, Decathlon], brandsAvoided: [heels, dry-clean only]}
       size_profile: {top_alpha: XS, bottom_waist: [25], shoe_eu: 36}
+      style_signals: {boldness_preference: -0.1}
       gender_presentation: feminine
     hard_constraints: [quick_dry_only, no_heels]
     budget_tier: value
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, business_casual], note: "Guwahati office; programme review"}
+        - {day: tue, tags: [work, business_casual], note: "Office; donor call"}
+        - {day: wed, tags: [work, casual], note: "Field visit — bus to the district, unpaved last stretch, rain"}
+        - {day: thu, tags: [work, casual], note: "Field; village meetings, must dry overnight"}
+        - {day: fri, tags: [work, business_casual], note: "Back in the office; reports"}
+        - {day: sat, tags: [casual], note: "Errands, a friend, the river"}
+        - {day: sun, tags: [casual, festive], note: "Family; naamghar on festival days"}
     bio: >-
       Spends a third of the month in districts with unpaved approach roads during the heaviest
       rainfall in the country, so everything she owns has to dry overnight and survive a bus.
@@ -1088,8 +1260,19 @@ personas:
       colour_preferences: {love: [navy, emerald, white], avoid: [pastels, logos]}
       styling_context: {brandsLiked: [Zegna, Canali, SS Homme], brandsAvoided: [logo streetwear, sneakers with tailoring]}
       size_profile: {jacket: 40, bottom_waist: [32], shoe_uk: 9}
+      style_signals: {boldness_preference: -0.1}
       gender_presentation: masculine
     budget_tier: luxury
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [formal, work], note: "Gym at 6, then the office; client-facing"}
+        - {day: tue, tags: [formal, work], note: "Office; deal team"}
+        - {day: wed, tags: [formal, work], note: "Office; board presentation some weeks"}
+        - {day: thu, tags: [formal, evening], note: "Office, then a client dinner"}
+        - {day: fri, tags: [work, smart_casual], note: "Office, jacket optional; drinks after"}
+        - {day: sat, tags: [smart_casual, activewear], note: "Long run, then a club lunch"}
+        - {day: sun, tags: [casual, activewear], note: "Gym; family; travel prep"}
     bio: >-
       The one character where formal is the default rather than the exception, and the only one
       whose winter justifies a real overcoat.
@@ -1149,10 +1332,21 @@ personas:
       colour_preferences: {love: [cinnamon, deep olive, bronze], avoid: [sheer, neon]}
       styling_context: {brandsLiked: [Aurelia, W, Biba], brandsAvoided: [sleeveless, sheer]}
       size_profile: {top_alpha: L, bottom_waist: [32], shoe_eu: 38}
+      style_signals: {boldness_preference: -0.2}
       gender_presentation: feminine
     hard_constraints:
       [modest_coverage_full_sleeve, high_neckline_only, no_above_knee, no_bare_midriff]
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, business_casual], note: "Office"}
+        - {day: tue, tags: [work, business_casual], note: "Office; audit week once a quarter"}
+        - {day: wed, tags: [work, business_casual], note: "Work from home"}
+        - {day: thu, tags: [work, business_casual], note: "Office"}
+        - {day: fri, tags: [work, festive], note: "Office; Jummah, family dinner"}
+        - {day: sat, tags: [casual, festive], note: "Family visits; a wedding or dawat in season"}
+        - {day: sun, tags: [casual], note: "Home; Charminar market some weeks"}
     bio: >-
       Modest coverage is non-negotiable on every outfit, plus an abaya layer the moment she steps
       outside.
@@ -1217,6 +1411,16 @@ personas:
       style_signals: {boldness_preference: 0.4}
       gender_presentation: feminine
     budget_tier: premium
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, smart_casual], note: "Site meetings across the city; a mul saree is work, not ceremony"}
+        - {day: tue, tags: [work, smart_casual], note: "Studio"}
+        - {day: wed, tags: [work, smart_casual], note: "Studio; client presentation"}
+        - {day: thu, tags: [work, smart_casual], note: "Site visit, then studio"}
+        - {day: fri, tags: [work, evening], note: "Studio, then a client dinner or an opening"}
+        - {day: sat, tags: [smart_casual], note: "Gallery, a lecture, lunch with friends"}
+        - {day: sun, tags: [casual], note: "Home; reading; family"}
     bio: >-
       Wears ethnic as everyday professional clothing rather than occasion wear — a mul saree to a
       site meeting is work, not ceremonial.
@@ -1277,8 +1481,20 @@ personas:
       colour_preferences: {love: [brick, haldi, moss], avoid: [sheer, bodycon]}
       styling_context: {brandsLiked: [Westside, Biba], brandsAvoided: [crop tops, bodycon]}
       size_profile: {top_alpha: XL, bottom_waist: [36], bra: 40D, shoe_eu: 39}
+      style_signals: {boldness_preference: -0.2}
       gender_presentation: feminine
+    hard_constraints: [no_sheer, no_bodycon, no_bare_midriff]
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, business_casual], note: "Plant; shop-floor walk with the union reps"}
+        - {day: tue, tags: [work, business_casual], note: "Plant"}
+        - {day: wed, tags: [work, business_casual], note: "Plant; town-hall or grievance day"}
+        - {day: thu, tags: [work, business_casual], note: "Plant"}
+        - {day: fri, tags: [work, business_casual], note: "Corporate office in the city"}
+        - {day: sat, tags: [casual], note: "Family; the child's classes"}
+        - {day: sun, tags: [casual, festive], note: "Family; temple or a function in season"}
     bio: >-
       Needs to read as authoritative on a shop floor where she is routinely the only woman in the
       room, and the wardrobe she owns was bought for a body she no longer has.
@@ -1342,6 +1558,16 @@ personas:
       style_signals: {boldness_preference: 0.5}
       gender_presentation: masculine
     budget_tier: mid
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [casual], note: "Shoot day — fourteen hours, on his feet, outdoors"}
+        - {day: tue, tags: [casual], note: "Shoot day"}
+        - {day: wed, tags: [casual], note: "Edit suite; air-conditioned, sitting all day"}
+        - {day: thu, tags: [casual], note: "Shoot day or a recce"}
+        - {day: fri, tags: [casual, party], note: "Shoot, then a wrap party or a screening"}
+        - {day: sat, tags: [casual, smart_casual], note: "Meetings with producers; a gig at night"}
+        - {day: sun, tags: [lounge, casual], note: "Off; sleep, then a film"}
     bio: >-
       Dresses almost entirely in black in a city where that is a genuinely bad idea for eight
       months of the year. Shoots run fourteen hours.
@@ -1402,8 +1628,20 @@ personas:
       colour_preferences: {love: [rust, mustard, forest], avoid: [grey, navy]}
       styling_context: {brandsLiked: ["his local tailor of 20 years", Peter England], brandsAvoided: [shorts, t-shirts outside the house]}
       size_profile: {top_alpha: L, bottom_waist: [36], shoe_uk: 8}
+      style_signals: {boldness_preference: -0.4}
       gender_presentation: masculine
+    hard_constraints: [no_shorts]
     budget_tier: value
+    weekly_plan:
+      source: panel_authored
+      days:
+        - {day: mon, tags: [work, business_casual], note: "Department office; file day"}
+        - {day: tue, tags: [work, business_casual], note: "Site inspection — dust, heat, a jeep"}
+        - {day: wed, tags: [work, business_casual], note: "Office"}
+        - {day: thu, tags: [work, business_casual], note: "Site inspection"}
+        - {day: fri, tags: [work, business_casual], note: "Office; minister's review some weeks"}
+        - {day: sat, tags: [work, casual], note: "Half day, then family"}
+        - {day: sun, tags: [casual, festive], note: "Family; puja on festival days"}
     bio: >-
       Nothing he owns has a brand label; it was all stitched to measure by the same tailor for
       twenty years.

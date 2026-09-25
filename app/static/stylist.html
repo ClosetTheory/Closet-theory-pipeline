@@ -300,6 +300,36 @@
       }
     }
 
+    // What the character told us at "onboarding" — the same fields production's questionnaire
+    // captures, and exactly what Stage 2 now feeds the engine, so a stylist can see the inputs
+    // an outfit was judged against.
+    function colourPrefs(prefs) {
+      const c = (prefs || {}).colour_preferences || {};
+      const love = (c.love || []).map(esc).join(", ");
+      const avoid = (c.avoid || []).map(esc).join(", ");
+      if (!love && !avoid) return "";
+      return (love ? `loves ${love}` : "") + (love && avoid ? " · " : "") + (avoid ? `<span class="text-red-300">avoids ${avoid}</span>` : "");
+    }
+    function stylePrefs(prefs) {
+      const p = prefs || {};
+      const fits = (p.fits_loved || []).map(f => esc(String(f).replace(/_/g, " "))).join(", ");
+      const lean = (p.aesthetic_leanings || []).map(a => esc(String(a).replace(/_/g, " "))).join(", ");
+      const bold = (p.style_signals || {}).boldness_preference;
+      const bits = [];
+      if (fits) bits.push(`${fits} fits`);
+      if (lean) bits.push(lean);
+      if (bold != null) bits.push(`boldness ${bold}`);
+      return bits.join(" · ");
+    }
+    function weekRow(plan) {
+      const days = (plan || {}).days || [];
+      if (!days.length) return "";
+      return days.map(d =>
+        `<span class="inline-block text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 mr-1 mb-1" title="${esc(d.note || "")}">` +
+        `<span class="font-semibold uppercase text-slate-500">${esc(d.day)}</span> ${(d.tags || []).map(t => esc(String(t).replace(/_/g, " "))).join(", ") || "—"}</span>`
+      ).join("");
+    }
+
     // The full attribute sheet, shown once a character is the only thing in scope. Everything a
     // stylist needs before judging an outfit: what suits them, and what must never appear.
     function characterDetail(p) {
@@ -338,6 +368,9 @@
             ${row("Budget", esc(p.budget_tier || ""))}
             ${row("Must avoid", (p.hard_constraints || []).map(c =>
               `<span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100 mr-1 mb-1">${esc(c.replace(/_/g, " "))}</span>`).join(""))}
+            ${row("Colours", colourPrefs(p.preferences))}
+            ${row("Style", stylePrefs(p.preferences))}
+            ${row("Week", weekRow(p.weekly_plan))}
             ${row("Fit problems", (p.fit_pain_points || []).map(esc).join("; "))}
             ${p.bio ? `<p class="text-sm text-slate-500 mt-4">${esc(p.bio)}</p>` : ""}
             <p class="text-xs text-slate-500 mt-4">

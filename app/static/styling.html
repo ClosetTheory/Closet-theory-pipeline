@@ -503,8 +503,29 @@
             + row("Timing", i.time_context || "not specified")
             + row("Preselected garments", (summary.anchor_garment_ids || []).length);
         }
-        case "STAGE_02_CONTEXT":
-          return note(summary.note) + row("Occasion carried forward", summary.context?.intent?.occasion || "not specified");
+        case "STAGE_02_CONTEXT": {
+          const s = summary.signals || {};
+          let html = note(summary.note)
+            + row("Occasion carried forward", esc(summary.context?.intent?.occasion || "not specified")
+                + (s.occasion_from_plan ? ` <span class="text-slate-500">(from today's plan)</span>` : ""));
+          if (s.profile_source && s.profile_source !== "none") {
+            html += row("Stated profile", `${esc(s.profile_source)}${s.colour_season ? " · " + esc(s.colour_season) : ""}${s.colour_temperature ? " · " + esc(s.colour_temperature) + "-toned" : ""}`);
+          }
+          const aff = [];
+          if (s.learned_affinity_values) aff.push(`${s.learned_affinity_values} learned`);
+          if (s.stated_affinity_values) aff.push(`${s.stated_affinity_values} stated`);
+          if (s.palette_affinity_values) aff.push(`${s.palette_affinity_values} from palette`);
+          if (aff.length) html += row("Attribute affinities", aff.join(" · "));
+          if (s.weather) html += row("Weather", `${esc(s.weather)}${s.warmth_target != null ? ` → target warmth ${s.warmth_target}` : ""}`);
+          if (s.today_plan) html += row("Today's plan", esc([...(s.today_plan.tags || []).map(t => t.replace(/_/g, " ")), s.today_plan.note].filter(Boolean).join(" — ")));
+          if ((s.hard_constraints || []).length) {
+            html += row("Hard constraints", s.hard_constraints.map(c => `<span class="inline-block text-[11px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 border border-red-500/20 ml-1 mb-1">${esc(c)}</span>`).join(""));
+            if ((s.constraints_prompt_only || []).length) html += note(`Only the LLM stages can judge: ${s.constraints_prompt_only.map(c => esc(c.replace(/_/g, " "))).join(", ")}.`);
+          }
+          if ((s.recent_asks || []).length) html += row("Recent asks", s.recent_asks.map(a => `“${esc(a)}”`).join(" · "));
+          if (s.taste_notes) html += row("Feedback notes carried", s.taste_notes);
+          return html;
+        }
         case "STAGE_03_WARDROBE_BEHAVIOUR": {
           const name = it => esc(it.label || it.garment_id);
           const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;

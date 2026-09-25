@@ -158,6 +158,7 @@ def _to_read(persona: Persona, counts: Dict[str, Any], stylists: List[str]) -> P
         preferences=persona.preferences or {},
         hard_constraints=persona.hard_constraints or [],
         fit_pain_points=persona.fit_pain_points or [],
+        weekly_plan=persona.weekly_plan or {},
         budget_tier=persona.budget_tier,
         bio=persona.bio,
         styling_notes=persona.styling_notes,

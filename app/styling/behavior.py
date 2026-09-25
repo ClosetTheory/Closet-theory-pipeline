@@ -24,6 +24,7 @@ from app.models.styling import Outfit, OutfitGarment
 from app.providers.feedback import get_feedback_extractor_provider
 from app.rules.feedback import (
     REASON_TAGS,
+    normalise_reason_tags,
     FeedbackExtraction,
     FeedbackGarment,
     derive_vote_weights,
@@ -145,7 +146,7 @@ async def record_outfit_vote(
 
     feedback_garments, labels = await _outfit_feedback_garments(session, outfit)
     garment_ids = [g.garment_id for g in feedback_garments] or list((existing.garment_ids if existing else None) or [])
-    clean_tags = [t for t in dict.fromkeys(str(t) for t in tags) if t in REASON_TAGS]
+    clean_tags = normalise_reason_tags(tags)
     comment = (comment or "").strip() or None
 
     extraction: Optional[FeedbackExtraction] = None

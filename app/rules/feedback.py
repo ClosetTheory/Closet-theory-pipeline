@@ -41,6 +41,30 @@ REASON_TAGS: Dict[str, Dict[str, Any]] = {
     "perfect_fit":     {"label": "perfect for them",         "polarity": "up",   "garment_factor": 1.0, "pair_factor": 1.0},
 }
 
+# Production's app records reason codes on `outfit_wear_events.feedback_notes` with its own
+# vocabulary (poor_silhouette, too_casual, too_formal, colour_clash, impractical, too_repetitive,
+# not_my_style). Each maps onto the chip above that carries the same meaning, so a production
+# feedback row can be replayed through record_outfit_vote unchanged.
+REASON_TAG_ALIASES: Dict[str, str] = {
+    "poor_silhouette": "proportions",
+    "too_casual": "wrong_occasion",
+    "too_formal": "wrong_occasion",
+    "not_my_style": "wouldnt_wear",
+    "impractical": "wouldnt_wear",
+    "too_repetitive": "too_safe",
+}
+
+
+def normalise_reason_tags(tags: Iterable[str]) -> List[str]:
+    """Known chips and production aliases, de-duplicated in first-seen order; unknown dropped."""
+    out: List[str] = []
+    for raw in tags:
+        tag = REASON_TAG_ALIASES.get(str(raw), str(raw))
+        if tag in REASON_TAGS and tag not in out:
+            out.append(tag)
+    return out
+
+
 # Weight the *un-named* garments keep when a comment blames specific ones: the outfit was still
 # rejected, so the rest are not innocent, just not the point.
 RESIDUAL_WEIGHT = 0.25

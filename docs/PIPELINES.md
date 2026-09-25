@@ -421,7 +421,7 @@ flowchart TD
     REQ([Request: free text and/or anchor garments]) --> S1
 
     S1["<b>1 · Normalisation</b> — LLM<br/>text → structured intent"]
-    S2["<b>2 · Context</b><br/>StyleProfile + member history"]
+    S2["<b>2 · Context</b><br/>stated profile + StyleProfile<br/>+ weather + member history"]
     S3["<b>3 · Wardrobe Behaviour</b><br/><i>stub — neutral 0.5</i>"]
     S4["<b>4 · Filtering</b> — SQL<br/>COMPLETED + APPROVED/PENDING"]
     S5["<b>5 · Retrieval</b><br/>role groups, cosine or versatility, cap 6/role"]
@@ -500,12 +500,41 @@ mixed-gender wardrobe by, and the pipeline spends real money building, validatin
 
 ## Stage 2 — Contextual Analysis
 
-No model call. Assembles:
+No model call. Assembles four layers into `StylingContext`:
 
-- the member's learned `StyleProfile` — `boldness_preference` and `attribute_affinities`,
-  both updated by outfit up/downvotes;
-- a natural-language summary of their past requests and wardrobe composition
-  (`derive_member_context`), the same signal Outfit-of-the-Day uses.
+1. **The member's stated profile** (`app/styling/member_signals.py`) — colour analysis,
+   onboarding preferences, weekly plan, hard constraints and climate, in production's own
+   shapes (`consumer_interaction_profiles.color_analysis`, `consumer_profiles.preferences`,
+   `weekly_plan`). In this deployment that is the evaluation character's `Persona` row; ordinary
+   accounts get an empty profile and the stage behaves as before. Production carried a colour
+   analysis for 60 of 72 members and never passed it in — `user_preferences` was `{}` on all
+   5,736 requests.
+2. **The learned `StyleProfile`** — `boldness_preference` and `attribute_affinities`, moved by
+   outfit up/downvotes. Affinities are layered per attribute value, lowest first: palette
+   (named hues within 30° of a colour-analysis swatch, plus the temperature's neutrals) → stated
+   (colours loved and avoided, fits loved, avoid-words like "florals") → learned. One real vote
+   on a value replaces its prior; untouched values keep it. `app/rules/member_signals.py`.
+3. **Real weather**, when the request carries a `WeatherSnapshot` (Outfit-of-the-Day always
+   does). The feels-like temperature becomes `environment.warmth_target`, a continuous 0–1
+   warmth the outfit should average, and Stage 7's `weather_fit` scores against it instead of the
+   request's weather word. Today's weekly-plan entry also lands in `environment.today`, and its
+   first tag becomes `intent.occasion` when the request named none.
+4. **Language for the LLM stages** — `derive_member_context` (past *member-initiated* requests,
+   recent asks quoted verbatim, wardrobe composition, the stated profile) plus `taste_notes` and
+   `recent_asks` in `behavioral_signals`. Stage 8 and the aesthetic scorer receive the palette,
+   stated colours, hard constraints, weather and today's plan as labelled data lines
+   (`describe_member_profile`).
+
+**Hard constraints** split in two: the ones garment attributes can express (`no_sleeveless`,
+`no_heels`, `no_leather`, `quick_dry_only`, `no_jeans`, `high_neckline_only`, …) are enforced
+in code at Stage 4; the rest (`needs_pockets`, `turban_colour_coordination`) go to the prompts as
+text. Neither kind is dropped.
+
+**The circularity fix.** Outfit-of-the-Day synthesises its request text *from* this stage's
+summary and persists it like any request. Unfiltered, the history query reads its own prompts
+back (production: every one of the 5,736 requests) and the summary converges on whatever it said
+first. Requests an OOTD row points at, and anything starting with the OOTD prompt prefix, are
+excluded from history.
 
 An explicit `boldness_preference` on the request **overrides** the learned value for that request.
 
@@ -526,6 +555,10 @@ Pure SQL, deliberately cheap — the whole wardrobe is never sent to a model.
 PENDING)`.
 **Soft filters:** colour (from intent) and gender — each with the `or candidates` fallback that
 refuses to return an empty list on a soft preference.
+**Hard constraints** (from Stage 2, `apply_hard_constraints`): a garment whose attributes plainly
+violate one of the member's constraints is removed before retrieval. Anchors are exempt but the
+violation is named in the trace. A wardrobe where *everything* violates is left untouched and
+flagged `fell_back` — that is a data problem to surface, not a reason to return nothing.
 
 Anchor garments are loaded separately and **authorisation-scoped**: an anchor belonging to
 another member raises rather than being quietly ignored.
@@ -628,8 +661,8 @@ Ten weighted components, summed and clamped to `[0, 1]`:
 | `occasion_fit` | 0.13 | formality distance, + 0.15 for ONE_PIECE on dressy requests |
 | `visual_harmony` | 0.08 | pairwise rule average |
 | `wardrobe_behavior` | 0.06 | *stub — 0.5* |
-| `weather_fit` | 0.04 | outfit warmth vs weather target |
-| `attribute_affinity` | 0.04 | colours/patterns this member has upvoted |
+| `weather_fit` | 0.04 | outfit warmth vs the real feels-like temperature (`environment.warmth_target`), else the request's weather word |
+| `attribute_affinity` | 0.04 | colours/patterns/fits this member has upvoted, stated at onboarding, or that their colour analysis flatters — learned wins per value |
 | `novelty` | 0.03 | *stub — 1.0* |
 
 `aesthetic_score` is the one that judges an outfit **as a composition**, the way a stylist

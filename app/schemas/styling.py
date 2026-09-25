@@ -54,6 +54,68 @@ class StylingContext(BaseModel):
     used_hopit: bool = False
 
 
+def describe_member_profile(context: "StylingContext") -> str:
+    """The Stage 2 profile signals as prompt lines, for the LLM stages (semantic validation,
+    aesthetic scoring). Empty string when Stage 2 found nothing stated, so prompts for ordinary
+    members are byte-identical to before. Everything here is data about the member, never an
+    instruction — the constraints line is the one place a hard rule is stated as a rule."""
+    prefs = context.user_preferences or {}
+    env = context.environment or {}
+    lines: List[str] = []
+    palette = prefs.get("palette") or {}
+    if palette:
+        season = palette.get("season_sub") or palette.get("season")
+        bits = [b for b in (
+            str(season) if season else None,
+            f"{palette['temperature']}-toned" if palette.get("temperature") else None,
+            f"{palette['undertone']} undertone" if palette.get("undertone") else None,
+            f"{palette['depth']} depth" if palette.get("depth") else None,
+            f"{palette['contrast']} contrast" if palette.get("contrast") else None,
+        ) if b]
+        summary = str(palette.get("summary") or "").strip()
+        lines.append("Member's colour analysis: " + ", ".join(bits) + (f". {summary}" if summary else ""))
+    love, avoid = prefs.get("colour_love") or [], prefs.get("colour_avoid") or []
+    if love or avoid:
+        lines.append(
+            "Member's stated colours: "
+            + (f"loves {', '.join(map(str, love))}" if love else "")
+            + ("; " if love and avoid else "")
+            + (f"avoids {', '.join(map(str, avoid))}" if avoid else "")
+        )
+    fits, leanings = prefs.get("fits_loved") or [], prefs.get("aesthetic_leanings") or []
+    if fits or leanings:
+        lines.append(
+            "Member's stated style: "
+            + (f"prefers {', '.join(str(f).replace('_', ' ') for f in fits)} fits" if fits else "")
+            + ("; " if fits and leanings else "")
+            + (f"leans {', '.join(str(a).replace('_', ' ') for a in leanings)}" if leanings else "")
+        )
+    if prefs.get("body_shape"):
+        lines.append(f"Member's body shape: {str(prefs['body_shape']).replace('_', ' ')}")
+    if context.hard_constraints:
+        from app.rules.member_signals import constraint_label  # local: rules import schemas
+        lines.append(
+            "Member's HARD constraints — an outfit that breaks one of these is wrong for them regardless of how good it looks: "
+            + "; ".join(constraint_label(c) for c in context.hard_constraints)
+        )
+    weather = env.get("weather") or {}
+    if weather:
+        w = f"{weather.get('temp_c')}°C"
+        if weather.get("feels_like_c") is not None:
+            w += f" (feels like {weather['feels_like_c']}°C)"
+        w += f", {weather.get('condition')}"
+        if weather.get("humidity_pct") is not None:
+            w += f", humidity {weather['humidity_pct']}%"
+        if weather.get("is_rainy"):
+            w += ", rain likely"
+        lines.append(f"Actual weather at the member's location: {w}")
+    today = env.get("today") or {}
+    if today and (today.get("tags") or today.get("note")):
+        tags = ", ".join(str(t).replace("_", " ") for t in (today.get("tags") or []))
+        lines.append("Member's plan for today: " + (tags or "unspecified") + (f" — {today['note']}" if today.get("note") else ""))
+    return "\n".join(lines)
+
+
 class GarmentSummary(BaseModel):
     """Lightweight, list/embed-friendly garment representation (real DB row)."""
 
@@ -242,6 +304,15 @@ class StylingRecommendationRequest(BaseModel):
             "omitted). 1.0 = favour bolder, less conventional combinations. Intended to be "
             "supplied from a learned per-user preference signal once behavioral history exists; "
             "until then, callers may pass it explicitly."
+        ),
+    )
+    weather: Optional[WeatherSnapshot] = Field(
+        default=None,
+        description=(
+            "Real weather for the member's location, when the caller has it (Outfit-of-the-Day "
+            "always does). Stage 2 places it in StylingContext.environment and Stage 7 scores "
+            "warmth against the actual feels-like temperature instead of the request's weather "
+            "word. Omit it and weather_fit falls back to whatever the request text implied."
         ),
     )
 

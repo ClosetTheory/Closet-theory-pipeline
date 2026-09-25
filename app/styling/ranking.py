@@ -10,7 +10,7 @@ via StylingContext.user_preferences["attribute_affinities"] (see app/rules/style
 """
 
 import asyncio
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from app.models.garment import Garment
 from app.providers.aesthetic import get_aesthetic_provider
 from app.rules.scoring import DEFAULT_STYLING_WEIGHTS, apply_diversity_penalty, compute_outfit_score
@@ -97,13 +97,16 @@ WEATHER_WARMTH_TARGET = {
 }
 
 
-def _weather_fit(garments: List[Garment], intent: StylingIntent) -> float:
-    """How well the outfit's warmth matches the request's weather (if any was given).
-    No weather signal in the request — neutral score, same as the other "no signal" stubs."""
-    if not intent.weather:
-        return 0.7
-
-    target = WEATHER_WARMTH_TARGET.get(intent.weather.lower())
+def _weather_fit(garments: List[Garment], intent: StylingIntent, environment: Optional[Dict[str, Any]] = None) -> float:
+    """How well the outfit's warmth matches the weather. A real snapshot wins: Stage 2 turns the
+    feels-like temperature into `environment["warmth_target"]` (app.rules.member_signals), which
+    is continuous where the request word ("hot", "cool") is a coarse bucket. Without either —
+    neutral score, same as the other "no signal" stubs."""
+    target: Optional[float] = None
+    if environment and environment.get("warmth_target") is not None:
+        target = float(environment["warmth_target"])
+    elif intent.weather:
+        target = WEATHER_WARMTH_TARGET.get(intent.weather.lower())
     if target is None:
         return 0.7
 
@@ -261,7 +264,7 @@ async def rank_combinations(
             "occasion_fit": _occasion_fit(garments, intent),
             "visual_harmony": visual_harmony_score,
             "wardrobe_behavior": sum(score_wardrobe_behavior(g, behavior) for g in garments) / len(garments),
-            "weather_fit": _weather_fit(garments, intent),
+            "weather_fit": _weather_fit(garments, intent, context.environment),
             "attribute_affinity": attribute_affinity_score(
                 [g.attributes_json or {} for g in garments], context.user_preferences.get("attribute_affinities", {})
             ),

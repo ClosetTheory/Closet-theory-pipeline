@@ -15,7 +15,7 @@ from app.config import settings
 from app.providers.json_parsing import parse_model_json
 from app.observability import logger
 from app.providers.base import BaseAestheticProvider
-from app.schemas.styling import AestheticScoreResult, GarmentSummary, StylingContext
+from app.schemas.styling import AestheticScoreResult, GarmentSummary, StylingContext, describe_member_profile
 
 
 class OpenRouterAestheticProvider(BaseAestheticProvider):
@@ -64,15 +64,18 @@ class OpenRouterAestheticProvider(BaseAestheticProvider):
         pieces_desc = "\n".join(f"- {self._describe_garment(g)}" for g in garments)
         occasion = context.intent.occasion or "no specific occasion stated"
         formality = context.intent.formality or "no specific formality stated"
+        profile_lines = describe_member_profile(context)
 
         prompt = f"""You are a professional fashion stylist judging ONE candidate outfit as a complete look — \
 not checking whether the pieces merely avoid clashing, but whether a stylist would call this a genuinely \
-well put-together, aesthetically pleasing outfit. Consider the whole composition: colour story (not just \
-"do these clash" but "does this palette feel intentional and elevated"), proportion and silhouette balance, \
-whether there's a clear focal point versus visual competition, and overall styled cohesion. Judge the \
-combination AS PRESENTED — do not invent, add, or substitute any garment.
+well put-together, aesthetically pleasing outfit ON THIS MEMBER. Consider the whole composition: colour story \
+(not just "do these clash" but "does this palette feel intentional and elevated, and does it flatter the \
+member's own colouring"), proportion and silhouette balance, whether there's a clear focal point versus visual \
+competition, and overall styled cohesion. Judge the combination AS PRESENTED — do not invent, add, or \
+substitute any garment.
 
 Occasion: {occasion}. Formality: {formality}.
+{profile_lines}
 
 Outfit pieces:
 {pieces_desc}
