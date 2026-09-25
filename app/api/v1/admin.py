@@ -5,6 +5,10 @@ Everything here requires the admin role. Roles live in `user_roles` rather than 
 migrations.
 """
 
+import asyncio
+import os
+import threading
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -351,3 +355,128 @@ async def stylist_metrics(
         window_days=window_days,
         activity_days=activity_days,
     )
+
+
+_PROCESS_STARTED_AT = time.time()
+
+
+def _read_kv_file(path: str, keys: tuple) -> Dict[str, Any]:
+    """Parse 'Key: value' files like /proc/meminfo or /proc/self/status for a few keys."""
+    out: Dict[str, Any] = {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                k, _, v = line.partition(":")
+                if k in keys:
+                    out[k] = v.strip()
+    except OSError:
+        pass
+    return out
+
+
+def _read_text(path: str) -> Optional[str]:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def _cgroup_stats() -> Dict[str, Any]:
+    """This container's own CPU and memory accounting (cgroup v2), when running in one."""
+    out: Dict[str, Any] = {}
+    cpu_stat = _read_text("/sys/fs/cgroup/cpu.stat")
+    if cpu_stat:
+        for line in cpu_stat.splitlines():
+            k, _, v = line.partition(" ")
+            if k in ("usage_usec", "nr_throttled", "throttled_usec"):
+                out[k] = int(v)
+    for name, path in (("memory_current_bytes", "/sys/fs/cgroup/memory.current"), ("memory_max", "/sys/fs/cgroup/memory.max"), ("cpu_max", "/sys/fs/cgroup/cpu.max")):
+        v = _read_text(path)
+        if v is not None:
+            out[name] = v
+    return out
+
+
+@router.get("/diagnostics")
+async def diagnostics(
+    lag_samples: int = Query(20, ge=1, le=200),
+    _admin: User = Depends(require_admin),
+) -> Dict[str, Any]:
+    """What is this API process, and the box under it, doing right now. Admin only.
+
+    Exists because the droplet has no SSH from the operator's machine and the site has stalled
+    intermittently across three unrelated fixes; every earlier diagnosis had to be inferred
+    from response times. This reads the host-wide numbers Linux exposes to any process
+    (/proc/loadavg, /proc/meminfo and the PSI pressure files are not namespaced), this
+    container's cgroup accounting, and measures the event loop directly: `loop_lag` schedules
+    short sleeps and reports how late they wake. A loop that is not being scheduled — CPU
+    starvation from a neighbour container, or synchronous work inside this process — shows
+    up here as lag far above the 50 ms sleep, which is exactly the symptom of a hung /health.
+    Nothing here writes anything.
+    """
+    # Event-loop lag: sleep 50 ms N times, report how late each wake-up was.
+    lags_ms = []
+    for _ in range(lag_samples):
+        t0 = time.perf_counter()
+        await asyncio.sleep(0.05)
+        lags_ms.append(max(0.0, (time.perf_counter() - t0 - 0.05) * 1000))
+    tasks = asyncio.all_tasks()
+    task_names: Dict[str, int] = {}
+    for t in tasks:
+        try:
+            name = t.get_coro().__qualname__
+        except Exception:  # noqa: BLE001
+            name = repr(t)[:60]
+        task_names[name] = task_names.get(name, 0) + 1
+
+    try:
+        loadavg = os.getloadavg()
+    except (AttributeError, OSError):
+        loadavg = None
+
+    from app.config import settings
+    queue_size = None
+    if settings.USE_IN_MEMORY_QUEUE:
+        try:
+            from app.worker.queue import get_queue
+            queue_size = get_queue().qsize()
+        except Exception:  # noqa: BLE001
+            queue_size = None
+
+    return {
+        "now": datetime.now(timezone.utc).isoformat(),
+        "process": {
+            "pid": os.getpid(),
+            "uptime_seconds": round(time.time() - _PROCESS_STARTED_AT, 1),
+            "threads": threading.active_count(),
+            "rss": _read_kv_file("/proc/self/status", ("VmRSS", "VmHWM", "Threads")),
+            "asyncio_tasks": len(tasks),
+            "asyncio_tasks_by_coroutine": dict(sorted(task_names.items(), key=lambda kv: -kv[1])[:20]),
+        },
+        "event_loop": {
+            "sleep_ms": 50,
+            "samples": lag_samples,
+            "lag_ms_max": round(max(lags_ms), 1),
+            "lag_ms_avg": round(sum(lags_ms) / len(lags_ms), 1),
+            "lag_ms_p90": round(sorted(lags_ms)[int(0.9 * (len(lags_ms) - 1))], 1),
+        },
+        "host": {
+            "cpu_count": os.cpu_count(),
+            "loadavg_1_5_15": loadavg,
+            "meminfo": _read_kv_file("/proc/meminfo", ("MemTotal", "MemAvailable", "SwapTotal", "SwapFree")),
+            "pressure_cpu": _read_text("/proc/pressure/cpu"),
+            "pressure_memory": _read_text("/proc/pressure/memory"),
+            "pressure_io": _read_text("/proc/pressure/io"),
+        },
+        "container_cgroup": _cgroup_stats(),
+        "settings": {
+            "use_in_memory_queue": settings.USE_IN_MEMORY_QUEUE,
+            "in_memory_queue_size": queue_size,
+            "worker_concurrency": settings.WORKER_CONCURRENCY,
+            "web_concurrency_env": os.environ.get("WEB_CONCURRENCY"),
+            "embedding_provider": getattr(settings, "EMBEDDING_PROVIDER", None),
+            "env": settings.ENV,
+            "pipeline_version": settings.PIPELINE_VERSION,
+        },
+    }
