@@ -73,7 +73,7 @@ async def get_or_generate_ootd(
         member_context = await derive_member_context(session, tenant_id, member_id)
         request_text = _build_request_text(weather, member_context, extra_hint)
         orchestrator = StylingOrchestrator(session, storage)
-        rec_request = StylingRecommendationRequest(request_text=request_text, top_k=3, use_hopit=True)
+        rec_request = StylingRecommendationRequest(request_text=request_text, top_k=3, use_hopit=True, weather=weather)
         styling_result = await orchestrator.run(rec_request, tenant_id, member_id)
         return OutfitOfTheDayResponse(
             date=today.isoformat(),
@@ -112,7 +112,9 @@ async def get_or_generate_ootd(
     request_text = _build_request_text(weather, member_context, extra_hint)
 
     orchestrator = StylingOrchestrator(session, storage)
-    rec_request = StylingRecommendationRequest(request_text=request_text, top_k=3)
+    # The snapshot travels structured as well as in the text: Stage 2 puts it in the context's
+    # environment and Stage 7 scores warmth against the real feels-like temperature.
+    rec_request = StylingRecommendationRequest(request_text=request_text, top_k=3, weather=weather)
     styling_result = await orchestrator.run(rec_request, tenant_id, member_id)
 
     context_used = member_context + (f" [extra: {extra_hint}]" if extra_hint else "")

@@ -77,6 +77,21 @@ async def require_stylist(
     return current_user
 
 
+async def forbid_guest(
+    current_user=Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """The guest ("vc") role tours a wardrobe that belongs to someone else. It may browse, ingest
+    and run styling, but anything that destroys or formally judges that account's data — deleting
+    a garment, leaving a stylist review or an own-outfit score — is refused server-side, so hiding
+    the tab is not the only thing standing between a guest and the admin's records."""
+    from app.models.role import ROLE_VC
+
+    if ROLE_VC in await get_user_roles(current_user, session):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Guest accounts cannot do this")
+    return current_user
+
+
 # --- acting as a character -------------------------------------------------------------------
 
 

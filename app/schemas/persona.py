@@ -103,6 +103,42 @@ class Climate(BaseModel):
     monsoon_months: List[int] = Field(default_factory=list)
 
 
+WEEK_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+
+class WeeklyPlanDay(BaseModel):
+    """One day of production's `consumer_interaction_profiles.weekly_plan` shape
+    ({"days": [{"day": "mon", "tags": ["work"], "note": "..."}], "source": ...}). `tags` are
+    occasion values, because Stage 2 uses the first one as the day's occasion when the request
+    names none — so a tag the engine cannot filter on is a seed-time error, like occasion_mix."""
+
+    day: Literal[WEEK_DAYS]  # type: ignore[valid-type]
+    tags: List[str] = Field(default_factory=list)
+    note: Optional[str] = None
+
+    @field_validator("tags")
+    @classmethod
+    def _known_occasions(cls, v: List[str]) -> List[str]:
+        unknown = sorted(set(v) - OCCASION_VALUES)
+        if unknown:
+            raise ValueError(f"weekly_plan tags must be occasions the engine can filter on; unknown: {unknown}")
+        return v
+
+
+class WeeklyPlan(BaseModel):
+    days: List[WeeklyPlanDay] = Field(min_length=1, max_length=7)
+    source: str = "panel_authored"
+
+    @field_validator("days")
+    @classmethod
+    def _one_entry_per_day(cls, v: List[WeeklyPlanDay]) -> List[WeeklyPlanDay]:
+        seen = [d.day for d in v]
+        dupes = sorted({d for d in seen if seen.count(d) > 1})
+        if dupes:
+            raise ValueError(f"weekly_plan lists a day twice: {dupes}")
+        return v
+
+
 class PersonaSeed(BaseModel):
     """One character as authored in roster.yaml."""
 
@@ -138,7 +174,7 @@ class PersonaSeed(BaseModel):
     preferences: Dict[str, Any] = Field(default_factory=dict)
     hard_constraints: List[str] = Field(default_factory=list)
     budget_tier: Literal[BUDGET_TIERS] = "mid"  # type: ignore[valid-type]
-    weekly_plan: Dict[str, Any] = Field(default_factory=dict)
+    weekly_plan: Optional[WeeklyPlan] = None
 
     bio: str
     styling_notes: Optional[str] = None
@@ -213,6 +249,7 @@ class PersonaRead(BaseModel):
     preferences: Dict[str, Any] = Field(default_factory=dict)
     hard_constraints: List[str] = Field(default_factory=list)
     fit_pain_points: List[str] = Field(default_factory=list)
+    weekly_plan: Dict[str, Any] = Field(default_factory=dict)
     budget_tier: Optional[str] = None
     bio: Optional[str] = None
     styling_notes: Optional[str] = None

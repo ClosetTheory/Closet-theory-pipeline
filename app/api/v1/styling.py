@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.dependencies import ActingScope, get_acting_scope, get_db_session, get_storage
+from app.api.dependencies import ActingScope, forbid_guest, get_acting_scope, get_db_session, get_storage
 from app.database import AsyncSessionLocal
 from app.models.base import utc_now
 from app.models.garment import Garment
@@ -390,7 +390,7 @@ async def get_review_queue(
     return items
 
 
-@router.put("/outfits/{outfit_id}/review", response_model=StylistReviewResult)
+@router.put("/outfits/{outfit_id}/review", response_model=StylistReviewResult, dependencies=[Depends(forbid_guest)])
 async def review_outfit(
     outfit_id: str,
     request: StylistReviewRequest,
@@ -504,7 +504,7 @@ async def list_own_reviewable_outfits(
     return items
 
 
-@router.put("/outfits/{outfit_id}/score", response_model=OwnOutfitReviewResult)
+@router.put("/outfits/{outfit_id}/score", response_model=OwnOutfitReviewResult, dependencies=[Depends(forbid_guest)])
 async def score_own_outfit(
     outfit_id: str,
     request: PersonaOutfitReviewRequest,

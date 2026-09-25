@@ -81,7 +81,7 @@ def _persona_fields(seed: PersonaSeed) -> Dict:
         "preferences": seed.preferences,
         "hard_constraints": seed.hard_constraints,
         "budget_tier": seed.budget_tier,
-        "weekly_plan": seed.weekly_plan,
+        "weekly_plan": seed.weekly_plan.model_dump(mode="json") if seed.weekly_plan else {},
         "bio": seed.bio,
         "styling_notes": seed.styling_notes,
         "rationale": seed.rationale,

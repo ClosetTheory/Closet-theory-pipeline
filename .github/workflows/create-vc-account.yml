@@ -1,0 +1,39 @@
+# Creates or refreshes the guest ("vc") account on a deployed environment.
+#
+# Runs scripts/create_vc_account.py inside the running api container, the same way the character
+# seeder does. Manual trigger only: it writes an account and a password into the deployed
+# database. Safe to re-run — keyed on email, it resets the password and re-points the wardrobe.
+name: Create VC guest account
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Guest account email"
+        type: string
+        default: "vc@closettheory.co"
+      password:
+        description: "Password to set (leave blank for the script's simple default)"
+        type: string
+        default: ""
+      wardrobe_of:
+        description: "Email of the account whose wardrobe the guest sees"
+        type: string
+        default: "admin@closettheory.co"
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or refresh the guest account
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: root
+          key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            cd /opt/closet-theory
+            ARGS="--email ${{ inputs.email }} --wardrobe-of ${{ inputs.wardrobe_of }} ${{ inputs.password != '' && format('--password {0}', inputs.password) || '' }}"
+            docker compose exec -T api python -m scripts.create_vc_account $ARGS

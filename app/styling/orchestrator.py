@@ -27,7 +27,17 @@ from app.models.style_profile import StyleProfile
 from app.models.styling import Outfit, OutfitGarment, StylingRequest
 from app.models.user import User
 from app.providers.normalizer import get_request_normalizer_provider
-from app.styling.member_context import derive_member_context
+from app.rules.member_signals import (
+    constraint_label,
+    merge_affinities,
+    palette_affinities,
+    split_checkable_constraints,
+    stated_attribute_affinities,
+    today_plan,
+    warmth_target_from_weather,
+)
+from app.styling.member_context import NO_HISTORY_NOTE, derive_member_context, load_recent_asks
+from app.styling.member_signals import load_member_signals
 from app.schemas.styling import (
     GarmentSummary,
     OutfitResult,
@@ -40,7 +50,7 @@ from app.schemas.styling import (
 )
 from app.storage.base import StorageClient
 from app.styling.combinator import build_outfit_combinations
-from app.styling.filtering import filter_candidates, get_anchor_garments
+from app.styling.filtering import apply_hard_constraints, filter_candidates, get_anchor_garments
 from app.styling.combinator import anchors_cover_body
 from app.styling.hopit_adapter import hopit_response_to_ranking_trace
 from app.styling.imaging import generate_and_run_gates, load_persona_portrait
@@ -259,46 +269,130 @@ class StylingOrchestrator:
             t0,
         )
 
-        # Stage 2: Contextual Analysis — pulls in the member's learned StyleProfile
-        # (boldness_preference, updated by outfit up/downvotes) when one exists; an explicit
-        # request.boldness_preference always overrides the learned value for that one request.
-        # Also derives a real, natural-language summary of this member's past styling requests
-        # and wardrobe composition (app/styling/member_context.py) — the same real signal used
-        # by Outfit-of-the-Day — so this stage actually reflects their history instead of a
-        # static "nothing here yet" placeholder every time.
+        # Stage 2: Contextual Analysis. Four sources, layered:
+        #   1. The member's *stated* profile (app/styling/member_signals.py — colour analysis,
+        #      onboarding preferences, weekly plan, hard constraints, climate). Production held
+        #      this for 60 of 72 members and never passed it in; here it is what every
+        #      evaluation character is authored with.
+        #   2. The learned StyleProfile (boldness_preference + attribute_affinities, moved by
+        #      outfit up/downvotes). Learned values sit ON TOP of stated ones per attribute value,
+        #      so one real vote replaces the prior for that value and nothing else.
+        #   3. Real weather, when the caller supplied a snapshot (OOTD always does), turned into
+        #      the warmth an outfit should average — Stage 7's weather_fit scores against it.
+        #   4. A natural-language summary of past *member-initiated* requests, recent asks
+        #      verbatim, wardrobe composition and the stated profile (member_context.py), plus
+        #      what they said about past outfits (taste_notes) — handed to the LLM stages as data.
+        # An explicit request.boldness_preference always overrides the learned value for that
+        # one request.
         t1 = time.perf_counter()
+        signals = await load_member_signals(self.session, tenant_id, member_id)
+        stated_affinities = stated_attribute_affinities(signals.preferences)
+        palette = palette_affinities(signals.color_analysis)
+
         user_preferences: Dict[str, Any] = {}
         profile_stmt = select(StyleProfile).where(
             StyleProfile.tenant_id == tenant_id,
             StyleProfile.member_id == member_id,
         )
         style_profile = (await self.session.execute(profile_stmt)).scalars().first()
+        learned_affinities = (style_profile.attribute_affinities or {}) if style_profile else {}
         if style_profile:
             user_preferences["boldness_preference"] = style_profile.boldness_preference
-            user_preferences["attribute_affinities"] = style_profile.attribute_affinities
         if request.boldness_preference is not None:
             user_preferences["boldness_preference"] = request.boldness_preference
+        merged_affinities = merge_affinities(palette, stated_affinities, learned_affinities)
+        if merged_affinities:
+            user_preferences["attribute_affinities"] = merged_affinities
+        if not signals.is_empty:
+            prefs = signals.preferences or {}
+            colours = prefs.get("colour_preferences") if isinstance(prefs.get("colour_preferences"), dict) else {}
+            user_preferences.update({
+                "palette": {
+                    k: signals.color_analysis.get(k)
+                    for k in ("season", "season_sub", "undertone", "depth", "temperature", "contrast", "palette", "summary")
+                    if signals.color_analysis.get(k) is not None
+                },
+                "colour_love": list(colours.get("love") or []),
+                "colour_avoid": list(colours.get("avoid") or []),
+                "fits_loved": list(prefs.get("fits_loved") or []),
+                "aesthetic_leanings": list(prefs.get("aesthetic_leanings") or []),
+                "occasion_mix": dict(prefs.get("occasion_mix") or {}),
+                "style_swipes": dict(prefs.get("style_swipes") or {}),
+                "body_shape": signals.body_shape,
+                "fit_pain_points": list(signals.fit_pain_points),
+            })
 
-        member_context_summary = await derive_member_context(self.session, tenant_id, member_id)
+        environment: Dict[str, Any] = {}
+        if request.weather is not None:
+            environment["weather"] = request.weather.model_dump(mode="json")
+            target = warmth_target_from_weather(environment["weather"])
+            if target is not None:
+                environment["warmth_target"] = target
+        if signals.climate:
+            environment["climate"] = dict(signals.climate)
+        plan = today_plan(signals.weekly_plan)
+        occasion_from_plan = None
+        if plan:
+            environment["today"] = plan
+            # A weekly plan is exactly the answer to "what is today for?" — when the request
+            # itself names no occasion (OOTD never does), the day's first tag is the occasion.
+            if not intent.occasion and plan["tags"]:
+                occasion_from_plan = plan["tags"][0]
+                intent.occasion = occasion_from_plan
+
+        checkable, prompt_only = split_checkable_constraints(signals.hard_constraints)
+        hard_constraints = checkable + prompt_only
+
+        member_context_summary = await derive_member_context(self.session, tenant_id, member_id, signals=signals)
         # What the member (or their stylist panel) has *said* about past outfits — recent
         # comments verbatim plus recurring lessons — handed to the prompts as data so Stage 8 can
         # fail an outfit that plainly repeats a stated dislike. See app.styling.behavior.
         taste_notes = await load_taste_notes(self.session, tenant_id, member_id)
-        behavioral_signals: Dict[str, Any] = {"member_context_summary": member_context_summary, "taste_notes": taste_notes}
+        recent_asks = await load_recent_asks(self.session, tenant_id, member_id)
+        behavioral_signals: Dict[str, Any] = {
+            "member_context_summary": member_context_summary,
+            "taste_notes": taste_notes,
+            "recent_asks": recent_asks,
+        }
 
         context = StylingContext(
             intent=intent, user_preferences=user_preferences, behavioral_signals=behavioral_signals,
-            used_hopit=request.use_hopit,
+            environment=environment, hard_constraints=hard_constraints, used_hopit=request.use_hopit,
         )
-        has_real_signal = bool(style_profile) or bool(taste_notes) or "No styling history yet" not in member_context_summary
+        has_real_signal = (
+            bool(style_profile) or bool(taste_notes) or not signals.is_empty
+            or member_context_summary != NO_HISTORY_NOTE
+        )
+        weather = environment.get("weather") or {}
         await self._record(
             "STAGE_02_CONTEXT",
             "Contextual Analysis",
             {
                 "note": (
                     member_context_summary if has_real_signal
-                    else "No styling history or StyleProfile yet for this member — context is the normalised intent plus neutral stubs."
+                    else "No styling history, stated profile or StyleProfile yet for this member — context is the normalised intent plus neutral stubs."
                 ),
+                "signals": {
+                    "profile_source": signals.source,
+                    "colour_season": signals.color_analysis.get("season_sub") or signals.color_analysis.get("season"),
+                    "colour_temperature": signals.color_analysis.get("temperature"),
+                    "stated_affinity_values": sum(len(v) for v in stated_affinities.values()),
+                    "palette_affinity_values": sum(len(v) for v in palette.values()),
+                    "learned_affinity_values": sum(len(v) for v in learned_affinities.values()),
+                    "hard_constraints": [constraint_label(c) for c in hard_constraints],
+                    "constraints_checked_in_code": checkable,
+                    "constraints_prompt_only": prompt_only,
+                    "weather": (
+                        f"{weather.get('temp_c')}°C" + (f" (feels like {weather['feels_like_c']}°C)" if weather.get("feels_like_c") is not None else "")
+                        + f", {weather.get('condition')}" + (", rainy" if weather.get("is_rainy") else "")
+                        if weather else None
+                    ),
+                    "warmth_target": environment.get("warmth_target"),
+                    "today_plan": plan,
+                    "occasion_from_plan": occasion_from_plan,
+                    "recent_asks": recent_asks,
+                    "taste_notes": len(taste_notes),
+                },
                 "context": context.model_dump(mode="json"),
             },
             "SUCCEEDED",
@@ -345,6 +439,18 @@ class StylingOrchestrator:
             filters_applied = ["status=COMPLETED", "quality_status in (APPROVED, PENDING)"] + (
                 ["color preference (soft)"] if intent.colors else []
             )
+        # The member's hard constraints are a hard filter, not a hint: a garment that plainly
+        # violates one (sleeveless for a no-sleeveless member, heels for no-heels) never reaches
+        # retrieval, so nothing downstream can spend a compatibility call or an image on it.
+        # Anchors are exempt — the stylist pinned them on purpose — but the violation is named.
+        constraint_result = apply_hard_constraints(candidates, checkable, exempt_ids={a.id for a in anchors})
+        candidates = constraint_result.kept
+        if checkable:
+            filters_applied.append(
+                f"hard constraints ({', '.join(constraint_label(c) for c in checkable)}): "
+                f"{constraint_result.dropped} garment(s) removed"
+                + (" — would have emptied the pool, so the constraint filter was NOT applied" if constraint_result.fell_back else "")
+            )
         garments_by_id: Dict[str, Garment] = {g.id: g for g in candidates}
         for a in anchors:
             garments_by_id[a.id] = a
@@ -358,6 +464,7 @@ class StylingOrchestrator:
                 "anchors_locked_in": [a.id for a in anchors],
                 "anchors_only": anchors_only,
                 "filters_applied": filters_applied,
+                "constraint_violations": constraint_result.violations,
             },
             "SUCCEEDED",
             t3,
