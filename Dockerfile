@@ -14,11 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv for fast, reliable dependency resolution
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy dependency definition
-COPY pyproject.toml .
+# Copy the dependency definition AND the lock: the image installs the locked set.
+COPY pyproject.toml uv.lock ./
 
-# Install dependencies
-RUN uv pip compile pyproject.toml -o requirements.txt && \
+# Install exactly what uv.lock pins -- the same set CI tests with (`uv sync`). The image used
+# to re-resolve pyproject.toml's ranges at every build, so a dependency released between two
+# deploys reached production without ever passing through CI. On 2026-09-25 that was
+# SQLAlchemy 2.1.0 (lock: 2.0.52), whose resolution dropped greenlet; the async engine then
+# raised at import and the API crash-looped behind nginx 502s. `--frozen` refuses to touch
+# the lock, so a build can never drift from it.
+RUN uv export --frozen --no-dev --no-hashes -o requirements.txt && \
     uv pip install --system --no-cache -r requirements.txt
 
 # Final runtime image
