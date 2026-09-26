@@ -923,7 +923,7 @@
                 <span class="font-mono ${v.is_valid ? 'text-emerald-400' : (v.kept ? 'text-amber-400' : 'text-red-400')} font-bold">
                   Region #${v.index + 1} (${v.label}): ${v.is_valid ? 'PASSED' : (v.kept ? 'FLAGGED (kept — primary garment)' : 'DROPPED')} (${(v.score * 100).toFixed(0)}%)
                 </span>
-                <span class="text-slate-500 font-mono">google/gemini-2.5-flash</span>
+                <span class="text-slate-500 font-mono">${v.verifier_model || 'verifier'}</span>
               </div>
               <div class="text-slate-400 mt-0.5">${v.reason}</div>
             </div>

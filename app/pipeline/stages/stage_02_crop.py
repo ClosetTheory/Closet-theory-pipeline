@@ -106,6 +106,7 @@ class Stage02Crop(BaseStage):
                         "score": presence_score,
                         "reason": presence_reason,
                         "kept": keep or is_primary,
+                        "verifier_model": settings.VISION_VERIFIER_MODEL,
                     })
 
                     if not keep and not is_primary:

@@ -91,10 +91,11 @@ class Settings(BaseSettings):
     DIGITISATION_VERIFIER_MODEL: str = "google/gemini-2.5-flash"
 
     # Shared second-opinion verifier for Stage 2 (crop) and Stage 3 (attributes). Deliberately
-    # the same different-vendor model as the digitisation verifier — Stage 1/2/3's primary
-    # providers are OpenAI GPT-4o (openrouter) or MODA_NER, never this model, so it never shares
-    # a blind spot with whatever produced the thing it's checking.
-    VISION_VERIFIER_MODEL: str = "google/gemini-2.5-flash"
+    # a different vendor (Google) from Stage 1/2/3's primary providers — OpenAI GPT-4o
+    # (openrouter) or MODA_NER — so it never shares a blind spot with whatever produced the
+    # thing it's checking. Gemini 3.5 Flash Lite replaced Gemini 2.5 Flash (Sept 2026): same
+    # OpenRouter price ($0.30/M in, $2.50/M out), a generation newer, and faster per call.
+    VISION_VERIFIER_MODEL: str = "google/gemini-3.5-flash-lite"
     CROP_VERIFICATION_THRESHOLD: float = 0.5
     ATTRIBUTE_MAX_RETRIES: int = 2
     ATTRIBUTE_VERIFICATION_THRESHOLD: float = 0.6

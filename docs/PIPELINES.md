@@ -172,7 +172,7 @@ real scene context: true proportions, drape, where one garment ends and the next
    and mark the source photo as the garment's own image. Note the `and` — a "catalog" photo with
    a model in it still goes the long way round.
 3. For each detected region, asks a **second, different model** (`VISION_VERIFIER_MODEL`,
-   Gemini) against the *full* photo: "is there really a garment of this kind here?"
+   Gemini 3.5 Flash Lite) against the *full* photo: "is there really a garment of this kind here?"
 4. Draws an annotated overlay (green face box, blue garment boxes, red for rejected regions) and
    stores it — a UI artefact, not an input to any later stage.
 5. **Spawns sibling garments** for every kept region after the first — a co-ord set photographed
