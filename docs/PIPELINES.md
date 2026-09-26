@@ -249,7 +249,7 @@ placeholder values.
 
 ## Stage 4 — Digitisation
 
-`stage_04_digitise.py` · model: `openai/gpt-image-2`, falling back to `google/gemini-3.1-flash-image` · verifier: Gemini 2.5 Flash
+`stage_04_digitise.py` · model: `google/gemini-2.5-flash-image`, falling back to `openai/gpt-image-2` · verifier: Gemini 2.5 Flash
 
 **In:** the full source photo + `detected_label` + the Stage 3 attributes.
 **Does:** generates a clean, standardised canonical image of just that garment — flat, neutral
@@ -260,14 +260,15 @@ background, consistent framing. Stores it as a new immutable `ImageAsset` and li
 mismatches are appended to `previous_rejections` and injected into the next prompt as a
 "Corrections — a previous attempt at THIS garment was REJECTED" block.
 
-**Two models, two vendors.** `OPENROUTER_IMAGE_MODEL` (`openai/gpt-image-2`) is tried first, then
-`OPENROUTER_IMAGE_FALLBACK_MODELS` (`google/gemini-3.1-flash-image`). The second entry has to be a
+**Two models, two vendors.** `OPENROUTER_IMAGE_MODEL` (`google/gemini-2.5-flash-image`) is tried
+first, then `OPENROUTER_IMAGE_FALLBACK_MODELS` (`openai/gpt-image-2`). The second entry has to be a
 *different vendor*, because a same-vendor fallback is not a fallback: both OpenAI image models
 share one safety system, so a garment one refuses the other refuses identically, and the chain is
 one policy decision deep. Measured on a Venom graphic tee — `gpt-image-2` and `gpt-5.4-image-2`
-both returned HTTP 400 "rejected by the safety system"; Gemini rendered it faithfully. Gemini 3.1
-Flash rather than 3 Pro because a side-by-side on the same garment was indistinguishable at half
-the cost ($0.068 vs $0.136 per image, against $0.019 for the primary). When the fallback draws the
+both returned HTTP 400 "rejected by the safety system"; Gemini rendered it faithfully. Gemini 2.5
+Flash Image became the primary in September 2026: on a printed maxi dress it cost $0.040 and took
+11s against gpt-image-2's $0.030 and 27s, but note it rendered the garment smaller on a light-grey
+vignette backdrop where gpt-image-2 produced a pure-white studio shot. When the fallback draws the
 garment, the run records that it did and what the preferred model said, and the pipeline page
 shows both.
 

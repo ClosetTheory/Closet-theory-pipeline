@@ -77,7 +77,7 @@ class GPTStudioDigitisationProvider(BaseDigitisationProvider):
     """
     GPT-guided Canonical Studio Digitisation.
     1. Injects validated garment identity (type, color, pattern, material, cut) into prompt.
-    2. Sends reference image directly to OpenRouter `openai/gpt-image-2` for image-to-image synthesis.
+    2. Sends reference image directly to OpenRouter (settings.OPENROUTER_IMAGE_MODEL, then the fallback ladder) for image-to-image synthesis.
     3. Safe local fallback with hole-protected garment segmentation on off-white studio backdrop.
     """
 

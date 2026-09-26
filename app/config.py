@@ -52,15 +52,20 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: Optional[str] = None
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = "openai/gpt-4o"
-    OPENROUTER_IMAGE_MODEL: str = "openai/gpt-image-2"
+    # Gemini 2.5 Flash Image is the primary generator (Sept 2026, on request). Measured on a
+    # printed maxi dress: $0.040 per image, 11s. Caveat from the same side-by-side: it renders the
+    # garment small on a light-grey vignette backdrop where gpt-image-2 ($0.030, 27s) gives a
+    # pure-white studio shot — if the digitisation verifier starts rejecting backgrounds, that
+    # is why, and setting OPENROUTER_IMAGE_MODEL=openai/gpt-image-2 in .env restores the old primary.
+    OPENROUTER_IMAGE_MODEL: str = "google/gemini-2.5-flash-image"
     # Tried in order after OPENROUTER_IMAGE_MODEL declines. One entry is enough, but it has to be
     # a different vendor: a same-vendor fallback is not a fallback, because gpt-image-2 and
     # gpt-5.4-image-2 share OpenAI's safety system and refuse the same garment for the same
     # reason, leaving the chain one policy decision deep. Measured on a Venom graphic tee — both
-    # OpenAI models returned HTTP 400 "rejected by the safety system"; Gemini rendered it.
-    # Flash rather than 3 Pro: it produced an equally faithful render in a side-by-side on the
-    # same garment, at $0.068 per image against $0.136.
-    OPENROUTER_IMAGE_FALLBACK_MODELS: str = "google/gemini-3.1-flash-image"
+    # OpenAI models returned HTTP 400 "rejected by the safety system"; Gemini rendered it. With a
+    # Google primary the cross-vendor fallback is therefore OpenAI's gpt-image-2, which is still
+    # served by OpenRouter (it has dropped out of the /models listing but generates fine).
+    OPENROUTER_IMAGE_FALLBACK_MODELS: str = "openai/gpt-image-2"
 
     # NVIDIA NIM API Configuration
     NVIDIA_API_KEY: Optional[str] = None
@@ -86,8 +91,11 @@ class Settings(BaseSettings):
     DIGITISATION_PROMPT_VERSION: str = "prompt_v1"
     DIGITISATION_MAX_RETRIES: int = 3
     DIGITISATION_QUALITY_THRESHOLD: float = 0.75
-    # Verification must use a genuinely different vendor than the generator (openai/gpt-image-2,
-    # openai/gpt-5.4-image-2) so the check isn't blind to the same model's own failure modes.
+    # Verification should use a different vendor than the generator so the check isn't blind to
+    # the same model's own failure modes. With gemini-2.5-flash-image as the primary generator the
+    # verifier below shares a vendor with it; the cross-vendor guarantee now only holds for the
+    # gpt-image-2 fallback. Kept as-is on purpose — it judges a rendered PNG against the source
+    # photo, a different task from generation — but worth revisiting if verdicts look lenient.
     DIGITISATION_VERIFIER_MODEL: str = "google/gemini-2.5-flash"
 
     # Shared second-opinion verifier for Stage 2 (crop) and Stage 3 (attributes). Deliberately

@@ -446,7 +446,7 @@
         blurb: "Scores every surviving combination on how well it matches your request, how compatible the pieces are, and visual harmony — then picks a diverse shortlist rather than near-duplicates." },
       { key: "STAGE_08_SEMANTIC_VALIDATION", title: "Stage 8: Semantic Validation", color: "emerald", tech: "LLM",
         blurb: "Before spending money generating an image, an LLM sanity-checks whether each shortlisted outfit actually makes sense for your request. Nonsense combinations are dropped here." },
-      { key: "STAGE_09_IMAGE_GENERATION", title: "Stage 9: Outfit Image Generation", color: "emerald", tech: "gpt-image-2",
+      { key: "STAGE_09_IMAGE_GENERATION", title: "Stage 9: Outfit Image Generation", color: "emerald", tech: "gemini-2.5-flash-image",
         blurb: "Generates a real photo of the selected outfit using each garment's actual catalogue image as a reference, so the picture reflects your real wardrobe items." },
       { key: "STAGE_10_GATES", title: "Stage 10: Visual Gate + Semantic Gate", color: "emerald", tech: "VLM (parallel)",
         blurb: "Two AI checks run at once on the generated photo: does it look good (0-10 score), and does it actually match the garments that were selected? Failing outfits are retried or swapped for the next-best candidate." },
